@@ -34,3 +34,10 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/ui-samples
+/.impeccable
+/.claude
+
+# playground → claude sync artifacts (local design tooling)
+/.playground
