@@ -1,6 +1,7 @@
 import {
   ColorsIcon,
   DashboardSquare01Icon,
+  SlidersHorizontalIcon,
 } from "@hugeicons/core-free-icons"
 import type { HugeiconsIcon } from "@hugeicons/react"
 import type { ComponentProps } from "react"
@@ -56,6 +57,14 @@ export const PLAYGROUND_CATEGORIES: PlaygroundCategory[] = [
       { id: "overlays", label: "Overlays", blurb: "Dialog, sheet, dropdown, popover, tooltip.", status: "ready" },
       { id: "data", label: "Data display", blurb: "Card, table, avatar, progress, chart.", status: "ready" },
       { id: "feedback", label: "Feedback", blurb: "Alert and toast.", status: "ready" },
+    ],
+  },
+  {
+    id: "motion",
+    label: "Motion",
+    icon: SlidersHorizontalIcon,
+    sections: [
+      { id: "dialkit", label: "Interactive (DialKit)", blurb: "Real-time parameter tweaking powered by DialKit.", status: "ready" },
     ],
   },
 ]

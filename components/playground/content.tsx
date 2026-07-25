@@ -13,6 +13,7 @@ import { NavigationSection } from "@/components/playground/sections/navigation"
 import { OverlaysSection } from "@/components/playground/sections/overlays"
 import { DataSection } from "@/components/playground/sections/data"
 import { FeedbackSection } from "@/components/playground/sections/feedback"
+import { MotionSection } from "@/components/playground/sections/motion"
 
 /**
  * Maps a registry section id to its gallery content. Sections absent from this
@@ -32,4 +33,5 @@ export const SECTION_CONTENT: Record<string, ComponentType> = {
   overlays: OverlaysSection,
   data: DataSection,
   feedback: FeedbackSection,
+  dialkit: MotionSection,
 }

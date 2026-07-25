@@ -1,9 +1,11 @@
 "use client"
 
 import * as React from "react"
+import dynamic from "next/dynamic"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { SlidersHorizontalIcon } from "@hugeicons/core-free-icons"
 
+import "dialkit/styles.css"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -17,6 +19,12 @@ import { SECTION_CONTENT } from "@/components/playground/content"
 import { ThemeToggle } from "@/components/playground/theme-toggle"
 import { OverrideProvider } from "@/components/playground/override-context"
 import { TweakPanel } from "@/components/playground/tweak-panel"
+
+// DialKit renders a floating dial panel and touches browser-only APIs, so load
+// it client-side only. It follows our theme via `theme="system"`.
+const DialRoot = dynamic(() => import("dialkit").then((m) => m.DialRoot), {
+  ssr: false,
+})
 
 export function PlaygroundShell() {
   const [activeSection, setActiveSection] = React.useState<string>(
@@ -124,6 +132,9 @@ export function PlaygroundShell() {
         {panelOpen && <TweakPanel onClose={() => setPanelOpen(false)} />}
       </div>
       <Toaster />
+      {/* Starts as a launcher (defaultOpen={false}) so it doesn't fight the
+          right-side TweakPanel; summon it from the Motion section. */}
+      <DialRoot theme="system" position="bottom-right" defaultOpen={false} />
     </div>
     </OverrideProvider>
   )
