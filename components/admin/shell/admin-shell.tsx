@@ -4,13 +4,19 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Logout01Icon, Menu01Icon, Search01Icon } from "@hugeicons/core-free-icons"
+import {
+  Logout01Icon,
+  Menu01Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+} from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
 import { NAV_SECTIONS, ALL_ITEMS } from "@/components/admin/shell/nav-data"
 import {
   Brand,
   SearchField,
+  SearchIconButton,
   IconButton,
   NotificationButton,
   ThemeToggle,
@@ -24,6 +30,9 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import { CurrencyControls } from "@/components/admin/shell/currency-controls"
+import { CommandPaletteProvider } from "@/components/admin/shell/command-palette"
+import { ClientFormProvider } from "@/components/admin/clients/client-form"
+import { Toaster } from "@/components/ui/sonner"
 
 /** Is this nav item the current page? `/admin` matches exactly (so it isn't lit
  * for every sub-route); everything else matches on prefix. */
@@ -65,8 +74,8 @@ function SidebarBody({
                   className={cn(
                     "flex items-center gap-3 rounded-full px-3 py-2 text-sm transition-colors",
                     current
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                      ? "bg-secondary font-medium text-secondary-foreground"
+                      : "text-foreground/80 hover:bg-muted/60 hover:text-foreground"
                   )}
                 >
                   <HugeiconsIcon icon={item.icon} className="size-4.5 shrink-0" />
@@ -76,7 +85,7 @@ function SidebarBody({
                       className={cn(
                         "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-medium",
                         current
-                          ? "bg-primary-foreground/20 text-primary-foreground"
+                          ? "bg-background text-foreground"
                           : "bg-muted text-muted-foreground"
                       )}
                     >
@@ -119,13 +128,80 @@ function SidebarBody({
  * header condenses its search/actions. The header title is derived from the
  * active nav item. Route protection lives elsewhere.
  */
+/** Labels for deep routes that aren't nav items, keyed by exact pathname. */
+const DEEP_CRUMBS: Record<string, string> = {
+  "/admin/clients/new": "New client",
+  "/admin/clients/new-project": "New project",
+}
+
+/** Breadcrumb trail + a back button, derived from the pathname. The active nav
+ * item is the first crumb; any deeper route adds a second (labelled crumb), and
+ * a back button pointing at the parent appears. */
+function HeaderNav() {
+  const pathname = usePathname()
+  const active = ALL_ITEMS.find((item) => isActive(item.href, pathname))
+  const base = active ?? { label: "Dashboard", href: "/admin" }
+  const deeper = pathname !== base.href && pathname.startsWith(base.href)
+
+  const crumbs: { label: string; href?: string }[] = [
+    { label: base.label, href: deeper ? base.href : undefined },
+  ]
+  if (deeper) {
+    const last = pathname.split("/").filter(Boolean).pop() ?? ""
+    crumbs.push({
+      label: DEEP_CRUMBS[pathname] ?? last.charAt(0).toUpperCase() + last.slice(1),
+    })
+  }
+
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      {deeper && (
+        <Link
+          href={base.href}
+          aria-label="Back"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5" />
+        </Link>
+      )}
+      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5">
+        {crumbs.map((c, i) => {
+          const isLast = i === crumbs.length - 1
+          return (
+            <React.Fragment key={c.label}>
+              {i > 0 && (
+                <HugeiconsIcon
+                  icon={ArrowRight01Icon}
+                  className="size-4 shrink-0 text-muted-foreground/50"
+                />
+              )}
+              {isLast || !c.href ? (
+                <span className="truncate text-base font-semibold tracking-tight">
+                  {c.label}
+                </span>
+              ) : (
+                <Link
+                  href={c.href}
+                  className="truncate text-base font-medium tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {c.label}
+                </Link>
+              )}
+            </React.Fragment>
+          )
+        })}
+      </nav>
+    </div>
+  )
+}
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [navOpen, setNavOpen] = React.useState(false)
-  const active = ALL_ITEMS.find((item) => isActive(item.href, pathname))
-  const title = active?.label ?? "Dashboard"
 
   return (
+    <CommandPaletteProvider>
+    <ClientFormProvider>
     <div className="flex h-dvh gap-3 overflow-hidden bg-sidebar p-2 sm:p-3">
       {/* Desktop rail */}
       <aside className="hidden w-64 shrink-0 flex-col rounded-2xl bg-card p-3 ring-1 ring-foreground/10 md:flex">
@@ -158,16 +234,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <HugeiconsIcon icon={Menu01Icon} className="size-5" />
           </IconButton>
 
-          <h1 className="truncate text-base font-semibold tracking-tight">
-            {title}
-          </h1>
+          <HeaderNav />
 
           <SearchField className="ml-auto hidden w-full max-w-xs md:block" />
 
           <div className="ml-auto flex items-center gap-1 sm:gap-2 md:ml-0">
-            <IconButton label="Search" className="md:hidden">
-              <HugeiconsIcon icon={Search01Icon} className="size-5" />
-            </IconButton>
+            <SearchIconButton className="md:hidden" />
             <CurrencyControls className="hidden sm:flex" />
             <NotificationButton />
             <ThemeToggle />
@@ -179,5 +251,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+    <Toaster />
+    </ClientFormProvider>
+    </CommandPaletteProvider>
   )
 }
