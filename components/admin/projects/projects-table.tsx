@@ -16,10 +16,12 @@ import {
 import { PhaseBadge } from "@/components/admin/dashboard/atoms"
 
 const STATUS_DOT: Record<ProjectStatus, string> = {
-  "on-track": "bg-lime-500",
-  "at-risk": "bg-destructive",
-  kickoff: "bg-muted-foreground/50",
-  completed: "bg-info",
+  PLANNING: "bg-muted-foreground/50",
+  IN_PROGRESS: "bg-lime-500",
+  REVIEW: "bg-amber-500",
+  COMPLETED: "bg-info",
+  ON_HOLD: "bg-warning",
+  CANCELLED: "bg-destructive",
 }
 
 function StatusCell({ status }: { status: ProjectStatus }) {
@@ -32,14 +34,14 @@ function StatusCell({ status }: { status: ProjectStatus }) {
 }
 
 const MS_DOT: Record<MilestoneStatus, string> = {
-  completed: "bg-primary",
-  "in-progress": "bg-primary/40",
-  upcoming: "bg-border",
+  COMPLETED: "bg-primary",
+  IN_PROGRESS: "bg-primary/40",
+  PENDING: "bg-border",
 }
 
 /** The timeline column — a compact milestone track with the next up beneath. */
 function MilestoneTrack({ project }: { project: Project }) {
-  const next = project.milestones.find((m) => m.status !== "completed")
+  const next = project.milestones.find((m) => m.status !== "COMPLETED")
   return (
     <div className="w-[200px]">
       <div className="flex items-center">
@@ -49,7 +51,7 @@ function MilestoneTrack({ project }: { project: Project }) {
               <div
                 className={cn(
                   "h-px flex-1",
-                  m.status === "completed" ? "bg-primary" : "bg-border"
+                  m.status === "COMPLETED" ? "bg-primary" : "bg-border"
                 )}
               />
             )}

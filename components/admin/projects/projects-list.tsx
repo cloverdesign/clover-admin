@@ -21,7 +21,7 @@ const LIST = [...PROJECTS]
  */
 export function ProjectsList() {
   const active = LIST.filter(isLive).length
-  const atRisk = LIST.filter((p) => p.status === "at-risk").length
+  const onHold = LIST.filter((p) => p.status === "ON_HOLD").length
   const pipeline = LIST.filter(isLive).reduce(
     (s, p) => s + convert(p.value, p.currency, "USD"),
     0
@@ -33,7 +33,7 @@ export function ProjectsList() {
       <div className="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border md:grid-cols-4">
         <Metric label="Projects" value={String(LIST.length)} />
         <Metric label="Active" value={String(active)} />
-        <Metric label="At risk" value={String(atRisk)} tone={atRisk ? "warning" : undefined} />
+        <Metric label="On hold" value={String(onHold)} tone={onHold ? "warning" : undefined} />
         <Metric label="Pipeline" value={formatMoney(pipeline, "USD")} />
       </div>
 

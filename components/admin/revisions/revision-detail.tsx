@@ -63,20 +63,20 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
   )
   const [declineOpen, setDeclineOpen] = React.useState(false)
 
-  const pending = status === "requested" || status === "in-review"
+  const pending = status === "REQUESTED" || status === "IN_REVIEW"
 
   const approveAsPhase = () => {
-    setStatus("approved")
+    setStatus("APPROVED")
     setResolution({ type: "phase", ref: revision.projectId, refName: `${revision.title} (phase)` })
     toast.success(`Approved — added a new phase to ${revision.projectName}`)
   }
   const approveAsProject = () => {
-    setStatus("approved")
+    setStatus("APPROVED")
     setResolution({ type: "project", ref: revision.projectId, refName: revision.title })
     toast.success(`Approved — scaffolded a linked project “${revision.title}”`)
   }
   const decline = () => {
-    setStatus("declined")
+    setStatus("DECLINED")
     setResolution(undefined)
     setDeclineOpen(false)
     toast.success(`Declined “${revision.title}”`)
@@ -108,11 +108,11 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
 
         {pending && (
           <div className="flex shrink-0 items-center gap-2">
-            {status === "requested" && (
+            {status === "REQUESTED" && (
               <Button
                 variant="ghost"
                 onClick={() => {
-                  setStatus("in-review")
+                  setStatus("IN_REVIEW")
                   toast.success("Moved to in review")
                 }}
               >
@@ -157,7 +157,7 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
       </div>
 
       {/* Resolution banner (approved / declined) */}
-      {status === "approved" && resolution && (
+      {status === "APPROVED" && resolution && (
         <Link
           href={`/admin/projects/${resolution.ref}`}
           className="mt-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 transition-colors hover:border-foreground/20"
@@ -174,7 +174,7 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
           <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 text-muted-foreground" />
         </Link>
       )}
-      {status === "declined" && (
+      {status === "DECLINED" && (
         <div className="mt-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
             <HugeiconsIcon icon={Cancel01Icon} className="size-5" />

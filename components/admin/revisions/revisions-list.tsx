@@ -17,10 +17,10 @@ type Filter = "all" | RevisionStatus
 
 const TABS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
-  { key: "requested", label: "Requested" },
-  { key: "in-review", label: "In review" },
-  { key: "approved", label: "Approved" },
-  { key: "declined", label: "Declined" },
+  { key: "REQUESTED", label: "Requested" },
+  { key: "IN_REVIEW", label: "In review" },
+  { key: "APPROVED", label: "Approved" },
+  { key: "DECLINED", label: "Declined" },
 ]
 
 /** Pending first (needs a decision), then most recent. */
@@ -81,9 +81,9 @@ export function RevisionsList() {
           value={String(ALL.filter(isPending).length)}
           tone={ALL.filter(isPending).length > 0 ? "warning" : undefined}
         />
-        <Metric label="Requested" value={String(count("requested"))} />
-        <Metric label="In review" value={String(count("in-review"))} />
-        <Metric label="Approved" value={String(count("approved"))} />
+        <Metric label="Requested" value={String(count("REQUESTED"))} />
+        <Metric label="In review" value={String(count("IN_REVIEW"))} />
+        <Metric label="Approved" value={String(count("APPROVED"))} />
       </div>
 
       {/* Table */}

@@ -27,7 +27,14 @@ import { Monogram } from "@/components/admin/clients/atoms"
 import { Field } from "@/components/admin/clients/new-client/fields"
 import { EditorialFrame } from "@/components/admin/clients/new-client/editorial-parts"
 
-const STATUSES: ProjectStatus[] = ["on-track", "at-risk", "kickoff", "completed"]
+const STATUSES: ProjectStatus[] = [
+  "PLANNING",
+  "IN_PROGRESS",
+  "REVIEW",
+  "COMPLETED",
+  "ON_HOLD",
+  "CANCELLED",
+]
 
 /**
  * Edit Project — same editorial split as the create flows, pre-filled from the
@@ -40,7 +47,7 @@ export function EditProjectPage({ id }: { id?: string }) {
   const [name, setName] = React.useState(project?.name ?? "")
   const [type, setType] = React.useState(project?.type ?? "")
   const [phase, setPhase] = React.useState<Phase>(project?.phase ?? "Kickoff")
-  const [status, setStatus] = React.useState<ProjectStatus>(project?.status ?? "kickoff")
+  const [status, setStatus] = React.useState<ProjectStatus>(project?.status ?? "PLANNING")
   const [value, setValue] = React.useState(project ? String(project.value) : "")
   const [currency, setCurrency] = React.useState(project?.currency ?? "USD")
   const [start, setStart] = React.useState(project?.start ?? "")

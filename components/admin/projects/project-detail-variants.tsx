@@ -96,7 +96,7 @@ function useProjectState(project: Project) {
   const [phase, setPhase] = React.useState<Phase>(project.phase)
   const [milestones, setMilestones] = React.useState<Milestone[]>(project.milestones)
 
-  const completed = milestones.filter((m) => m.status === "completed").length
+  const completed = milestones.filter((m) => m.status === "COMPLETED").length
   const progress =
     milestones.length === 0 ? 0 : Math.round((completed / milestones.length) * 100)
 
@@ -515,9 +515,9 @@ const MS_STATUS_META: Record<
   MilestoneStatus,
   { label: string; variant: "success" | "info" | "secondary" }
 > = {
-  completed: { label: "Completed", variant: "success" },
-  "in-progress": { label: "In progress", variant: "info" },
-  upcoming: { label: "Upcoming", variant: "secondary" },
+  COMPLETED: { label: "Completed", variant: "success" },
+  IN_PROGRESS: { label: "In progress", variant: "info" },
+  PENDING: { label: "Pending", variant: "secondary" },
 }
 
 function MilestonesEditor({ state }: { state: State }) {
@@ -529,9 +529,9 @@ function MilestonesEditor({ state }: { state: State }) {
     setMilestones((prev) =>
       prev.map((m) => {
         if (m.id !== id) return m
-        const next: MilestoneStatus = m.status === "completed" ? "upcoming" : "completed"
+        const next: MilestoneStatus = m.status === "COMPLETED" ? "PENDING" : "COMPLETED"
         toast.success(
-          next === "completed" ? `Marked “${m.title}” complete` : `Reopened “${m.title}”`
+          next === "COMPLETED" ? `Marked “${m.title}” complete` : `Reopened “${m.title}”`
         )
         return { ...m, status: next }
       })
@@ -558,7 +558,7 @@ function MilestonesEditor({ state }: { state: State }) {
     if (!t) return
     setMilestones((prev) => [
       ...prev,
-      { id: `m-${prev.length}-${t.length}`, title: t, due: due.trim() || "TBD", status: "upcoming", order: prev.length },
+      { id: `m-${prev.length}-${t.length}`, title: t, due: due.trim() || "TBD", status: "PENDING", order: prev.length },
     ])
     setTitle("")
     setDue("")
@@ -575,7 +575,7 @@ function MilestonesEditor({ state }: { state: State }) {
       <div className="flex flex-col divide-y divide-border rounded-2xl border bg-card">
         {milestones.map((m, i) => {
           const meta = MS_STATUS_META[m.status]
-          const done = m.status === "completed"
+          const done = m.status === "COMPLETED"
           return (
             <div key={m.id} className="group flex items-center gap-3 px-4 py-3">
               <button

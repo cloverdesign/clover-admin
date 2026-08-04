@@ -63,10 +63,11 @@ export function Monogram({
 }
 
 const STATUS_DOT: Record<ClientStatus, string> = {
-  active: "var(--color-lime-500)",
-  prospect: "var(--color-violet-400)",
-  completed: "var(--color-neutral-400)",
-  archived: "var(--color-neutral-300)",
+  LEAD: "var(--color-violet-400)",
+  ONBOARDING: "var(--color-amber-400)",
+  ACTIVE: "var(--color-lime-500)",
+  ON_HOLD: "var(--color-neutral-400)",
+  CHURNED: "var(--color-neutral-300)",
 }
 
 export function ClientStatusBadge({ status }: { status: ClientStatus }) {

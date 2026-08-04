@@ -62,15 +62,15 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
   const [confirmOpen, setConfirmOpen] = React.useState(false)
 
   const send = () => {
-    setStatus("sent")
+    setStatus("SENT")
     toast.success(`Invoice ${invoice.number} sent to ${invoice.client}`)
   }
   const markPaid = () => {
-    setStatus("paid")
+    setStatus("PAID")
     toast.success(`Marked ${invoice.number} as paid`)
   }
 
-  const open = status === "sent" || status === "overdue"
+  const open = status === "SENT" || status === "OVERDUE"
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -85,7 +85,7 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          {status === "draft" && (
+          {status === "DRAFT" && (
             <Button className="gap-1.5" onClick={send}>
               <HugeiconsIcon icon={SentIcon} data-icon="inline-start" className="size-4" />
               Send invoice
@@ -134,9 +134,9 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
             <Meta
               label="Due"
               value={invoice.due}
-              tone={status === "overdue" ? "destructive" : undefined}
+              tone={status === "OVERDUE" ? "destructive" : undefined}
             />
-            {invoice.paidDate && status === "paid" && (
+            {invoice.paidDate && status === "PAID" && (
               <Meta label="Paid" value={invoice.paidDate} tone="success" />
             )}
           </div>

@@ -24,7 +24,7 @@ import { Monogram } from "@/components/admin/clients/atoms"
 import { Field } from "@/components/admin/clients/new-client/fields"
 import { EditorialFrame } from "@/components/admin/clients/new-client/editorial-parts"
 
-const STATUSES: ClientStatus[] = ["active", "prospect", "completed", "archived"]
+const STATUSES: ClientStatus[] = ["LEAD", "ONBOARDING", "ACTIVE", "ON_HOLD", "CHURNED"]
 
 /**
  * Edit Client — same editorial split as New Client, pre-filled from the record.
@@ -40,7 +40,7 @@ export function EditClientPage({ id }: { id?: string }) {
   const [phone, setPhone] = React.useState(client?.phone ?? "")
   const [location, setLocation] = React.useState(client?.location ?? "")
   const [currency, setCurrency] = React.useState(client?.currency ?? "USD")
-  const [status, setStatus] = React.useState<ClientStatus>(client?.status ?? "active")
+  const [status, setStatus] = React.useState<ClientStatus>(client?.status ?? "ACTIVE")
 
   if (!client) {
     return (

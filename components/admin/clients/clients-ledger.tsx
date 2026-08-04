@@ -32,7 +32,7 @@ export function ClientsLedger({
 }) {
   const money = useDisplayMoney()
 
-  const activeCount = data.filter((c) => c.status === "active").length
+  const activeCount = data.filter((c) => c.status === "ACTIVE").length
   const pipeline = data.reduce((s, c) => s + clientTotalValue(c, money.display), 0)
   const outstanding = data.reduce(
     (s, c) => s + convert(c.outstanding, c.currency, money.display),

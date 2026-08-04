@@ -11,10 +11,17 @@
 
 import type { Phase } from "@/lib/mock/dashboard"
 
-/** Adds "completed" to the dashboard's live-project statuses. */
-export type ProjectStatus = "on-track" | "at-risk" | "kickoff" | "completed"
+/** Project lifecycle status (Clover CMS API `Project.status`). */
+export type ProjectStatus =
+  | "PLANNING"
+  | "IN_PROGRESS"
+  | "REVIEW"
+  | "COMPLETED"
+  | "ON_HOLD"
+  | "CANCELLED"
 
-export type MilestoneStatus = "upcoming" | "in-progress" | "completed"
+/** Milestone status (Clover CMS API `Milestone.status`). */
+export type MilestoneStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED"
 
 /** A milestone on a project (§1.2.2). Ordered by `order`. */
 export type Milestone = {
@@ -67,7 +74,7 @@ function milestones(
     due: m.due,
     order: i,
     status:
-      i < doneThrough ? "completed" : i === doneThrough ? "in-progress" : "upcoming",
+      i < doneThrough ? "COMPLETED" : i === doneThrough ? "IN_PROGRESS" : "PENDING",
   }))
 }
 
@@ -81,7 +88,7 @@ export const PROJECTS: Project[] = [
     brief:
       "Rebuild the Atlas Foods marketing site on the new design system, with a headless CMS for the editorial team.",
     phase: "Development",
-    status: "at-risk",
+    status: "IN_PROGRESS",
     progress: 62,
     value: 52000,
     currency: "USD",
@@ -110,7 +117,7 @@ export const PROJECTS: Project[] = [
     type: "Branding",
     brief: "Visual identity refresh — logo, palette, typography and guidelines.",
     phase: "Launch",
-    status: "completed",
+    status: "COMPLETED",
     progress: 100,
     value: 28000,
     currency: "USD",
@@ -137,7 +144,7 @@ export const PROJECTS: Project[] = [
     type: "Branding",
     brief: "Refresh the Northwind brand ahead of their Series B raise.",
     phase: "Design",
-    status: "on-track",
+    status: "IN_PROGRESS",
     progress: 45,
     value: 24000,
     currency: "USD",
@@ -165,7 +172,7 @@ export const PROJECTS: Project[] = [
     type: "Branding",
     brief: "Full identity for a new travel-tech startup.",
     phase: "Discovery",
-    status: "on-track",
+    status: "IN_PROGRESS",
     progress: 20,
     value: 12000,
     currency: "GBP",
@@ -192,7 +199,7 @@ export const PROJECTS: Project[] = [
     type: "Campaign",
     brief: "Launch campaign for the Muse spring collection.",
     phase: "Launch",
-    status: "on-track",
+    status: "REVIEW",
     progress: 88,
     value: 18000,
     currency: "USD",
@@ -220,7 +227,7 @@ export const PROJECTS: Project[] = [
     type: "Branding",
     brief: "Rebrand a sustainability-focused architecture studio.",
     phase: "Kickoff",
-    status: "kickoff",
+    status: "PLANNING",
     progress: 5,
     value: 30000,
     currency: "EUR",
@@ -247,7 +254,7 @@ export const PROJECTS: Project[] = [
     type: "Packaging",
     brief: "Packaging system for a new line of cold-pressed juices.",
     phase: "Design",
-    status: "on-track",
+    status: "IN_PROGRESS",
     progress: 52,
     value: 16000,
     currency: "USD",
@@ -274,7 +281,7 @@ export const PROJECTS: Project[] = [
     type: "Product",
     brief: "Customer dashboard for Lumen's energy-monitoring hardware.",
     phase: "Development",
-    status: "at-risk",
+    status: "ON_HOLD",
     progress: 40,
     value: 64000,
     currency: "EUR",
@@ -303,7 +310,7 @@ export const PROJECTS: Project[] = [
     type: "Motion",
     brief: "Sizzle reel and motion system for Fable's streaming launch.",
     phase: "Design",
-    status: "on-track",
+    status: "IN_PROGRESS",
     progress: 55,
     value: 9000,
     currency: "USD",
@@ -331,7 +338,7 @@ export const PROJECTS: Project[] = [
     brief:
       "Revision: extend the Lumen dashboard to native mobile after the web beta.",
     phase: "Kickoff",
-    status: "kickoff",
+    status: "PLANNING",
     progress: 8,
     value: 22000,
     currency: "EUR",
@@ -358,7 +365,7 @@ export const PROJECTS: Project[] = [
     type: "Website",
     brief: "Marketing site for a boutique maritime law firm.",
     phase: "Launch",
-    status: "completed",
+    status: "COMPLETED",
     progress: 100,
     value: 34000,
     currency: "USD",
@@ -386,7 +393,7 @@ export const PROJECTS: Project[] = [
     type: "Website",
     brief: "Single landing page for a product that has since sunset.",
     phase: "Launch",
-    status: "completed",
+    status: "CANCELLED",
     progress: 100,
     value: 8000,
     currency: "USD",
@@ -420,19 +427,21 @@ export function childProjects(parentId: string): Project[] {
 }
 
 export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
-  "on-track": "On track",
-  "at-risk": "At risk",
-  kickoff: "Kickoff",
-  completed: "Completed",
+  PLANNING: "Planning",
+  IN_PROGRESS: "In progress",
+  REVIEW: "Review",
+  COMPLETED: "Completed",
+  ON_HOLD: "On hold",
+  CANCELLED: "Cancelled",
 }
 
-/** A live project is anything not completed/archived — the default filter. */
+/** A live project is anything not finished or cancelled — the default filter. */
 export function isLive(p: Project): boolean {
-  return !p.archived && p.status !== "completed"
+  return !p.archived && p.status !== "COMPLETED" && p.status !== "CANCELLED"
 }
 
 export const MILESTONE_STATUS_LABEL: Record<MilestoneStatus, string> = {
-  upcoming: "Upcoming",
-  "in-progress": "In progress",
-  completed: "Completed",
+  PENDING: "Pending",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
 }

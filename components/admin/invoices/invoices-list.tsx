@@ -19,10 +19,10 @@ type Filter = "all" | InvoiceStatus
 
 const TABS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
-  { key: "draft", label: "Draft" },
-  { key: "sent", label: "Sent" },
-  { key: "overdue", label: "Overdue" },
-  { key: "paid", label: "Paid" },
+  { key: "DRAFT", label: "Draft" },
+  { key: "SENT", label: "Sent" },
+  { key: "OVERDUE", label: "Overdue" },
+  { key: "PAID", label: "Paid" },
 ]
 
 /** Most recent first. */

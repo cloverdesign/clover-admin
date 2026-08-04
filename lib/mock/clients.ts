@@ -11,7 +11,13 @@ import type { Phase } from "@/lib/mock/dashboard"
 import { convert, getCurrency } from "@/lib/mock/currencies"
 
 /** Derived from a client's projects, not stored (§1.4 "filter by status"). */
-export type ClientStatus = "active" | "prospect" | "completed" | "archived"
+/** Client lifecycle status (Clover CMS API `Client.status`). */
+export type ClientStatus =
+  | "LEAD"
+  | "ONBOARDING"
+  | "ACTIVE"
+  | "ON_HOLD"
+  | "CHURNED"
 
 export type ClientProjectStatus =
   | "on-track"
@@ -61,7 +67,7 @@ export const CLIENTS: Client[] = [
     email: "dana@atlasfoods.com",
     phone: "+1 (415) 555-0142",
     location: "San Francisco, US",
-    status: "active",
+    status: "ACTIVE",
     currency: "USD",
     since: "Mar 2024",
     outstanding: 12000,
@@ -80,7 +86,7 @@ export const CLIENTS: Client[] = [
     email: "priya@northwind.co",
     phone: "+1 (212) 555-0177",
     location: "New York, US",
-    status: "active",
+    status: "ACTIVE",
     currency: "USD",
     since: "Jan 2024",
     outstanding: 12000,
@@ -98,7 +104,7 @@ export const CLIENTS: Client[] = [
     email: "sam@kite.studio",
     phone: "+44 20 7946 0321",
     location: "London, UK",
-    status: "active",
+    status: "ACTIVE",
     currency: "GBP",
     since: "Feb 2024",
     outstanding: 0,
@@ -116,7 +122,7 @@ export const CLIENTS: Client[] = [
     email: "elena@muse.io",
     phone: "+1 (310) 555-0190",
     location: "Los Angeles, US",
-    status: "active",
+    status: "ACTIVE",
     currency: "USD",
     since: "Apr 2024",
     outstanding: 6400,
@@ -134,7 +140,7 @@ export const CLIENTS: Client[] = [
     email: "joao@verde.pt",
     phone: "+351 21 123 4567",
     location: "Lisbon, PT",
-    status: "active",
+    status: "ONBOARDING",
     currency: "EUR",
     since: "Jun 2025",
     outstanding: 0,
@@ -152,7 +158,7 @@ export const CLIENTS: Client[] = [
     email: "maya@orchard.com",
     phone: "+1 (503) 555-0155",
     location: "Portland, US",
-    status: "active",
+    status: "ACTIVE",
     currency: "USD",
     since: "May 2024",
     outstanding: 0,
@@ -170,7 +176,7 @@ export const CLIENTS: Client[] = [
     email: "nils@lumen.de",
     phone: "+49 30 1234 5678",
     location: "Berlin, DE",
-    status: "active",
+    status: "ACTIVE",
     currency: "EUR",
     since: "Nov 2023",
     outstanding: 20000,
@@ -187,7 +193,7 @@ export const CLIENTS: Client[] = [
     contactName: "Ada Brooks",
     email: "ada@fable.tv",
     location: "Austin, US",
-    status: "active",
+    status: "ON_HOLD",
     currency: "USD",
     since: "Jul 2024",
     outstanding: 0,
@@ -204,7 +210,7 @@ export const CLIENTS: Client[] = [
     contactName: "Owen Vance",
     email: "owen@kestrel.app",
     location: "Denver, US",
-    status: "prospect",
+    status: "LEAD",
     currency: "USD",
     since: "Jul 2025",
     outstanding: 0,
@@ -220,7 +226,7 @@ export const CLIENTS: Client[] = [
     email: "ifeoma@sable.ng",
     phone: "+234 1 234 5678",
     location: "Lagos, NG",
-    status: "prospect",
+    status: "LEAD",
     currency: "NGN",
     since: "Jul 2025",
     outstanding: 0,
@@ -236,7 +242,7 @@ export const CLIENTS: Client[] = [
     email: "grace@harbor.co",
     phone: "+1 (206) 555-0128",
     location: "Seattle, US",
-    status: "completed",
+    status: "CHURNED",
     currency: "USD",
     since: "Aug 2023",
     outstanding: 0,
@@ -253,7 +259,7 @@ export const CLIENTS: Client[] = [
     contactName: "Marcus Reed",
     email: "marcus@tidewater.com",
     location: "Miami, US",
-    status: "archived",
+    status: "CHURNED",
     currency: "USD",
     since: "Feb 2023",
     outstanding: 0,
@@ -279,7 +285,9 @@ export function getClient(id: string): Client | undefined {
 export type PortalStatus = "active" | "invited" | "not-invited"
 
 export function portalStatus(client: Client): PortalStatus {
-  return client.status === "prospect" ? "not-invited" : "active"
+  if (client.status === "LEAD") return "not-invited"
+  if (client.status === "ONBOARDING") return "invited"
+  return "active"
 }
 
 export const PORTAL_LABEL: Record<PortalStatus, string> = {
@@ -313,8 +321,9 @@ export function formatMoney(amount: number, code: string): string {
 }
 
 export const CLIENT_STATUS_LABEL: Record<ClientStatus, string> = {
-  active: "Active",
-  prospect: "Prospect",
-  completed: "Completed",
-  archived: "Archived",
+  LEAD: "Lead",
+  ONBOARDING: "Onboarding",
+  ACTIVE: "Active",
+  ON_HOLD: "On hold",
+  CHURNED: "Churned",
 }

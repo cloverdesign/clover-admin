@@ -12,10 +12,11 @@ type Filter = "all" | ClientStatus
 
 const TABS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
-  { key: "active", label: "Active" },
-  { key: "prospect", label: "Prospects" },
-  { key: "completed", label: "Completed" },
-  { key: "archived", label: "Archived" },
+  { key: "LEAD", label: "Leads" },
+  { key: "ONBOARDING", label: "Onboarding" },
+  { key: "ACTIVE", label: "Active" },
+  { key: "ON_HOLD", label: "On hold" },
+  { key: "CHURNED", label: "Churned" },
 ]
 
 /**

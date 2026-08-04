@@ -265,7 +265,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function ClientActions({ client }: { client: Client }) {
   const router = useRouter()
   const [confirmOpen, setConfirmOpen] = React.useState(false)
-  const archived = client.status === "archived"
+  const churned = client.status === "CHURNED"
 
   return (
     <>
@@ -286,12 +286,12 @@ function ClientActions({ client }: { client: Client }) {
           <DropdownMenuItem
             onClick={() =>
               toast.success(
-                `${archived ? "Unarchived" : "Archived"} ${client.company}`
+                `${churned ? "Reactivated" : "Marked churned"} ${client.company}`
               )
             }
           >
             <HugeiconsIcon icon={Archive02Icon} />
-            {archived ? "Unarchive" : "Archive"}
+            {churned ? "Mark active" : "Mark churned"}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>

@@ -11,7 +11,7 @@
 import { convert, getCurrency } from "@/lib/mock/currencies"
 import { formatMoney } from "@/lib/mock/clients"
 
-export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue"
+export type InvoiceStatus = "DRAFT" | "SENT" | "PAID" | "OVERDUE"
 
 export type LineItem = {
   description: string
@@ -52,7 +52,7 @@ export const INVOICES: Invoice[] = [
     id: "inv-atlas-site-1", number: "INV-2024-014",
     clientId: "c-atlas", client: "Atlas Foods",
     projectId: "p-atlas-1", projectName: "Site build",
-    status: "overdue", currency: "USD",
+    status: "OVERDUE", currency: "USD",
     issued: "Jun 12, 2024", due: "Jul 12, 2024", ageDays: 52,
     lineItems: [
       { description: "Design system — milestone 2", amount: 8000 },
@@ -63,7 +63,7 @@ export const INVOICES: Invoice[] = [
     id: "inv-atlas-site-2", number: "INV-2024-021",
     clientId: "c-atlas", client: "Atlas Foods",
     projectId: "p-atlas-1", projectName: "Site build",
-    status: "draft", currency: "USD",
+    status: "DRAFT", currency: "USD",
     issued: "Aug 01, 2024", due: "Aug 31, 2024", ageDays: 2,
     lineItems: [{ description: "CMS integration — milestone", amount: 20000 }],
   }),
@@ -71,7 +71,7 @@ export const INVOICES: Invoice[] = [
     id: "inv-atlas-brand", number: "INV-2024-006",
     clientId: "c-atlas", client: "Atlas Foods",
     projectId: "p-atlas-2", projectName: "Brand system",
-    status: "paid", currency: "USD",
+    status: "PAID", currency: "USD",
     issued: "Mar 20, 2024", due: "Apr 19, 2024", paidDate: "Apr 10, 2024", ageDays: 136,
     lineItems: [{ description: "Brand system — full", amount: 28000 }],
   }),
@@ -79,7 +79,7 @@ export const INVOICES: Invoice[] = [
     id: "inv-north-1", number: "INV-2024-018",
     clientId: "c-northwind", client: "Northwind",
     projectId: "p-north-1", projectName: "Brand refresh",
-    status: "sent", currency: "USD",
+    status: "SENT", currency: "USD",
     issued: "Jul 05, 2024", due: "Aug 04, 2024", ageDays: 29,
     lineItems: [
       { description: "Discovery + strategy", amount: 8000 },
@@ -90,7 +90,7 @@ export const INVOICES: Invoice[] = [
     id: "inv-kite-1", number: "INV-2024-004",
     clientId: "c-kite", client: "Kite",
     projectId: "p-kite-1", projectName: "Identity",
-    status: "paid", currency: "GBP",
+    status: "PAID", currency: "GBP",
     issued: "Feb 28, 2024", due: "Mar 29, 2024", paidDate: "Mar 12, 2024", ageDays: 157,
     lineItems: [{ description: "Brand strategy — deposit", amount: 4000 }],
   }),
@@ -98,7 +98,7 @@ export const INVOICES: Invoice[] = [
     id: "inv-muse-1", number: "INV-2024-019",
     clientId: "c-muse", client: "Muse",
     projectId: "p-muse-1", projectName: "Campaign",
-    status: "sent", currency: "USD",
+    status: "SENT", currency: "USD",
     issued: "Jul 15, 2024", due: "Aug 14, 2024", ageDays: 19,
     lineItems: [{ description: "Campaign — production", amount: 6400 }],
   }),
@@ -106,7 +106,7 @@ export const INVOICES: Invoice[] = [
     id: "inv-verde-1", number: "INV-2025-003",
     clientId: "c-verde", client: "Verde Studio",
     projectId: "p-verde-1", projectName: "Rebrand",
-    status: "draft", currency: "EUR",
+    status: "DRAFT", currency: "EUR",
     issued: "Jun 24, 2025", due: "Jul 24, 2025", ageDays: 1,
     lineItems: [{ description: "Rebrand — kickoff deposit", amount: 15000 }],
   }),
@@ -114,7 +114,7 @@ export const INVOICES: Invoice[] = [
     id: "inv-orch-1", number: "INV-2024-010",
     clientId: "c-orchard", client: "Orchard",
     projectId: "p-orch-1", projectName: "Packaging",
-    status: "paid", currency: "USD",
+    status: "PAID", currency: "USD",
     issued: "May 20, 2024", due: "Jun 19, 2024", paidDate: "Jun 05, 2024", ageDays: 75,
     lineItems: [{ description: "Packaging — structural", amount: 16000 }],
   }),
@@ -122,7 +122,7 @@ export const INVOICES: Invoice[] = [
     id: "inv-lumen-1", number: "INV-2024-013",
     clientId: "c-lumen", client: "Lumen",
     projectId: "p-lumen-1", projectName: "Web app",
-    status: "overdue", currency: "EUR",
+    status: "OVERDUE", currency: "EUR",
     issued: "Jun 05, 2024", due: "Jul 05, 2024", ageDays: 59,
     lineItems: [{ description: "MVP build — milestone 2", amount: 12000 }],
   }),
@@ -130,7 +130,7 @@ export const INVOICES: Invoice[] = [
     id: "inv-lumen-2", number: "INV-2024-020",
     clientId: "c-lumen", client: "Lumen",
     projectId: "p-lumen-1", projectName: "Web app",
-    status: "sent", currency: "EUR",
+    status: "SENT", currency: "EUR",
     issued: "Jul 20, 2024", due: "Aug 19, 2024", ageDays: 14,
     lineItems: [{ description: "Beta — milestone 3", amount: 8000 }],
   }),
@@ -138,7 +138,7 @@ export const INVOICES: Invoice[] = [
     id: "inv-fable-1", number: "INV-2024-008",
     clientId: "c-fable", client: "Fable",
     projectId: "p-fable-1", projectName: "Motion reel",
-    status: "paid", currency: "USD",
+    status: "PAID", currency: "USD",
     issued: "Jul 20, 2024", due: "Aug 19, 2024", paidDate: "Aug 01, 2024", ageDays: 14,
     lineItems: [{ description: "Motion reel — storyboard", amount: 9000 }],
   }),
@@ -146,7 +146,7 @@ export const INVOICES: Invoice[] = [
     id: "inv-harbor-1", number: "INV-2023-021",
     clientId: "c-harbor", client: "Harbor & Co",
     projectId: "p-harbor-1", projectName: "Website",
-    status: "paid", currency: "USD",
+    status: "PAID", currency: "USD",
     issued: "Dec 12, 2023", due: "Jan 11, 2024", paidDate: "Jan 03, 2024", ageDays: 400,
     lineItems: [{ description: "Website — full", amount: 34000 }],
   }),
@@ -157,7 +157,7 @@ export const EMPTY_INVOICES: Invoice[] = []
 
 /** An invoice is "open" (contributes to outstanding) when awaiting payment. */
 export function isOpen(i: Invoice): boolean {
-  return i.status === "sent" || i.status === "overdue"
+  return i.status === "SENT" || i.status === "OVERDUE"
 }
 
 export function getInvoice(id: string): Invoice | undefined {
@@ -173,20 +173,20 @@ export function invoicesForClient(clientId: string): Invoice[] {
 }
 
 export const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
-  draft: "Draft",
-  sent: "Sent",
-  paid: "Paid",
-  overdue: "Overdue",
+  DRAFT: "Draft",
+  SENT: "Sent",
+  PAID: "Paid",
+  OVERDUE: "Overdue",
 }
 
 export const INVOICE_STATUS_VARIANT: Record<
   InvoiceStatus,
   "secondary" | "info" | "success" | "destructive"
 > = {
-  draft: "secondary",
-  sent: "info",
-  paid: "success",
-  overdue: "destructive",
+  DRAFT: "secondary",
+  SENT: "info",
+  PAID: "success",
+  OVERDUE: "destructive",
 }
 
 /** Headline totals, converted into `display` currency. */
@@ -197,9 +197,9 @@ export function invoiceTotals(data: Invoice[], display: string) {
       .reduce((s, i) => s + convert(i.amount, i.currency, display), 0)
   return {
     outstanding: sum(isOpen),
-    overdue: sum((i) => i.status === "overdue"),
-    paid: sum((i) => i.status === "paid"),
-    draftCount: data.filter((i) => i.status === "draft").length,
+    overdue: sum((i) => i.status === "OVERDUE"),
+    paid: sum((i) => i.status === "PAID"),
+    draftCount: data.filter((i) => i.status === "DRAFT").length,
   }
 }
 

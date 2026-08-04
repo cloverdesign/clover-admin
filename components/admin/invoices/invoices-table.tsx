@@ -50,7 +50,7 @@ const columns: ColumnDef<Invoice>[] = [
       <span
         className={cn(
           "text-sm",
-          row.original.status === "overdue" ? "text-destructive" : "text-muted-foreground"
+          row.original.status === "OVERDUE" ? "text-destructive" : "text-muted-foreground"
         )}
       >
         {row.original.due}
