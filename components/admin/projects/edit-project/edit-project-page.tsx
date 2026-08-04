@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { formatDate } from "@/lib/format"
 import { CURRENCIES } from "@/lib/mock/currencies"
 import { PHASE_ORDER } from "@/lib/phase-colors"
 import type { Phase } from "@/lib/mock/dashboard"
@@ -50,8 +51,8 @@ export function EditProjectPage({ id }: { id?: string }) {
   const [status, setStatus] = React.useState<ProjectStatus>(project?.status ?? "PLANNING")
   const [value, setValue] = React.useState(project ? String(project.value) : "")
   const [currency, setCurrency] = React.useState(project?.currency ?? "USD")
-  const [start, setStart] = React.useState(project?.start ?? "")
-  const [target, setTarget] = React.useState(project?.target ?? "")
+  const [start, setStart] = React.useState(formatDate(project?.startDate, "month"))
+  const [target, setTarget] = React.useState(formatDate(project?.endDate, "month"))
   const [brief, setBrief] = React.useState(project?.brief ?? "")
 
   if (!project) {

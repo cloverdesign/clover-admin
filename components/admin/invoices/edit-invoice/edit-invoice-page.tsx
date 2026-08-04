@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { formatDate } from "@/lib/format"
 import { CURRENCIES } from "@/lib/mock/currencies"
 import { PROJECTS, getProject } from "@/lib/mock/projects"
 import {
@@ -44,7 +45,7 @@ export function EditInvoicePage({ id }: { id?: string }) {
 
   const [selectedId, setSelectedId] = React.useState(invoice?.projectId ?? "")
   const [currency, setCurrency] = React.useState(invoice?.currency ?? "USD")
-  const [due, setDue] = React.useState(invoice?.due ?? "")
+  const [due, setDue] = React.useState(formatDate(invoice?.dueDate))
   const [lines, setLines] = React.useState<Line[]>(
     invoice?.lineItems.map((l) => ({ description: l.description, amount: String(l.amount) })) ?? [
       { description: "", amount: "" },

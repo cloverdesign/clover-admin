@@ -15,6 +15,7 @@ import {
 } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
+import { formatDate } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -130,14 +131,14 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
             </Link>
           </div>
           <div className="text-right text-sm">
-            <Meta label="Issued" value={invoice.issued} />
+            <Meta label="Issued" value={formatDate(invoice.issuedDate)} />
             <Meta
               label="Due"
-              value={invoice.due}
+              value={formatDate(invoice.dueDate)}
               tone={status === "OVERDUE" ? "destructive" : undefined}
             />
             {invoice.paidDate && status === "PAID" && (
-              <Meta label="Paid" value={invoice.paidDate} tone="success" />
+              <Meta label="Paid" value={formatDate(invoice.paidDate)} tone="success" />
             )}
           </div>
         </div>

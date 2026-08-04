@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Attachment01Icon } from "@hugeicons/core-free-icons"
 
+import { formatDate } from "@/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { DataTable, DataTableSortHeader } from "@/components/ui/data-table"
 import {
@@ -52,10 +53,12 @@ const columns: ColumnDef<RevisionRequest>[] = [
   },
   {
     id: "requested",
-    accessorFn: (r) => r.ageDays,
+    accessorFn: (r) => r.createdAt,
     header: ({ column }) => <DataTableSortHeader column={column} title="Requested" />,
     cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">{row.original.requested}</span>
+      <span className="text-sm text-muted-foreground">
+        {formatDate(row.original.createdAt)}
+      </span>
     ),
   },
 ]

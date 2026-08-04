@@ -32,12 +32,10 @@ export type Invoice = {
   /** Total, in `currency` — the sum of `lineItems`. */
   amount: number
   lineItems: LineItem[]
-  /** Display dates, e.g. "Jul 12, 2024". */
-  issued: string
-  due: string
+  /** ISO date-times (API `Invoice.issuedDate` / `dueDate` / `paidDate`). */
+  issuedDate: string
+  dueDate: string
   paidDate?: string
-  /** Sort key — lower is more recent. */
-  ageDays: number
 }
 
 /** Build an invoice, summing line items into the total. */
@@ -53,7 +51,7 @@ export const INVOICES: Invoice[] = [
     clientId: "c-atlas", client: "Atlas Foods",
     projectId: "p-atlas-1", projectName: "Site build",
     status: "OVERDUE", currency: "USD",
-    issued: "Jun 12, 2024", due: "Jul 12, 2024", ageDays: 52,
+    issuedDate: "2024-06-12", dueDate: "2024-07-12",
     lineItems: [
       { description: "Design system — milestone 2", amount: 8000 },
       { description: "Frontend build — deposit", amount: 4000 },
@@ -64,7 +62,7 @@ export const INVOICES: Invoice[] = [
     clientId: "c-atlas", client: "Atlas Foods",
     projectId: "p-atlas-1", projectName: "Site build",
     status: "DRAFT", currency: "USD",
-    issued: "Aug 01, 2024", due: "Aug 31, 2024", ageDays: 2,
+    issuedDate: "2024-08-01", dueDate: "2024-08-31",
     lineItems: [{ description: "CMS integration — milestone", amount: 20000 }],
   }),
   inv({
@@ -72,7 +70,7 @@ export const INVOICES: Invoice[] = [
     clientId: "c-atlas", client: "Atlas Foods",
     projectId: "p-atlas-2", projectName: "Brand system",
     status: "PAID", currency: "USD",
-    issued: "Mar 20, 2024", due: "Apr 19, 2024", paidDate: "Apr 10, 2024", ageDays: 136,
+    issuedDate: "2024-03-20", dueDate: "2024-04-19", paidDate: "2024-04-10",
     lineItems: [{ description: "Brand system — full", amount: 28000 }],
   }),
   inv({
@@ -80,7 +78,7 @@ export const INVOICES: Invoice[] = [
     clientId: "c-northwind", client: "Northwind",
     projectId: "p-north-1", projectName: "Brand refresh",
     status: "SENT", currency: "USD",
-    issued: "Jul 05, 2024", due: "Aug 04, 2024", ageDays: 29,
+    issuedDate: "2024-07-05", dueDate: "2024-08-04",
     lineItems: [
       { description: "Discovery + strategy", amount: 8000 },
       { description: "Moodboards", amount: 4000 },
@@ -91,7 +89,7 @@ export const INVOICES: Invoice[] = [
     clientId: "c-kite", client: "Kite",
     projectId: "p-kite-1", projectName: "Identity",
     status: "PAID", currency: "GBP",
-    issued: "Feb 28, 2024", due: "Mar 29, 2024", paidDate: "Mar 12, 2024", ageDays: 157,
+    issuedDate: "2024-02-28", dueDate: "2024-03-29", paidDate: "2024-03-12",
     lineItems: [{ description: "Brand strategy — deposit", amount: 4000 }],
   }),
   inv({
@@ -99,7 +97,7 @@ export const INVOICES: Invoice[] = [
     clientId: "c-muse", client: "Muse",
     projectId: "p-muse-1", projectName: "Campaign",
     status: "SENT", currency: "USD",
-    issued: "Jul 15, 2024", due: "Aug 14, 2024", ageDays: 19,
+    issuedDate: "2024-07-15", dueDate: "2024-08-14",
     lineItems: [{ description: "Campaign — production", amount: 6400 }],
   }),
   inv({
@@ -107,7 +105,7 @@ export const INVOICES: Invoice[] = [
     clientId: "c-verde", client: "Verde Studio",
     projectId: "p-verde-1", projectName: "Rebrand",
     status: "DRAFT", currency: "EUR",
-    issued: "Jun 24, 2025", due: "Jul 24, 2025", ageDays: 1,
+    issuedDate: "2025-06-24", dueDate: "2025-07-24",
     lineItems: [{ description: "Rebrand — kickoff deposit", amount: 15000 }],
   }),
   inv({
@@ -115,7 +113,7 @@ export const INVOICES: Invoice[] = [
     clientId: "c-orchard", client: "Orchard",
     projectId: "p-orch-1", projectName: "Packaging",
     status: "PAID", currency: "USD",
-    issued: "May 20, 2024", due: "Jun 19, 2024", paidDate: "Jun 05, 2024", ageDays: 75,
+    issuedDate: "2024-05-20", dueDate: "2024-06-19", paidDate: "2024-06-05",
     lineItems: [{ description: "Packaging — structural", amount: 16000 }],
   }),
   inv({
@@ -123,7 +121,7 @@ export const INVOICES: Invoice[] = [
     clientId: "c-lumen", client: "Lumen",
     projectId: "p-lumen-1", projectName: "Web app",
     status: "OVERDUE", currency: "EUR",
-    issued: "Jun 05, 2024", due: "Jul 05, 2024", ageDays: 59,
+    issuedDate: "2024-06-05", dueDate: "2024-07-05",
     lineItems: [{ description: "MVP build — milestone 2", amount: 12000 }],
   }),
   inv({
@@ -131,7 +129,7 @@ export const INVOICES: Invoice[] = [
     clientId: "c-lumen", client: "Lumen",
     projectId: "p-lumen-1", projectName: "Web app",
     status: "SENT", currency: "EUR",
-    issued: "Jul 20, 2024", due: "Aug 19, 2024", ageDays: 14,
+    issuedDate: "2024-07-20", dueDate: "2024-08-19",
     lineItems: [{ description: "Beta — milestone 3", amount: 8000 }],
   }),
   inv({
@@ -139,7 +137,7 @@ export const INVOICES: Invoice[] = [
     clientId: "c-fable", client: "Fable",
     projectId: "p-fable-1", projectName: "Motion reel",
     status: "PAID", currency: "USD",
-    issued: "Jul 20, 2024", due: "Aug 19, 2024", paidDate: "Aug 01, 2024", ageDays: 14,
+    issuedDate: "2024-07-20", dueDate: "2024-08-19", paidDate: "2024-08-01",
     lineItems: [{ description: "Motion reel — storyboard", amount: 9000 }],
   }),
   inv({
@@ -147,7 +145,7 @@ export const INVOICES: Invoice[] = [
     clientId: "c-harbor", client: "Harbor & Co",
     projectId: "p-harbor-1", projectName: "Website",
     status: "PAID", currency: "USD",
-    issued: "Dec 12, 2023", due: "Jan 11, 2024", paidDate: "Jan 03, 2024", ageDays: 400,
+    issuedDate: "2023-12-12", dueDate: "2024-01-11", paidDate: "2024-01-03",
     lineItems: [{ description: "Website — full", amount: 34000 }],
   }),
 ]

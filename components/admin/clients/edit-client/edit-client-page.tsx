@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { formatDate } from "@/lib/format"
 import { CURRENCIES } from "@/lib/mock/currencies"
 import {
   getClient,
@@ -76,7 +77,7 @@ export function EditClientPage({ id }: { id?: string }) {
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium">{client.company}</div>
                 <div className="truncate text-xs text-muted-foreground">
-                  Client since {client.since}
+                  Client since {formatDate(client.createdAt, "month")}
                 </div>
               </div>
             </div>

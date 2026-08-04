@@ -35,6 +35,7 @@ import {
 } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
+import { formatDate } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -394,7 +395,7 @@ function FactsGrid({ project }: { project: Project }) {
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <Fact icon={UserGroupIcon} label="Client" value={project.client} />
       <Fact icon={Money01Icon} label="Value" value={formatMoney(project.value, project.currency)} />
-      <Fact icon={Calendar03Icon} label="Timeline" value={`${project.start} — ${project.target}`} />
+      <Fact icon={Calendar03Icon} label="Timeline" value={`${formatDate(project.startDate, "month")} — ${formatDate(project.endDate, "month")}`} />
     </div>
   )
 }
@@ -405,7 +406,7 @@ function FactsList({ project }: { project: Project }) {
     <div className="flex flex-col gap-2">
       <Fact icon={UserGroupIcon} label="Client" value={project.client} />
       <Fact icon={Money01Icon} label="Value" value={formatMoney(project.value, project.currency)} />
-      <Fact icon={Calendar03Icon} label="Timeline" value={`${project.start} — ${project.target}`} />
+      <Fact icon={Calendar03Icon} label="Timeline" value={`${formatDate(project.startDate, "month")} — ${formatDate(project.endDate, "month")}`} />
     </div>
   )
 }
@@ -558,7 +559,7 @@ function MilestonesEditor({ state }: { state: State }) {
     if (!t) return
     setMilestones((prev) => [
       ...prev,
-      { id: `m-${prev.length}-${t.length}`, title: t, due: due.trim() || "TBD", status: "PENDING", order: prev.length },
+      { id: `m-${prev.length}-${t.length}`, title: t, dueDate: due.trim(), status: "PENDING", order: prev.length },
     ])
     setTitle("")
     setDue("")
@@ -593,7 +594,7 @@ function MilestonesEditor({ state }: { state: State }) {
                 <div className={cn("truncate text-sm font-medium", done && "text-muted-foreground line-through")}>
                   {m.title}
                 </div>
-                <div className="text-xs text-muted-foreground">Due {m.due}</div>
+                <div className="text-xs text-muted-foreground">Due {formatDate(m.dueDate, "compact")}</div>
               </div>
               <Badge variant={meta.variant} className="shrink-0">
                 {meta.label}
@@ -630,7 +631,7 @@ function MilestonesEditor({ state }: { state: State }) {
         <Input
           value={due}
           onChange={(e) => setDue(e.target.value)}
-          placeholder="Due (e.g. Sep 10)"
+          type="date"
           className="sm:w-40"
           onKeyDown={(e) => e.key === "Enter" && add()}
         />
@@ -707,7 +708,7 @@ function InvoicesTab({ project }: { project: Project }) {
           >
             <div className="min-w-0 flex-1">
               <div className="font-mono text-sm font-medium">{i.number}</div>
-              <div className="text-xs text-muted-foreground">Due {i.due}</div>
+              <div className="text-xs text-muted-foreground">Due {formatDate(i.dueDate)}</div>
             </div>
             <Badge variant={INVOICE_STATUS_VARIANT[i.status]}>
               {INVOICE_STATUS_LABEL[i.status]}

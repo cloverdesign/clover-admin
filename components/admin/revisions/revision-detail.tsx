@@ -15,6 +15,7 @@ import {
   ArrowDown01Icon,
 } from "@hugeicons/core-free-icons"
 
+import { formatDate } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -102,7 +103,7 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
               {revision.projectName}
             </Link>
             <span>·</span>
-            <span>Requested {revision.requested}</span>
+            <span>Requested {formatDate(revision.createdAt)}</span>
           </div>
         </div>
 

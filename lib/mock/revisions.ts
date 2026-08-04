@@ -36,10 +36,8 @@ export type RevisionRequest = {
   timeframe?: string
   attachments: Attachment[]
   status: RevisionStatus
-  /** Display date, e.g. "Jul 30, 2024". */
-  requested: string
-  /** Days since submitted — for sorting. */
-  ageDays: number
+  /** ISO date-time the request was submitted (API `RevisionRequest.createdAt`). */
+  createdAt: string
   resolution?: Resolution
 }
 
@@ -57,7 +55,7 @@ export const REVISIONS: RevisionRequest[] = [
       { name: "article-wireframe.png", size: "840 KB" },
     ],
     status: "REQUESTED",
-    requested: "Aug 01, 2024", ageDays: 3,
+    createdAt: "2024-08-01",
   },
   {
     id: "rev-muse-tiktok",
@@ -69,7 +67,7 @@ export const REVISIONS: RevisionRequest[] = [
     timeframe: "Before the spring push",
     attachments: [],
     status: "REQUESTED",
-    requested: "Jul 29, 2024", ageDays: 6,
+    createdAt: "2024-07-29",
   },
   {
     id: "rev-kite-logos",
@@ -81,7 +79,7 @@ export const REVISIONS: RevisionRequest[] = [
     timeframe: undefined,
     attachments: [{ name: "usage-examples.pdf", size: "1.1 MB" }],
     status: "IN_REVIEW",
-    requested: "Jul 22, 2024", ageDays: 13,
+    createdAt: "2024-07-22",
   },
   {
     id: "rev-lumen-mobile",
@@ -93,7 +91,7 @@ export const REVISIONS: RevisionRequest[] = [
     timeframe: "Q1 next year",
     attachments: [{ name: "mobile-brief.pdf", size: "3.2 MB" }],
     status: "APPROVED",
-    requested: "Jul 10, 2024", ageDays: 25,
+    createdAt: "2024-07-10",
     resolution: { type: "project", ref: "p-lumen-2", refName: "Web app — mobile" },
   },
   {
@@ -106,7 +104,7 @@ export const REVISIONS: RevisionRequest[] = [
     timeframe: "With the rollout",
     attachments: [],
     status: "APPROVED",
-    requested: "Jul 05, 2024", ageDays: 30,
+    createdAt: "2024-07-05",
     resolution: { type: "phase", ref: "p-north-1", refName: "Motion guidelines (phase)" },
   },
   {
@@ -119,7 +117,7 @@ export const REVISIONS: RevisionRequest[] = [
     timeframe: "Ongoing",
     attachments: [],
     status: "DECLINED",
-    requested: "Jun 20, 2024", ageDays: 45,
+    createdAt: "2024-06-20",
   },
 ]
 

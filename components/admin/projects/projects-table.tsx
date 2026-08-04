@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { cn } from "@/lib/utils"
+import { formatDate } from "@/lib/format"
 import { DataTable, DataTableSortHeader } from "@/components/ui/data-table"
 import { formatMoney } from "@/lib/mock/clients"
 import {
@@ -60,13 +61,15 @@ function MilestoneTrack({ project }: { project: Project }) {
                 "size-2.5 shrink-0 rounded-full ring-2 ring-card",
                 MS_DOT[m.status]
               )}
-              title={`${m.title} · ${m.due}`}
+              title={`${m.title} · ${formatDate(m.dueDate, "compact")}`}
             />
           </React.Fragment>
         ))}
       </div>
       <div className="mt-1.5 truncate text-xs text-muted-foreground">
-        {next ? `Next: ${next.title} · ${next.due}` : "All milestones complete"}
+        {next
+          ? `Next: ${next.title} · ${formatDate(next.dueDate, "compact")}`
+          : "All milestones complete"}
       </div>
     </div>
   )

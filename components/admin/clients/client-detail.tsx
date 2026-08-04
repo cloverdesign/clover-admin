@@ -20,6 +20,7 @@ import {
 } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
+import { formatDate } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -82,7 +83,7 @@ export function ClientDetail({ id }: { id: string }) {
               {client.company}
             </h2>
             <div className="mt-0.5 text-sm text-muted-foreground">
-              Client since {client.since}
+              Client since {formatDate(client.createdAt, "month")}
             </div>
           </div>
         </div>

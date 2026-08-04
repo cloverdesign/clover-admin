@@ -45,18 +45,15 @@ export type Client = {
   phone?: string
   location?: string
   status: ClientStatus
-  /** Client's billing currency; also the currency of `outstanding`. */
+  /** Client's billing currency; also the currency of `outstanding`.
+   * (Frontend convenience — the API keeps currency on Project/Invoice.) */
   currency: string
-  /** When they were onboarded, e.g. "Mar 2024". */
-  since: string
+  /** ISO date-time the client was created (API `Client.createdAt`). */
+  createdAt: string
   projects: ClientProject[]
   /** Unpaid invoiced amount in `currency`. */
   outstanding: number
   openInvoices: number
-  /** Relative last-touch, e.g. "2h ago". */
-  lastActivity: string
-  /** Hours since last activity — for sorting. */
-  lastActivityHours: number
 }
 
 export const CLIENTS: Client[] = [
@@ -69,11 +66,9 @@ export const CLIENTS: Client[] = [
     location: "San Francisco, US",
     status: "ACTIVE",
     currency: "USD",
-    since: "Mar 2024",
+    createdAt: "2024-03-01",
     outstanding: 12000,
     openInvoices: 1,
-    lastActivity: "2h ago",
-    lastActivityHours: 2,
     projects: [
       { id: "p-atlas-1", name: "Site build", phase: "Development", status: "at-risk", value: 52000, currency: "USD" },
       { id: "p-atlas-2", name: "Brand system", phase: "Launch", status: "completed", value: 28000, currency: "USD" },
@@ -88,11 +83,9 @@ export const CLIENTS: Client[] = [
     location: "New York, US",
     status: "ACTIVE",
     currency: "USD",
-    since: "Jan 2024",
+    createdAt: "2024-01-01",
     outstanding: 12000,
     openInvoices: 1,
-    lastActivity: "3d ago",
-    lastActivityHours: 72,
     projects: [
       { id: "p-north-1", name: "Brand refresh", phase: "Design", status: "on-track", value: 24000, currency: "USD" },
     ],
@@ -106,11 +99,9 @@ export const CLIENTS: Client[] = [
     location: "London, UK",
     status: "ACTIVE",
     currency: "GBP",
-    since: "Feb 2024",
+    createdAt: "2024-02-01",
     outstanding: 0,
     openInvoices: 0,
-    lastActivity: "5h ago",
-    lastActivityHours: 5,
     projects: [
       { id: "p-kite-1", name: "Identity", phase: "Discovery", status: "on-track", value: 12000, currency: "GBP" },
     ],
@@ -124,11 +115,9 @@ export const CLIENTS: Client[] = [
     location: "Los Angeles, US",
     status: "ACTIVE",
     currency: "USD",
-    since: "Apr 2024",
+    createdAt: "2024-04-01",
     outstanding: 6400,
     openInvoices: 1,
-    lastActivity: "1d ago",
-    lastActivityHours: 24,
     projects: [
       { id: "p-muse-1", name: "Campaign", phase: "Launch", status: "on-track", value: 18000, currency: "USD" },
     ],
@@ -142,11 +131,9 @@ export const CLIENTS: Client[] = [
     location: "Lisbon, PT",
     status: "ONBOARDING",
     currency: "EUR",
-    since: "Jun 2025",
+    createdAt: "2025-06-01",
     outstanding: 0,
     openInvoices: 0,
-    lastActivity: "6h ago",
-    lastActivityHours: 6,
     projects: [
       { id: "p-verde-1", name: "Rebrand", phase: "Kickoff", status: "kickoff", value: 30000, currency: "EUR" },
     ],
@@ -160,11 +147,9 @@ export const CLIENTS: Client[] = [
     location: "Portland, US",
     status: "ACTIVE",
     currency: "USD",
-    since: "May 2024",
+    createdAt: "2024-05-01",
     outstanding: 0,
     openInvoices: 0,
-    lastActivity: "2d ago",
-    lastActivityHours: 48,
     projects: [
       { id: "p-orch-1", name: "Packaging", phase: "Design", status: "on-track", value: 16000, currency: "USD" },
     ],
@@ -178,11 +163,9 @@ export const CLIENTS: Client[] = [
     location: "Berlin, DE",
     status: "ACTIVE",
     currency: "EUR",
-    since: "Nov 2023",
+    createdAt: "2023-11-01",
     outstanding: 20000,
     openInvoices: 2,
-    lastActivity: "4h ago",
-    lastActivityHours: 4,
     projects: [
       { id: "p-lumen-1", name: "Web app", phase: "Development", status: "at-risk", value: 64000, currency: "EUR" },
     ],
@@ -195,11 +178,9 @@ export const CLIENTS: Client[] = [
     location: "Austin, US",
     status: "ON_HOLD",
     currency: "USD",
-    since: "Jul 2024",
+    createdAt: "2024-07-01",
     outstanding: 0,
     openInvoices: 0,
-    lastActivity: "1d ago",
-    lastActivityHours: 26,
     projects: [
       { id: "p-fable-1", name: "Motion reel", phase: "Design", status: "on-track", value: 9000, currency: "USD" },
     ],
@@ -212,11 +193,9 @@ export const CLIENTS: Client[] = [
     location: "Denver, US",
     status: "LEAD",
     currency: "USD",
-    since: "Jul 2025",
+    createdAt: "2025-07-01",
     outstanding: 0,
     openInvoices: 0,
-    lastActivity: "1w ago",
-    lastActivityHours: 168,
     projects: [],
   },
   {
@@ -228,11 +207,9 @@ export const CLIENTS: Client[] = [
     location: "Lagos, NG",
     status: "LEAD",
     currency: "NGN",
-    since: "Jul 2025",
+    createdAt: "2025-07-01",
     outstanding: 0,
     openInvoices: 0,
-    lastActivity: "3d ago",
-    lastActivityHours: 70,
     projects: [],
   },
   {
@@ -244,11 +221,9 @@ export const CLIENTS: Client[] = [
     location: "Seattle, US",
     status: "CHURNED",
     currency: "USD",
-    since: "Aug 2023",
+    createdAt: "2023-08-01",
     outstanding: 0,
     openInvoices: 0,
-    lastActivity: "2mo ago",
-    lastActivityHours: 1460,
     projects: [
       { id: "p-harbor-1", name: "Website", phase: "Launch", status: "completed", value: 34000, currency: "USD" },
     ],
@@ -261,11 +236,9 @@ export const CLIENTS: Client[] = [
     location: "Miami, US",
     status: "CHURNED",
     currency: "USD",
-    since: "Feb 2023",
+    createdAt: "2023-02-01",
     outstanding: 0,
     openInvoices: 0,
-    lastActivity: "6mo ago",
-    lastActivityHours: 4380,
     projects: [
       { id: "p-tide-1", name: "Landing page", phase: "Launch", status: "completed", value: 8000, currency: "USD" },
     ],

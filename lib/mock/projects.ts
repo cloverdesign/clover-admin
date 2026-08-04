@@ -28,8 +28,8 @@ export type Milestone = {
   id: string
   title: string
   description?: string
-  /** Display date, e.g. "Aug 14". */
-  due: string
+  /** ISO date-time the milestone is due (API `Milestone.dueDate`). */
+  dueDate: string
   status: MilestoneStatus
   order: number
 }
@@ -50,16 +50,23 @@ export type Project = {
   /** Total value in `currency`. */
   value: number
   currency: string
-  /** Display dates, e.g. "Mar 2024". */
-  start: string
-  target: string
+  /** ISO date-time (API `Project.startDate` / `endDate`). */
+  startDate: string
+  endDate: string
   /** Revision linkage (§1.2.5) — null for original projects. */
   parentProjectId: string | null
   archived: boolean
   milestones: Milestone[]
-  /** Relative last-touch, e.g. "2h ago". */
-  lastActivity: string
-  lastActivityHours: number
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+/** "Mar 20" → ISO date. Milestone dues are year-less in the seed; anchor to
+ * 2024 (display is compact, so the year isn't shown). */
+function toIso(monthDay: string): string {
+  const [mon, day] = monthDay.split(" ")
+  const m = MONTHS.indexOf(mon) + 1
+  return `2024-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`
 }
 
 /** Build a small ordered milestone set from titles + a completed cutoff. */
@@ -71,7 +78,7 @@ function milestones(
     id: `m-${i}`,
     title: m.title,
     description: m.description,
-    due: m.due,
+    dueDate: toIso(m.due),
     order: i,
     status:
       i < doneThrough ? "COMPLETED" : i === doneThrough ? "IN_PROGRESS" : "PENDING",
@@ -92,12 +99,10 @@ export const PROJECTS: Project[] = [
     progress: 62,
     value: 52000,
     currency: "USD",
-    start: "Mar 2024",
-    target: "Sep 2024",
+    startDate: "2024-03-01",
+    endDate: "2024-09-01",
     parentProjectId: null,
     archived: false,
-    lastActivity: "2h ago",
-    lastActivityHours: 2,
     milestones: milestones(
       [
         { title: "Kickoff & discovery", due: "Mar 20" },
@@ -121,12 +126,10 @@ export const PROJECTS: Project[] = [
     progress: 100,
     value: 28000,
     currency: "USD",
-    start: "Jan 2024",
-    target: "Apr 2024",
+    startDate: "2024-01-01",
+    endDate: "2024-04-01",
     parentProjectId: null,
     archived: false,
-    lastActivity: "3mo ago",
-    lastActivityHours: 2200,
     milestones: milestones(
       [
         { title: "Research", due: "Jan 18" },
@@ -148,12 +151,10 @@ export const PROJECTS: Project[] = [
     progress: 45,
     value: 24000,
     currency: "USD",
-    start: "Jan 2024",
-    target: "Aug 2024",
+    startDate: "2024-01-01",
+    endDate: "2024-08-01",
     parentProjectId: null,
     archived: false,
-    lastActivity: "3d ago",
-    lastActivityHours: 72,
     milestones: milestones(
       [
         { title: "Discovery", due: "Feb 02" },
@@ -176,12 +177,10 @@ export const PROJECTS: Project[] = [
     progress: 20,
     value: 12000,
     currency: "GBP",
-    start: "Feb 2024",
-    target: "Jun 2024",
+    startDate: "2024-02-01",
+    endDate: "2024-06-01",
     parentProjectId: null,
     archived: false,
-    lastActivity: "5h ago",
-    lastActivityHours: 5,
     milestones: milestones(
       [
         { title: "Brand strategy", due: "Feb 28" },
@@ -203,12 +202,10 @@ export const PROJECTS: Project[] = [
     progress: 88,
     value: 18000,
     currency: "USD",
-    start: "Apr 2024",
-    target: "Aug 2024",
+    startDate: "2024-04-01",
+    endDate: "2024-08-01",
     parentProjectId: null,
     archived: false,
-    lastActivity: "1d ago",
-    lastActivityHours: 24,
     milestones: milestones(
       [
         { title: "Creative", due: "Apr 25" },
@@ -231,12 +228,10 @@ export const PROJECTS: Project[] = [
     progress: 5,
     value: 30000,
     currency: "EUR",
-    start: "Jun 2025",
-    target: "Dec 2025",
+    startDate: "2025-06-01",
+    endDate: "2025-12-01",
     parentProjectId: null,
     archived: false,
-    lastActivity: "6h ago",
-    lastActivityHours: 6,
     milestones: milestones(
       [
         { title: "Kickoff", due: "Jun 24" },
@@ -258,12 +253,10 @@ export const PROJECTS: Project[] = [
     progress: 52,
     value: 16000,
     currency: "USD",
-    start: "May 2024",
-    target: "Sep 2024",
+    startDate: "2024-05-01",
+    endDate: "2024-09-01",
     parentProjectId: null,
     archived: false,
-    lastActivity: "2d ago",
-    lastActivityHours: 48,
     milestones: milestones(
       [
         { title: "Structural", due: "May 20" },
@@ -285,12 +278,10 @@ export const PROJECTS: Project[] = [
     progress: 40,
     value: 64000,
     currency: "EUR",
-    start: "Nov 2023",
-    target: "Oct 2024",
+    startDate: "2023-11-01",
+    endDate: "2024-10-01",
     parentProjectId: null,
     archived: false,
-    lastActivity: "4h ago",
-    lastActivityHours: 4,
     milestones: milestones(
       [
         { title: "Discovery", due: "Dec 05" },
@@ -314,12 +305,10 @@ export const PROJECTS: Project[] = [
     progress: 55,
     value: 9000,
     currency: "USD",
-    start: "Jul 2024",
-    target: "Oct 2024",
+    startDate: "2024-07-01",
+    endDate: "2024-10-01",
     parentProjectId: null,
     archived: false,
-    lastActivity: "1d ago",
-    lastActivityHours: 26,
     milestones: milestones(
       [
         { title: "Storyboard", due: "Jul 20" },
@@ -342,12 +331,10 @@ export const PROJECTS: Project[] = [
     progress: 8,
     value: 22000,
     currency: "EUR",
-    start: "Aug 2024",
-    target: "Jan 2025",
+    startDate: "2024-08-01",
+    endDate: "2025-01-01",
     parentProjectId: "p-lumen-1",
     archived: false,
-    lastActivity: "5d ago",
-    lastActivityHours: 120,
     milestones: milestones(
       [
         { title: "Scope", due: "Aug 20" },
@@ -369,12 +356,10 @@ export const PROJECTS: Project[] = [
     progress: 100,
     value: 34000,
     currency: "USD",
-    start: "Aug 2023",
-    target: "Dec 2023",
+    startDate: "2023-08-01",
+    endDate: "2023-12-01",
     parentProjectId: null,
     archived: false,
-    lastActivity: "2mo ago",
-    lastActivityHours: 1460,
     milestones: milestones(
       [
         { title: "Discovery", due: "Aug 20" },
@@ -397,12 +382,10 @@ export const PROJECTS: Project[] = [
     progress: 100,
     value: 8000,
     currency: "USD",
-    start: "Feb 2023",
-    target: "Mar 2023",
+    startDate: "2023-02-01",
+    endDate: "2023-03-01",
     parentProjectId: null,
     archived: true,
-    lastActivity: "6mo ago",
-    lastActivityHours: 4380,
     milestones: milestones(
       [
         { title: "Design", due: "Feb 20" },

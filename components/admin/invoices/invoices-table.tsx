@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import type { ColumnDef } from "@tanstack/react-table"
 
 import { cn } from "@/lib/utils"
+import { formatDate } from "@/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { DataTable, DataTableSortHeader } from "@/components/ui/data-table"
 import {
@@ -37,10 +38,12 @@ const columns: ColumnDef<Invoice>[] = [
   },
   {
     id: "issued",
-    accessorFn: (i) => i.ageDays,
+    accessorFn: (i) => i.issuedDate,
     header: ({ column }) => <DataTableSortHeader column={column} title="Issued" />,
     cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">{row.original.issued}</span>
+      <span className="text-sm text-muted-foreground">
+        {formatDate(row.original.issuedDate)}
+      </span>
     ),
   },
   {
@@ -53,7 +56,7 @@ const columns: ColumnDef<Invoice>[] = [
           row.original.status === "OVERDUE" ? "text-destructive" : "text-muted-foreground"
         )}
       >
-        {row.original.due}
+        {formatDate(row.original.dueDate)}
       </span>
     ),
   },

@@ -4,6 +4,7 @@ import * as React from "react"
 import { Invoice01Icon } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
+import { byNewest } from "@/lib/format"
 import { useDisplayMoney } from "@/components/admin/clients/atoms"
 import {
   INVOICES,
@@ -26,7 +27,7 @@ const TABS: { key: Filter; label: string }[] = [
 ]
 
 /** Most recent first. */
-const ALL = [...INVOICES].sort((a, b) => a.ageDays - b.ageDays)
+const ALL = [...INVOICES].sort((a, b) => byNewest(a.issuedDate, b.issuedDate))
 
 /**
  * Invoices page — a status filter toolbar + metrics strip over a sortable

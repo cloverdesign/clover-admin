@@ -4,6 +4,7 @@ import * as React from "react"
 import { GitPullRequestIcon } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
+import { byNewest } from "@/lib/format"
 import {
   REVISIONS,
   isPending,
@@ -25,7 +26,8 @@ const TABS: { key: Filter; label: string }[] = [
 
 /** Pending first (needs a decision), then most recent. */
 const ALL = [...REVISIONS].sort(
-  (a, b) => Number(isPending(b)) - Number(isPending(a)) || a.ageDays - b.ageDays
+  (a, b) =>
+    Number(isPending(b)) - Number(isPending(a)) || byNewest(a.createdAt, b.createdAt)
 )
 
 /**
