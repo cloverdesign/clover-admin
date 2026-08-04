@@ -21,7 +21,7 @@ import { PHASE_ORDER } from "@/lib/phase-colors"
 
 export type ClientFields = {
   company: string
-  contactName: string
+  name: string
   email: string
   phone: string
   location: string
@@ -36,7 +36,7 @@ export type ProjectFields = {
 
 const EMPTY_CLIENT: ClientFields = {
   company: "",
-  contactName: "",
+  name: "",
   email: "",
   phone: "",
   location: "",
@@ -65,7 +65,7 @@ export function useNewClientDraft() {
 
   const clientValid = Boolean(
     client.company.trim() &&
-      client.contactName.trim() &&
+      client.name.trim() &&
       /.+@.+\..+/.test(client.email)
   )
 
@@ -112,7 +112,7 @@ export function ClientDetailsFields({ draft }: { draft: NewClientDraft }) {
         <Input id="company" value={client.company} onChange={(e) => setC("company", e.target.value)} placeholder="Atlas Foods" />
       </Field>
       <Field label="Contact name" htmlFor="contact">
-        <Input id="contact" value={client.contactName} onChange={(e) => setC("contactName", e.target.value)} placeholder="Dana Okafor" />
+        <Input id="contact" value={client.name} onChange={(e) => setC("name", e.target.value)} placeholder="Dana Okafor" />
       </Field>
       <Field label="Contact email" htmlFor="email" hint="Used as the client's portal sign-in.">
         <Input id="email" type="email" value={client.email} onChange={(e) => setC("email", e.target.value)} placeholder="dana@atlasfoods.com" />

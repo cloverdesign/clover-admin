@@ -82,7 +82,7 @@ export function ClientsLedger({
                 </div>
               </div>
               <div className="hidden min-w-0 sm:block">
-                <div className="truncate text-sm">{client.contactName}</div>
+                <div className="truncate text-sm">{client.name}</div>
                 <div className="truncate text-xs text-muted-foreground">{client.email}</div>
               </div>
               <div className="hidden items-center justify-end gap-2 sm:flex">

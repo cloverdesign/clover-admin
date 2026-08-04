@@ -33,7 +33,7 @@ import { CurrencyControls } from "@/components/admin/shell/currency-controls"
 import { CommandPaletteProvider } from "@/components/admin/shell/command-palette"
 import { getProject } from "@/lib/mock/projects"
 import { getInvoice } from "@/lib/mock/invoices"
-import { getRevision } from "@/lib/mock/revisions"
+import { getRevision, revisionTitle } from "@/lib/mock/revisions"
 import { Toaster } from "@/components/ui/sonner"
 
 /** Is this nav item the current page? `/admin` matches exactly (so it isn't lit
@@ -155,13 +155,13 @@ function deepLabel(pathname: string): string {
   const invoiceMatch = pathname.match(/^\/admin\/invoices\/([^/]+)$/)
   if (invoiceMatch) {
     const invoice = getInvoice(invoiceMatch[1])
-    if (invoice) return invoice.number
+    if (invoice) return invoice.invoiceNumber
   }
 
   const revisionMatch = pathname.match(/^\/admin\/revisions\/([^/]+)$/)
   if (revisionMatch) {
     const revision = getRevision(revisionMatch[1])
-    if (revision) return revision.title
+    if (revision) return revisionTitle(revision)
   }
 
   const last = pathname.split("/").filter(Boolean).pop() ?? ""

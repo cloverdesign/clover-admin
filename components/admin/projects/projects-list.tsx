@@ -23,7 +23,7 @@ export function ProjectsList() {
   const active = LIST.filter(isLive).length
   const onHold = LIST.filter((p) => p.status === "ON_HOLD").length
   const pipeline = LIST.filter(isLive).reduce(
-    (s, p) => s + convert(p.value, p.currency, "USD"),
+    (s, p) => s + convert(p.totalValue, p.currency, "USD"),
     0
   )
 

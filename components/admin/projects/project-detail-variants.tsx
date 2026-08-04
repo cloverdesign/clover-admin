@@ -190,7 +190,7 @@ function StackedLayout({ project, state }: { project: Project; state: State }) {
         <ProgressCard state={state} project={project} />
       </Block>
       <Block label="Brief">
-        <p className="text-sm leading-relaxed text-foreground/90">{project.brief}</p>
+        <p className="text-sm leading-relaxed text-foreground/90">{project.description}</p>
       </Block>
       <Block label="Details">
         <FactsGrid project={project} />
@@ -242,7 +242,7 @@ function FocusLayout({ project, state }: { project: Project; state: State }) {
           <div className="rounded-2xl border bg-card p-4">
             <SectionLabel>Brief</SectionLabel>
             <p className="mt-2 line-clamp-4 text-sm text-muted-foreground">
-              {project.brief}
+              {project.description}
             </p>
           </div>
           <FactsList project={project} />
@@ -384,7 +384,7 @@ function BriefSection({ project }: { project: Project }) {
   return (
     <section>
       <SectionLabel>Brief</SectionLabel>
-      <p className="mt-2 text-sm leading-relaxed text-foreground/90">{project.brief}</p>
+      <p className="mt-2 text-sm leading-relaxed text-foreground/90">{project.description}</p>
     </section>
   )
 }
@@ -394,7 +394,7 @@ function FactsGrid({ project }: { project: Project }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <Fact icon={UserGroupIcon} label="Client" value={project.client} />
-      <Fact icon={Money01Icon} label="Value" value={formatMoney(project.value, project.currency)} />
+      <Fact icon={Money01Icon} label="Value" value={formatMoney(project.totalValue, project.currency)} />
       <Fact icon={Calendar03Icon} label="Timeline" value={`${formatDate(project.startDate, "month")} — ${formatDate(project.endDate, "month")}`} />
     </div>
   )
@@ -405,7 +405,7 @@ function FactsList({ project }: { project: Project }) {
   return (
     <div className="flex flex-col gap-2">
       <Fact icon={UserGroupIcon} label="Client" value={project.client} />
-      <Fact icon={Money01Icon} label="Value" value={formatMoney(project.value, project.currency)} />
+      <Fact icon={Money01Icon} label="Value" value={formatMoney(project.totalValue, project.currency)} />
       <Fact icon={Calendar03Icon} label="Timeline" value={`${formatDate(project.startDate, "month")} — ${formatDate(project.endDate, "month")}`} />
     </div>
   )
@@ -447,7 +447,7 @@ function LinkedRevisions({ project }: { project: Project }) {
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium">{c.name}</div>
               <div className="text-xs text-muted-foreground">
-                {formatMoney(c.value, c.currency)}
+                {formatMoney(c.totalValue, c.currency)}
               </div>
             </div>
             <PhaseBadge phase={c.phase} />
@@ -707,7 +707,7 @@ function InvoicesTab({ project }: { project: Project }) {
             className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
           >
             <div className="min-w-0 flex-1">
-              <div className="font-mono text-sm font-medium">{i.number}</div>
+              <div className="font-mono text-sm font-medium">{i.invoiceNumber}</div>
               <div className="text-xs text-muted-foreground">Due {formatDate(i.dueDate)}</div>
             </div>
             <Badge variant={INVOICE_STATUS_VARIANT[i.status]}>

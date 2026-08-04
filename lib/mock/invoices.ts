@@ -22,7 +22,7 @@ export type LineItem = {
 export type Invoice = {
   id: string
   /** Human invoice number, e.g. "INV-2024-014". */
-  number: string
+  invoiceNumber: string
   clientId: string
   client: string
   projectId: string
@@ -47,7 +47,7 @@ function inv(
 
 export const INVOICES: Invoice[] = [
   inv({
-    id: "inv-atlas-site-1", number: "INV-2024-014",
+    id: "inv-atlas-site-1", invoiceNumber: "INV-2024-014",
     clientId: "c-atlas", client: "Atlas Foods",
     projectId: "p-atlas-1", projectName: "Site build",
     status: "OVERDUE", currency: "USD",
@@ -58,7 +58,7 @@ export const INVOICES: Invoice[] = [
     ],
   }),
   inv({
-    id: "inv-atlas-site-2", number: "INV-2024-021",
+    id: "inv-atlas-site-2", invoiceNumber: "INV-2024-021",
     clientId: "c-atlas", client: "Atlas Foods",
     projectId: "p-atlas-1", projectName: "Site build",
     status: "DRAFT", currency: "USD",
@@ -66,7 +66,7 @@ export const INVOICES: Invoice[] = [
     lineItems: [{ description: "CMS integration — milestone", amount: 20000 }],
   }),
   inv({
-    id: "inv-atlas-brand", number: "INV-2024-006",
+    id: "inv-atlas-brand", invoiceNumber: "INV-2024-006",
     clientId: "c-atlas", client: "Atlas Foods",
     projectId: "p-atlas-2", projectName: "Brand system",
     status: "PAID", currency: "USD",
@@ -74,7 +74,7 @@ export const INVOICES: Invoice[] = [
     lineItems: [{ description: "Brand system — full", amount: 28000 }],
   }),
   inv({
-    id: "inv-north-1", number: "INV-2024-018",
+    id: "inv-north-1", invoiceNumber: "INV-2024-018",
     clientId: "c-northwind", client: "Northwind",
     projectId: "p-north-1", projectName: "Brand refresh",
     status: "SENT", currency: "USD",
@@ -85,7 +85,7 @@ export const INVOICES: Invoice[] = [
     ],
   }),
   inv({
-    id: "inv-kite-1", number: "INV-2024-004",
+    id: "inv-kite-1", invoiceNumber: "INV-2024-004",
     clientId: "c-kite", client: "Kite",
     projectId: "p-kite-1", projectName: "Identity",
     status: "PAID", currency: "GBP",
@@ -93,7 +93,7 @@ export const INVOICES: Invoice[] = [
     lineItems: [{ description: "Brand strategy — deposit", amount: 4000 }],
   }),
   inv({
-    id: "inv-muse-1", number: "INV-2024-019",
+    id: "inv-muse-1", invoiceNumber: "INV-2024-019",
     clientId: "c-muse", client: "Muse",
     projectId: "p-muse-1", projectName: "Campaign",
     status: "SENT", currency: "USD",
@@ -101,7 +101,7 @@ export const INVOICES: Invoice[] = [
     lineItems: [{ description: "Campaign — production", amount: 6400 }],
   }),
   inv({
-    id: "inv-verde-1", number: "INV-2025-003",
+    id: "inv-verde-1", invoiceNumber: "INV-2025-003",
     clientId: "c-verde", client: "Verde Studio",
     projectId: "p-verde-1", projectName: "Rebrand",
     status: "DRAFT", currency: "EUR",
@@ -109,7 +109,7 @@ export const INVOICES: Invoice[] = [
     lineItems: [{ description: "Rebrand — kickoff deposit", amount: 15000 }],
   }),
   inv({
-    id: "inv-orch-1", number: "INV-2024-010",
+    id: "inv-orch-1", invoiceNumber: "INV-2024-010",
     clientId: "c-orchard", client: "Orchard",
     projectId: "p-orch-1", projectName: "Packaging",
     status: "PAID", currency: "USD",
@@ -117,7 +117,7 @@ export const INVOICES: Invoice[] = [
     lineItems: [{ description: "Packaging — structural", amount: 16000 }],
   }),
   inv({
-    id: "inv-lumen-1", number: "INV-2024-013",
+    id: "inv-lumen-1", invoiceNumber: "INV-2024-013",
     clientId: "c-lumen", client: "Lumen",
     projectId: "p-lumen-1", projectName: "Web app",
     status: "OVERDUE", currency: "EUR",
@@ -125,7 +125,7 @@ export const INVOICES: Invoice[] = [
     lineItems: [{ description: "MVP build — milestone 2", amount: 12000 }],
   }),
   inv({
-    id: "inv-lumen-2", number: "INV-2024-020",
+    id: "inv-lumen-2", invoiceNumber: "INV-2024-020",
     clientId: "c-lumen", client: "Lumen",
     projectId: "p-lumen-1", projectName: "Web app",
     status: "SENT", currency: "EUR",
@@ -133,7 +133,7 @@ export const INVOICES: Invoice[] = [
     lineItems: [{ description: "Beta — milestone 3", amount: 8000 }],
   }),
   inv({
-    id: "inv-fable-1", number: "INV-2024-008",
+    id: "inv-fable-1", invoiceNumber: "INV-2024-008",
     clientId: "c-fable", client: "Fable",
     projectId: "p-fable-1", projectName: "Motion reel",
     status: "PAID", currency: "USD",
@@ -141,7 +141,7 @@ export const INVOICES: Invoice[] = [
     lineItems: [{ description: "Motion reel — storyboard", amount: 9000 }],
   }),
   inv({
-    id: "inv-harbor-1", number: "INV-2023-021",
+    id: "inv-harbor-1", invoiceNumber: "INV-2023-021",
     clientId: "c-harbor", client: "Harbor & Co",
     projectId: "p-harbor-1", projectName: "Website",
     status: "PAID", currency: "USD",

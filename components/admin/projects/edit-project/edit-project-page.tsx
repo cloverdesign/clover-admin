@@ -49,11 +49,11 @@ export function EditProjectPage({ id }: { id?: string }) {
   const [type, setType] = React.useState(project?.type ?? "")
   const [phase, setPhase] = React.useState<Phase>(project?.phase ?? "Kickoff")
   const [status, setStatus] = React.useState<ProjectStatus>(project?.status ?? "PLANNING")
-  const [value, setValue] = React.useState(project ? String(project.value) : "")
+  const [value, setValue] = React.useState(project ? String(project.totalValue) : "")
   const [currency, setCurrency] = React.useState(project?.currency ?? "USD")
   const [start, setStart] = React.useState(formatDate(project?.startDate, "month"))
   const [target, setTarget] = React.useState(formatDate(project?.endDate, "month"))
-  const [brief, setBrief] = React.useState(project?.brief ?? "")
+  const [brief, setBrief] = React.useState(project?.description ?? "")
 
   if (!project) {
     return (

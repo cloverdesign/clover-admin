@@ -11,7 +11,7 @@ export async function generateMetadata({
   const { id } = await params
   const invoice = getInvoice(id)
   return {
-    title: invoice ? `${invoice.number} — Clover Admin` : "Invoice — Clover Admin",
+    title: invoice ? `${invoice.invoiceNumber} — Clover Admin` : "Invoice — Clover Admin",
   }
 }
 

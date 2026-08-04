@@ -16,11 +16,11 @@ import {
 
 const columns: ColumnDef<Invoice>[] = [
   {
-    accessorKey: "number",
+    accessorKey: "invoiceNumber",
     header: ({ column }) => <DataTableSortHeader column={column} title="Invoice" />,
     cell: ({ row }) => (
       <div className="min-w-0">
-        <div className="font-mono text-sm font-medium">{row.original.number}</div>
+        <div className="font-mono text-sm font-medium">{row.original.invoiceNumber}</div>
         <div className="truncate text-xs text-muted-foreground">
           {row.original.client} · {row.original.projectName}
         </div>

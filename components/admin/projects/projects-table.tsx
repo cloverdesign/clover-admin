@@ -99,11 +99,11 @@ const columns: ColumnDef<Project>[] = [
   },
   {
     id: "value",
-    accessorFn: (p) => p.value,
+    accessorFn: (p) => p.totalValue,
     header: ({ column }) => <DataTableSortHeader column={column} title="Value" />,
     cell: ({ row }) => (
       <span className="font-mono text-sm">
-        {formatMoney(row.original.value, row.original.currency)}
+        {formatMoney(row.original.totalValue, row.original.currency)}
       </span>
     ),
   },

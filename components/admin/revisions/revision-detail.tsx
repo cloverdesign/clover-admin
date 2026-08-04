@@ -36,11 +36,11 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
   getRevision,
+  revisionTitle,
   REVISION_STATUS_LABEL,
   REVISION_STATUS_VARIANT,
   type RevisionRequest,
   type RevisionStatus,
-  type Resolution,
 } from "@/lib/mock/revisions"
 
 /**
@@ -58,9 +58,13 @@ export function RevisionDetail({ id }: { id: string }) {
 }
 
 function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
+  const title = revisionTitle(revision)
   const [status, setStatus] = React.useState<RevisionStatus>(revision.status)
-  const [resolution, setResolution] = React.useState<Resolution | undefined>(
-    revision.resolution
+  const [resultingProjectId, setResultingProjectId] = React.useState<string | null>(
+    revision.resultingProjectId
+  )
+  const [resultingPhaseNote, setResultingPhaseNote] = React.useState<string | null>(
+    revision.resultingPhaseNote
   )
   const [declineOpen, setDeclineOpen] = React.useState(false)
 
@@ -68,19 +72,22 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
 
   const approveAsPhase = () => {
     setStatus("APPROVED")
-    setResolution({ type: "phase", ref: revision.projectId, refName: `${revision.title} (phase)` })
+    setResultingPhaseNote(`Added as a new phase on ${revision.projectName}`)
+    setResultingProjectId(null)
     toast.success(`Approved — added a new phase to ${revision.projectName}`)
   }
   const approveAsProject = () => {
     setStatus("APPROVED")
-    setResolution({ type: "project", ref: revision.projectId, refName: revision.title })
-    toast.success(`Approved — scaffolded a linked project “${revision.title}”`)
+    setResultingProjectId(revision.projectId)
+    setResultingPhaseNote(null)
+    toast.success(`Approved — scaffolded a linked project for ${revision.client}`)
   }
   const decline = () => {
     setStatus("DECLINED")
-    setResolution(undefined)
+    setResultingProjectId(null)
+    setResultingPhaseNote(null)
     setDeclineOpen(false)
-    toast.success(`Declined “${revision.title}”`)
+    toast.success(`Declined “${title}”`)
   }
 
   return (
@@ -89,7 +96,7 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-semibold tracking-tight">{revision.title}</h1>
+            <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
             <Badge variant={REVISION_STATUS_VARIANT[status]}>
               {REVISION_STATUS_LABEL[status]}
             </Badge>
@@ -158,22 +165,33 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
       </div>
 
       {/* Resolution banner (approved / declined) */}
-      {status === "APPROVED" && resolution && (
+      {status === "APPROVED" && resultingProjectId && (
         <Link
-          href={`/admin/projects/${resolution.ref}`}
+          href={`/admin/projects/${resultingProjectId}`}
           className="mt-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 transition-colors hover:border-foreground/20"
         >
           <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success">
             <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-5" />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium">
-              Approved · {resolution.type === "project" ? "linked project" : "new phase"}
+            <div className="text-sm font-medium">Approved · linked project</div>
+            <div className="truncate text-xs text-muted-foreground">
+              Opens the linked project
             </div>
-            <div className="truncate text-xs text-muted-foreground">{resolution.refName}</div>
           </div>
           <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 text-muted-foreground" />
         </Link>
+      )}
+      {status === "APPROVED" && resultingPhaseNote && (
+        <div className="mt-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success">
+            <HugeiconsIcon icon={GitMergeIcon} className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium">Approved · new phase</div>
+            <div className="truncate text-xs text-muted-foreground">{resultingPhaseNote}</div>
+          </div>
+        </div>
       )}
       {status === "DECLINED" && (
         <div className="mt-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3">
@@ -195,12 +213,12 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
           </p>
         </section>
 
-        {revision.timeframe && (
+        {revision.targetTimeframe && (
           <section>
             <SectionLabel>Target timeframe</SectionLabel>
             <div className="mt-2 flex items-center gap-2 text-sm">
               <HugeiconsIcon icon={Calendar03Icon} className="size-4 text-muted-foreground" />
-              {revision.timeframe}
+              {revision.targetTimeframe}
             </div>
           </section>
         )}

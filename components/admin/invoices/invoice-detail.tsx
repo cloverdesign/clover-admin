@@ -64,11 +64,11 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
 
   const send = () => {
     setStatus("SENT")
-    toast.success(`Invoice ${invoice.number} sent to ${invoice.client}`)
+    toast.success(`Invoice ${invoice.invoiceNumber} sent to ${invoice.client}`)
   }
   const markPaid = () => {
     setStatus("PAID")
-    toast.success(`Marked ${invoice.number} as paid`)
+    toast.success(`Marked ${invoice.invoiceNumber} as paid`)
   }
 
   const open = status === "SENT" || status === "OVERDUE"
@@ -79,7 +79,7 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <h1 className="font-mono text-xl font-semibold tracking-tight">
-            {invoice.number}
+            {invoice.invoiceNumber}
           </h1>
           <Badge variant={INVOICE_STATUS_VARIANT[status]}>
             {INVOICE_STATUS_LABEL[status]}
@@ -101,7 +101,7 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
           <Button
             variant="outline"
             className="gap-1.5"
-            onClick={() => toast.success(`Downloading ${invoice.number}.pdf`)}
+            onClick={() => toast.success(`Downloading ${invoice.invoiceNumber}.pdf`)}
           >
             <HugeiconsIcon icon={Download04Icon} data-icon="inline-start" className="size-4" />
             PDF
@@ -171,7 +171,7 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {invoice.number}?</AlertDialogTitle>
+            <AlertDialogTitle>Delete {invoice.invoiceNumber}?</AlertDialogTitle>
             <AlertDialogDescription>
               This removes the invoice from the project and the client's portal.
               This can’t be undone.
@@ -183,7 +183,7 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
               variant="destructive"
               onClick={() => {
                 setConfirmOpen(false)
-                toast.success(`Deleted ${invoice.number}`)
+                toast.success(`Deleted ${invoice.invoiceNumber}`)
                 router.push("/admin/invoices")
               }}
             >

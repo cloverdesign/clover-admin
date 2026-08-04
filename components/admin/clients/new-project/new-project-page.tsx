@@ -77,7 +77,7 @@ export function NewProjectPage({ clientId }: { clientId?: string }) {
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium">{client.company}</div>
                 <div className="truncate text-xs text-muted-foreground">
-                  {client.contactName}
+                  {client.name}
                 </div>
               </div>
             </div>

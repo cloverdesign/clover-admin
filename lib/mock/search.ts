@@ -8,7 +8,7 @@
 import { CLIENTS } from "@/lib/mock/clients"
 import { DASHBOARD_DATA } from "@/lib/mock/dashboard"
 import { INVOICES } from "@/lib/mock/invoices"
-import { REVISIONS } from "@/lib/mock/revisions"
+import { REVISIONS, revisionTitle } from "@/lib/mock/revisions"
 
 export type SearchType =
   | "client"
@@ -35,9 +35,9 @@ function buildIndex(): SearchEntity[] {
       id: `client-${c.id}`,
       type: "client",
       title: c.company,
-      subtitle: [c.contactName, c.location].filter(Boolean).join(" · "),
+      subtitle: [c.name, c.location].filter(Boolean).join(" · "),
       href: `/admin/clients?c=${c.id}`,
-      keywords: `${c.company} ${c.contactName} ${c.email} ${c.location ?? ""}`.toLowerCase(),
+      keywords: `${c.company} ${c.name} ${c.email} ${c.location ?? ""}`.toLowerCase(),
     })
     for (const p of c.projects) {
       out.push({
@@ -55,10 +55,10 @@ function buildIndex(): SearchEntity[] {
     out.push({
       id: `invoice-${i.id}`,
       type: "invoice",
-      title: i.number,
+      title: i.invoiceNumber,
       subtitle: `${i.client} · ${i.projectName}`,
       href: `/admin/invoices/${i.id}`,
-      keywords: `${i.number} ${i.client} ${i.projectName} ${i.status}`.toLowerCase(),
+      keywords: `${i.invoiceNumber} ${i.client} ${i.projectName} ${i.status}`.toLowerCase(),
     })
   }
 
@@ -66,10 +66,10 @@ function buildIndex(): SearchEntity[] {
     out.push({
       id: `revision-${r.id}`,
       type: "revision",
-      title: r.title,
+      title: revisionTitle(r),
       subtitle: `${r.client} · ${r.projectName}`,
       href: `/admin/revisions/${r.id}`,
-      keywords: `${r.title} ${r.client} ${r.projectName} ${r.status}`.toLowerCase(),
+      keywords: `${r.description} ${r.client} ${r.projectName} ${r.status}`.toLowerCase(),
     })
   }
 

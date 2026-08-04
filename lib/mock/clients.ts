@@ -39,7 +39,7 @@ export type ClientProject = {
 export type Client = {
   id: string
   company: string
-  contactName: string
+  name: string
   /** Contact email — the client's portal auth identity (§1.1). */
   email: string
   phone?: string
@@ -60,7 +60,7 @@ export const CLIENTS: Client[] = [
   {
     id: "c-atlas",
     company: "Atlas Foods",
-    contactName: "Dana Okafor",
+    name: "Dana Okafor",
     email: "dana@atlasfoods.com",
     phone: "+1 (415) 555-0142",
     location: "San Francisco, US",
@@ -77,7 +77,7 @@ export const CLIENTS: Client[] = [
   {
     id: "c-northwind",
     company: "Northwind",
-    contactName: "Priya Raman",
+    name: "Priya Raman",
     email: "priya@northwind.co",
     phone: "+1 (212) 555-0177",
     location: "New York, US",
@@ -93,7 +93,7 @@ export const CLIENTS: Client[] = [
   {
     id: "c-kite",
     company: "Kite",
-    contactName: "Sam Ellison",
+    name: "Sam Ellison",
     email: "sam@kite.studio",
     phone: "+44 20 7946 0321",
     location: "London, UK",
@@ -109,7 +109,7 @@ export const CLIENTS: Client[] = [
   {
     id: "c-muse",
     company: "Muse",
-    contactName: "Elena Fischer",
+    name: "Elena Fischer",
     email: "elena@muse.io",
     phone: "+1 (310) 555-0190",
     location: "Los Angeles, US",
@@ -125,7 +125,7 @@ export const CLIENTS: Client[] = [
   {
     id: "c-verde",
     company: "Verde Studio",
-    contactName: "João Pereira",
+    name: "João Pereira",
     email: "joao@verde.pt",
     phone: "+351 21 123 4567",
     location: "Lisbon, PT",
@@ -141,7 +141,7 @@ export const CLIENTS: Client[] = [
   {
     id: "c-orchard",
     company: "Orchard",
-    contactName: "Maya Lin",
+    name: "Maya Lin",
     email: "maya@orchard.com",
     phone: "+1 (503) 555-0155",
     location: "Portland, US",
@@ -157,7 +157,7 @@ export const CLIENTS: Client[] = [
   {
     id: "c-lumen",
     company: "Lumen",
-    contactName: "Nils Bauer",
+    name: "Nils Bauer",
     email: "nils@lumen.de",
     phone: "+49 30 1234 5678",
     location: "Berlin, DE",
@@ -173,7 +173,7 @@ export const CLIENTS: Client[] = [
   {
     id: "c-fable",
     company: "Fable",
-    contactName: "Ada Brooks",
+    name: "Ada Brooks",
     email: "ada@fable.tv",
     location: "Austin, US",
     status: "ON_HOLD",
@@ -188,7 +188,7 @@ export const CLIENTS: Client[] = [
   {
     id: "c-kestrel",
     company: "Kestrel",
-    contactName: "Owen Vance",
+    name: "Owen Vance",
     email: "owen@kestrel.app",
     location: "Denver, US",
     status: "LEAD",
@@ -201,7 +201,7 @@ export const CLIENTS: Client[] = [
   {
     id: "c-sable",
     company: "Sable",
-    contactName: "Ifeoma Umeh",
+    name: "Ifeoma Umeh",
     email: "ifeoma@sable.ng",
     phone: "+234 1 234 5678",
     location: "Lagos, NG",
@@ -215,7 +215,7 @@ export const CLIENTS: Client[] = [
   {
     id: "c-harbor",
     company: "Harbor & Co",
-    contactName: "Grace Yoon",
+    name: "Grace Yoon",
     email: "grace@harbor.co",
     phone: "+1 (206) 555-0128",
     location: "Seattle, US",
@@ -231,7 +231,7 @@ export const CLIENTS: Client[] = [
   {
     id: "c-tidewater",
     company: "Tidewater",
-    contactName: "Marcus Reed",
+    name: "Marcus Reed",
     email: "marcus@tidewater.com",
     location: "Miami, US",
     status: "CHURNED",

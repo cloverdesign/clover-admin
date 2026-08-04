@@ -78,7 +78,7 @@ export function EditInvoicePage({ id }: { id?: string }) {
     lines.filter((l) => l.description.trim() && Number(l.amount) > 0).length > 0
 
   const save = () => {
-    toast.success(`Saved changes to ${invoice.number}`)
+    toast.success(`Saved changes to ${invoice.invoiceNumber}`)
     router.push(backHref)
   }
 
@@ -94,7 +94,7 @@ export function EditInvoicePage({ id }: { id?: string }) {
             <div className="mt-8 flex items-center gap-3 rounded-xl border bg-card p-3">
               <Monogram company={invoice.client} className="size-10" />
               <div className="min-w-0 flex-1">
-                <div className="truncate font-mono text-sm font-medium">{invoice.number}</div>
+                <div className="truncate font-mono text-sm font-medium">{invoice.invoiceNumber}</div>
                 <div className="truncate text-xs text-muted-foreground">{invoice.client}</div>
               </div>
               <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>

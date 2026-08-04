@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 
-import { getRevision } from "@/lib/mock/revisions"
+import { getRevision, revisionTitle } from "@/lib/mock/revisions"
 import { RevisionDetail } from "@/components/admin/revisions/revision-detail"
 
 export async function generateMetadata({
@@ -11,7 +11,7 @@ export async function generateMetadata({
   const { id } = await params
   const revision = getRevision(id)
   return {
-    title: revision ? `${revision.title} — Clover Admin` : "Revision request — Clover Admin",
+    title: revision ? `${revisionTitle(revision)} — Clover Admin` : "Revision request — Clover Admin",
   }
 }
 

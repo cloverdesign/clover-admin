@@ -36,7 +36,7 @@ export function EditClientPage({ id }: { id?: string }) {
   const client = id ? getClient(id) : undefined
 
   const [company, setCompany] = React.useState(client?.company ?? "")
-  const [contactName, setContactName] = React.useState(client?.contactName ?? "")
+  const [contactName, setContactName] = React.useState(client?.name ?? "")
   const [email, setEmail] = React.useState(client?.email ?? "")
   const [phone, setPhone] = React.useState(client?.phone ?? "")
   const [location, setLocation] = React.useState(client?.location ?? "")
