@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -125,26 +126,37 @@ export function ThemeToggle() {
   )
 }
 
+/** The primary create action, scoped to the current section. */
+function newAction(pathname: string): { label: string; href: string } {
+  if (pathname.startsWith("/admin/invoices"))
+    return { label: "New invoice", href: "/admin/invoices/new" }
+  if (pathname.startsWith("/admin/projects"))
+    return { label: "New project", href: "/admin/clients/new-project" }
+  return { label: "New client", href: "/admin/clients/new" }
+}
+
 export function NewButton({ className }: { className?: string }) {
+  const pathname = usePathname()
+  const { label, href } = newAction(pathname)
   return (
     <>
       {/* Mobile: icon-only, perfectly centered (no inline-start padding). */}
       <Button
-        aria-label="New client"
+        aria-label={label}
         size="icon"
-        render={<Link href="/admin/clients/new" />}
+        render={<Link href={href} />}
         className={cn("sm:hidden", className)}
       >
         <HugeiconsIcon icon={Add01Icon} className="size-4" />
       </Button>
       {/* sm+: labelled. */}
-      <Button render={<Link href="/admin/clients/new" />} className={cn("hidden gap-1.5 sm:inline-flex", className)}>
+      <Button render={<Link href={href} />} className={cn("hidden gap-1.5 sm:inline-flex", className)}>
         <HugeiconsIcon
           icon={Add01Icon}
           data-icon="inline-start"
           className="size-4"
         />
-        New client
+        {label}
       </Button>
     </>
   )

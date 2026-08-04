@@ -53,7 +53,6 @@ import {
   ClientStatusBadge,
   useDisplayMoney,
 } from "@/components/admin/clients/atoms"
-import { useClientForm } from "@/components/admin/clients/client-form"
 
 /**
  * Client detail content — shared by the desktop side panel (intercepted route)
@@ -265,7 +264,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
  * a toast (delete also returns to the list). */
 function ClientActions({ client }: { client: Client }) {
   const router = useRouter()
-  const { openEdit } = useClientForm()
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const archived = client.status === "archived"
 
@@ -279,7 +277,9 @@ function ClientActions({ client }: { client: Client }) {
           <HugeiconsIcon icon={MoreHorizontalIcon} className="size-5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => openEdit(client)}>
+          <DropdownMenuItem
+            onClick={() => router.push(`/admin/clients/${client.id}/edit`)}
+          >
             <HugeiconsIcon icon={PencilEdit02Icon} />
             Edit client
           </DropdownMenuItem>

@@ -31,7 +31,9 @@ import {
 } from "@/components/ui/sheet"
 import { CurrencyControls } from "@/components/admin/shell/currency-controls"
 import { CommandPaletteProvider } from "@/components/admin/shell/command-palette"
-import { ClientFormProvider } from "@/components/admin/clients/client-form"
+import { getProject } from "@/lib/mock/projects"
+import { getInvoice } from "@/lib/mock/invoices"
+import { getRevision } from "@/lib/mock/revisions"
 import { Toaster } from "@/components/ui/sonner"
 
 /** Is this nav item the current page? `/admin` matches exactly (so it isn't lit
@@ -132,6 +134,38 @@ function SidebarBody({
 const DEEP_CRUMBS: Record<string, string> = {
   "/admin/clients/new": "New client",
   "/admin/clients/new-project": "New project",
+  "/admin/invoices/new": "New invoice",
+}
+
+/** Label for the deepest crumb: an explicit map entry, else a resolved entity
+ * name (project detail), else the title-cased last path segment. */
+function deepLabel(pathname: string): string {
+  if (DEEP_CRUMBS[pathname]) return DEEP_CRUMBS[pathname]
+
+  if (/^\/admin\/clients\/[^/]+\/edit$/.test(pathname)) return "Edit client"
+  if (/^\/admin\/projects\/[^/]+\/edit$/.test(pathname)) return "Edit project"
+  if (/^\/admin\/invoices\/[^/]+\/edit$/.test(pathname)) return "Edit invoice"
+
+  const projectMatch = pathname.match(/^\/admin\/projects\/([^/]+)$/)
+  if (projectMatch) {
+    const project = getProject(projectMatch[1])
+    if (project) return project.name
+  }
+
+  const invoiceMatch = pathname.match(/^\/admin\/invoices\/([^/]+)$/)
+  if (invoiceMatch) {
+    const invoice = getInvoice(invoiceMatch[1])
+    if (invoice) return invoice.number
+  }
+
+  const revisionMatch = pathname.match(/^\/admin\/revisions\/([^/]+)$/)
+  if (revisionMatch) {
+    const revision = getRevision(revisionMatch[1])
+    if (revision) return revision.title
+  }
+
+  const last = pathname.split("/").filter(Boolean).pop() ?? ""
+  return last.charAt(0).toUpperCase() + last.slice(1)
 }
 
 /** Breadcrumb trail + a back button, derived from the pathname. The active nav
@@ -147,10 +181,7 @@ function HeaderNav() {
     { label: base.label, href: deeper ? base.href : undefined },
   ]
   if (deeper) {
-    const last = pathname.split("/").filter(Boolean).pop() ?? ""
-    crumbs.push({
-      label: DEEP_CRUMBS[pathname] ?? last.charAt(0).toUpperCase() + last.slice(1),
-    })
+    crumbs.push({ label: deepLabel(pathname) })
   }
 
   return (
@@ -201,7 +232,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   return (
     <CommandPaletteProvider>
-    <ClientFormProvider>
     <div className="flex h-dvh gap-3 overflow-hidden bg-sidebar p-2 sm:p-3">
       {/* Desktop rail */}
       <aside className="hidden w-64 shrink-0 flex-col rounded-2xl bg-card p-3 ring-1 ring-foreground/10 md:flex">
@@ -224,7 +254,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       </Sheet>
 
       {/* Floating canvas */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-background ring-1 ring-foreground/10">
         <header className="flex h-16 items-center gap-2 border-b border-border px-4 sm:gap-4 sm:px-6">
           <IconButton
             label="Open navigation"
@@ -252,7 +282,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       </div>
     </div>
     <Toaster />
-    </ClientFormProvider>
     </CommandPaletteProvider>
   )
 }

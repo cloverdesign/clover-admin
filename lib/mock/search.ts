@@ -7,6 +7,8 @@
 
 import { CLIENTS } from "@/lib/mock/clients"
 import { DASHBOARD_DATA } from "@/lib/mock/dashboard"
+import { INVOICES } from "@/lib/mock/invoices"
+import { REVISIONS } from "@/lib/mock/revisions"
 
 export type SearchType =
   | "client"
@@ -34,7 +36,7 @@ function buildIndex(): SearchEntity[] {
       type: "client",
       title: c.company,
       subtitle: [c.contactName, c.location].filter(Boolean).join(" · "),
-      href: `/admin/clients/${c.id}`,
+      href: `/admin/clients?c=${c.id}`,
       keywords: `${c.company} ${c.contactName} ${c.email} ${c.location ?? ""}`.toLowerCase(),
     })
     for (const p of c.projects) {
@@ -43,10 +45,32 @@ function buildIndex(): SearchEntity[] {
         type: "project",
         title: p.name,
         subtitle: `${c.company} · ${p.phase}`,
-        href: `/admin/clients/${c.id}`,
+        href: `/admin/projects/${p.id}`,
         keywords: `${p.name} ${c.company} ${p.phase}`.toLowerCase(),
       })
     }
+  }
+
+  for (const i of INVOICES) {
+    out.push({
+      id: `invoice-${i.id}`,
+      type: "invoice",
+      title: i.number,
+      subtitle: `${i.client} · ${i.projectName}`,
+      href: `/admin/invoices/${i.id}`,
+      keywords: `${i.number} ${i.client} ${i.projectName} ${i.status}`.toLowerCase(),
+    })
+  }
+
+  for (const r of REVISIONS) {
+    out.push({
+      id: `revision-${r.id}`,
+      type: "revision",
+      title: r.title,
+      subtitle: `${r.client} · ${r.projectName}`,
+      href: `/admin/revisions/${r.id}`,
+      keywords: `${r.title} ${r.client} ${r.projectName} ${r.status}`.toLowerCase(),
+    })
   }
 
   for (const a of DASHBOARD_DATA.attention) {
