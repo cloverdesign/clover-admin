@@ -1,16 +1,18 @@
 "use client"
 
 /**
- * Project detail — a stacked, document-style view: the identity/phase header,
- * then each area (progress, brief, details, milestones, invoices, deliverables,
- * linked revisions) as an independently collapsible section. No backend — the
- * phase setter and milestone editor mutate local state and confirm with toasts.
+ * Project detail — stacked, document-style view with collapsible sections. Wired
+ * to the API: project + relations via useProject, phase via useUpdateProject,
+ * milestones via the milestone mutations, invoices/deliverables via their
+ * project-scoped queries, linked revisions composed from the projects list.
+ *
+ * Note: the API has no GET for milestones/updates, so they're read defensively
+ * from the (optionally embedded) project detail — mutations still fire.
  */
 
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Calendar03Icon,
@@ -19,15 +21,14 @@ import {
   Add01Icon,
   MoreHorizontalIcon,
   PencilEdit02Icon,
-  Archive02Icon,
   Delete02Icon,
   CheckmarkCircle02Icon,
   CircleIcon,
-  ArrowUp01Icon,
   ArrowDown01Icon,
   Invoice01Icon,
   File01Icon,
   LinkSquare02Icon,
+  Loading03Icon,
 } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
@@ -60,72 +61,68 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
 import { PHASE_ORDER } from "@/lib/phase-colors"
-import type { Phase } from "@/lib/mock/dashboard"
 import { formatMoney } from "@/lib/mock/clients"
+import { PROJECT_STATUS_LABEL } from "@/lib/mock/projects"
+import { INVOICE_STATUS_LABEL, INVOICE_STATUS_VARIANT, formatFull } from "@/lib/mock/invoices"
 import {
-  childProjects,
-  PROJECT_STATUS_LABEL,
-  type Project,
-  type Milestone,
-  type MilestoneStatus,
-} from "@/lib/mock/projects"
-import {
-  invoicesForProject,
-  INVOICE_STATUS_LABEL,
-  INVOICE_STATUS_VARIANT,
-  formatFull,
-} from "@/lib/mock/invoices"
+  useProject,
+  useUpdateProject,
+  useDeleteProject,
+  useCreateMilestone,
+  useUpdateMilestone,
+  useDeleteMilestone,
+  useProjects,
+  useProjectInvoices,
+} from "@/lib/queries/projects-queries"
 import { useProjectDeliverables } from "@/lib/queries/deliverables-queries"
-import type { Deliverable } from "@/lib/api/models"
+import { useClient } from "@/lib/queries/clients-queries"
+import type { Project, Milestone, MilestoneStatus, Deliverable } from "@/lib/api/models"
 import { Monogram } from "@/components/admin/clients/atoms"
-import { PhaseBadge, ProgressBar } from "@/components/admin/dashboard/atoms"
-
-/* ------------------------------------------------------------ shared state */
-
-function useProjectState(project: Project) {
-  const [phase, setPhase] = React.useState<Phase>(project.phase)
-  const [milestones, setMilestones] = React.useState<Milestone[]>(project.milestones)
-
-  const completed = milestones.filter((m) => m.status === "COMPLETED").length
-  const progress =
-    milestones.length === 0 ? 0 : Math.round((completed / milestones.length) * 100)
-
-  const setProjectPhase = (next: Phase) => {
-    setPhase(next)
-    toast.success(`Phase set to ${next}`)
-  }
-
-  return { phase, setProjectPhase, milestones, setMilestones, completed, progress }
-}
-
-type State = ReturnType<typeof useProjectState>
+import { ProgressBar } from "@/components/admin/dashboard/atoms"
 
 /* ------------------------------------------------------------------- entry */
 
-export function ProjectDetail({ project }: { project: Project }) {
-  const state = useProjectState(project)
-  const revisions = childProjects(project.id)
+export function ProjectDetail({ id }: { id: string }) {
+  const projectQ = useProject(id)
+
+  if (projectQ.isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        <HugeiconsIcon icon={Loading03Icon} className="size-6 animate-spin" />
+      </div>
+    )
+  }
+  if (projectQ.isError || !projectQ.data) {
+    return <div className="p-6 text-sm text-muted-foreground">Project not found.</div>
+  }
+  return <ProjectDetailInner project={projectQ.data} />
+}
+
+function ProjectDetailInner({ project }: { project: Project }) {
+  const revisionsQ = useProjects()
+  const revisions = (revisionsQ.data ?? []).filter((p) => p.parentProjectId === project.id)
+  const milestones = project.milestones ?? []
+  const completed = milestones.filter((m) => m.status === "COMPLETED").length
 
   return (
     <div className="mx-auto w-full max-w-3xl">
-      <IdentityRow project={project} state={state} />
+      <IdentityRow project={project} />
       <div className="flex flex-col">
         <Section label="Progress">
-          <ProgressCard state={state} project={project} />
+          <ProgressCard project={project} />
         </Section>
-        <Section label="Brief">
-          <p className="text-sm leading-relaxed text-foreground/90">
-            {project.description}
-          </p>
-        </Section>
+        {project.description && (
+          <Section label="Brief">
+            <p className="text-sm leading-relaxed text-foreground/90">
+              {project.description}
+            </p>
+          </Section>
+        )}
         <Section label="Details">
           <FactsGrid project={project} />
         </Section>
-        <Section
-          label="Milestones"
-          count={`${state.completed}/${state.milestones.length}`}
-        >
-          <MilestonesEditor state={state} />
+        <Section label="Milestones" count={`${completed}/${milestones.length}`}>
+          <MilestonesEditor projectId={project.id} milestones={milestones} />
         </Section>
         <Section label="Invoices">
           <InvoicesTab project={project} />
@@ -195,87 +192,95 @@ function Section({
 
 /* ============================================================ shared parts */
 
-/** Identity + phase setter + actions — the always-visible header. */
-function IdentityRow({ project, state }: { project: Project; state: State }) {
+function IdentityRow({ project }: { project: Project }) {
+  const clientQ = useClient(project.clientId)
+  const clientName = clientQ.data?.company ?? "…"
+  const update = useUpdateProject()
+
+  const setPhase = (phase: string) => {
+    update.mutate({ id: project.id, input: { ...toInput(project), phase } })
+  }
+
   return (
     <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex min-w-0 items-center gap-3">
-        <Monogram company={project.client} className="size-12 rounded-xl text-sm" />
+        <Monogram company={clientName} className="size-12 rounded-xl text-sm" />
         <div className="min-w-0">
           <h1 className="truncate text-xl font-semibold tracking-tight">{project.name}</h1>
-          <ClientLine project={project} />
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
+            <Link
+              href={`/admin/clients?c=${project.clientId}`}
+              className="underline-offset-4 hover:text-foreground hover:underline"
+            >
+              {clientName}
+            </Link>
+            {project.type && (
+              <>
+                <span>·</span>
+                <span>{project.type}</span>
+              </>
+            )}
+            {project.parentProjectId && (
+              <>
+                <span>·</span>
+                <Link
+                  href={`/admin/projects/${project.parentProjectId}`}
+                  className="text-info underline-offset-4 hover:underline"
+                >
+                  Revision of parent
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <PhaseSetter phase={state.phase} onPhase={state.setProjectPhase} />
+        <Select value={project.phase} onValueChange={(v) => v && setPhase(v)}>
+          <SelectTrigger className="w-40" aria-label="Set phase">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PHASE_ORDER.map((p) => (
+              <SelectItem key={p} value={p}>{p}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <ProjectActions project={project} />
       </div>
     </div>
   )
 }
 
-function ClientLine({ project }: { project: Project }) {
-  return (
-    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
-      <Link
-        href={`/admin/clients?c=${project.clientId}`}
-        className="underline-offset-4 hover:text-foreground hover:underline"
-      >
-        {project.client}
-      </Link>
-      <span>·</span>
-      <span>{project.type}</span>
-      {project.parentProjectId && (
-        <>
-          <span>·</span>
-          <Link
-            href={`/admin/projects/${project.parentProjectId}`}
-            className="text-info underline-offset-4 hover:underline"
-          >
-            Revision of parent
-          </Link>
-        </>
-      )}
-    </div>
-  )
+/** Build the update body from a project (all editable fields). */
+function toInput(p: Project) {
+  return {
+    name: p.name,
+    type: p.type,
+    description: p.description ?? undefined,
+    phase: p.phase,
+    status: p.status,
+    progress: p.progress,
+    currency: p.currency,
+    totalValue: p.totalValue,
+    budget: p.budget ?? undefined,
+    startDate: p.startDate ?? undefined,
+    endDate: p.endDate ?? undefined,
+    archived: p.archived,
+    notes: p.notes ?? undefined,
+  }
 }
 
-function PhaseSetter({
-  phase,
-  onPhase,
-  className,
-}: {
-  phase: Phase
-  onPhase: (p: Phase) => void
-  className?: string
-}) {
-  return (
-    <Select value={phase} onValueChange={(v) => v && onPhase(v as Phase)}>
-      <SelectTrigger className={cn("w-40", className)} aria-label="Set phase">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {PHASE_ORDER.map((p) => (
-          <SelectItem key={p} value={p}>
-            {p}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
-}
-
-function ProgressCard({ state, project }: { state: State; project: Project }) {
+function ProgressCard({ project }: { project: Project }) {
   return (
     <div className="rounded-2xl border bg-card p-4">
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium">Progress</span>
-        <span className="font-mono text-muted-foreground">{state.progress}%</span>
+        <span className="font-mono text-muted-foreground">{project.progress}%</span>
       </div>
-      <ProgressBar value={state.progress} className="mt-3" />
+      <ProgressBar value={project.progress} className="mt-3" />
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <span className="text-xs text-muted-foreground">Phase</span>
-        <PhaseBadge phase={state.phase} />
+        <Badge variant="secondary">{project.phase}</Badge>
         <Badge variant="secondary" className="ml-auto">
           {PROJECT_STATUS_LABEL[project.status]}
         </Badge>
@@ -284,13 +289,17 @@ function ProgressCard({ state, project }: { state: State; project: Project }) {
   )
 }
 
-/** Three facts as a horizontal grid. */
 function FactsGrid({ project }: { project: Project }) {
+  const clientQ = useClient(project.clientId)
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <Fact icon={UserGroupIcon} label="Client" value={project.client} />
+      <Fact icon={UserGroupIcon} label="Client" value={clientQ.data?.company ?? "—"} />
       <Fact icon={Money01Icon} label="Value" value={formatMoney(project.totalValue, project.currency)} />
-      <Fact icon={Calendar03Icon} label="Timeline" value={`${formatDate(project.startDate, "month")} — ${formatDate(project.endDate, "month")}`} />
+      <Fact
+        icon={Calendar03Icon}
+        label="Timeline"
+        value={`${formatDate(project.startDate, "month")} — ${formatDate(project.endDate, "month")}`}
+      />
     </div>
   )
 }
@@ -330,7 +339,7 @@ function LinkedRevisionsList({ items }: { items: Project[] }) {
               {formatMoney(c.totalValue, c.currency)}
             </div>
           </div>
-          <PhaseBadge phase={c.phase} />
+          <Badge variant="secondary">{c.phase}</Badge>
         </Link>
       ))}
     </div>
@@ -348,49 +357,38 @@ const MS_STATUS_META: Record<
   PENDING: { label: "Pending", variant: "secondary" },
 }
 
-function MilestonesEditor({ state }: { state: State }) {
-  const { milestones, setMilestones, progress } = state
+function MilestonesEditor({
+  projectId,
+  milestones,
+}: {
+  projectId: string
+  milestones: Milestone[]
+}) {
+  const create = useCreateMilestone()
+  const update = useUpdateMilestone()
+  const remove = useDeleteMilestone()
   const [title, setTitle] = React.useState("")
   const [due, setDue] = React.useState("")
 
-  const toggle = (id: string) => {
-    setMilestones((prev) =>
-      prev.map((m) => {
-        if (m.id !== id) return m
-        const next: MilestoneStatus = m.status === "COMPLETED" ? "PENDING" : "COMPLETED"
-        toast.success(
-          next === "COMPLETED" ? `Marked “${m.title}” complete` : `Reopened “${m.title}”`
-        )
-        return { ...m, status: next }
-      })
-    )
-  }
+  const completed = milestones.filter((m) => m.status === "COMPLETED").length
+  const progress = milestones.length === 0 ? 0 : Math.round((completed / milestones.length) * 100)
 
-  const move = (index: number, dir: -1 | 1) => {
-    setMilestones((prev) => {
-      const next = [...prev]
-      const target = index + dir
-      if (target < 0 || target >= next.length) return prev
-      ;[next[index], next[target]] = [next[target], next[index]]
-      return next.map((m, i) => ({ ...m, order: i }))
+  const toggle = (m: Milestone) => {
+    const status: MilestoneStatus = m.status === "COMPLETED" ? "PENDING" : "COMPLETED"
+    update.mutate({
+      projectId,
+      milestoneId: m.id,
+      input: { title: m.title, description: m.description ?? undefined, status, dueDate: m.dueDate ?? undefined, order: m.order },
     })
-  }
-
-  const remove = (id: string) => {
-    setMilestones((prev) => prev.filter((m) => m.id !== id))
-    toast.success("Milestone removed")
   }
 
   const add = () => {
     const t = title.trim()
     if (!t) return
-    setMilestones((prev) => [
-      ...prev,
-      { id: `m-${prev.length}-${t.length}`, title: t, dueDate: due.trim(), status: "PENDING", order: prev.length },
-    ])
-    setTitle("")
-    setDue("")
-    toast.success(`Added “${t}”`)
+    create.mutate(
+      { projectId, input: { title: t, dueDate: due.trim() || undefined, status: "PENDING", order: milestones.length } },
+      { onSuccess: () => { setTitle(""); setDue("") } }
+    )
   }
 
   return (
@@ -401,7 +399,7 @@ function MilestonesEditor({ state }: { state: State }) {
       </div>
 
       <div className="flex flex-col divide-y divide-border rounded-2xl border bg-card">
-        {milestones.map((m, i) => {
+        {milestones.map((m) => {
           const meta = MS_STATUS_META[m.status]
           const done = m.status === "COMPLETED"
           return (
@@ -409,7 +407,7 @@ function MilestonesEditor({ state }: { state: State }) {
               <button
                 type="button"
                 aria-label={done ? "Mark incomplete" : "Mark complete"}
-                onClick={() => toggle(m.id)}
+                onClick={() => toggle(m)}
                 className={cn(
                   "shrink-0 transition-colors",
                   done ? "text-success" : "text-muted-foreground/50 hover:text-foreground"
@@ -423,20 +421,15 @@ function MilestonesEditor({ state }: { state: State }) {
                 </div>
                 <div className="text-xs text-muted-foreground">Due {formatDate(m.dueDate, "compact")}</div>
               </div>
-              <Badge variant={meta.variant} className="shrink-0">
-                {meta.label}
-              </Badge>
-              <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100">
-                <IconBtn label="Move up" disabled={i === 0} onClick={() => move(i, -1)}>
-                  <HugeiconsIcon icon={ArrowUp01Icon} className="size-4" />
-                </IconBtn>
-                <IconBtn label="Move down" disabled={i === milestones.length - 1} onClick={() => move(i, 1)}>
-                  <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" />
-                </IconBtn>
-                <IconBtn label="Remove" onClick={() => remove(m.id)}>
-                  <HugeiconsIcon icon={Delete02Icon} className="size-4" />
-                </IconBtn>
-              </div>
+              <Badge variant={meta.variant} className="shrink-0">{meta.label}</Badge>
+              <button
+                type="button"
+                aria-label="Remove"
+                onClick={() => remove.mutate({ projectId, milestoneId: m.id })}
+                className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-all hover:bg-muted hover:text-foreground group-hover:opacity-100"
+              >
+                <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+              </button>
             </div>
           )
         })}
@@ -462,7 +455,7 @@ function MilestonesEditor({ state }: { state: State }) {
           className="sm:w-40"
           onKeyDown={(e) => e.key === "Enter" && add()}
         />
-        <Button onClick={add} disabled={!title.trim()} className="gap-1.5">
+        <Button onClick={add} disabled={!title.trim() || create.isPending} className="gap-1.5">
           <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-4" />
           Add
         </Button>
@@ -471,42 +464,22 @@ function MilestonesEditor({ state }: { state: State }) {
   )
 }
 
-function IconBtn({
-  label,
-  onClick,
-  disabled,
-  children,
-}: {
-  label: string
-  onClick: () => void
-  disabled?: boolean
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-      className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30"
-    >
-      {children}
-    </button>
-  )
-}
-
 /* ------------------------------------------------------ invoices / deliverables */
 
 function InvoicesTab({ project }: { project: Project }) {
-  const invoices = invoicesForProject(project.id)
+  const { data, isLoading, isError } = useProjectInvoices(project.id)
   const newHref = `/admin/invoices/new?project=${project.id}`
 
+  if (isLoading) return <Loading />
+  if (isError) return <ErrorLine label="invoices" />
+
+  const invoices = data ?? []
   if (invoices.length === 0) {
     return (
       <EmptyTab
         icon={Invoice01Icon}
         title="No invoices yet"
-        body="Generate an invoice for this project — amount, currency and due date. It appears in the client's portal once sent."
+        body="Generate an invoice for this project. It appears in the client's portal once sent."
         action={
           <Button className="gap-1.5" render={<Link href={newHref} />}>
             <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-4" />
@@ -537,9 +510,7 @@ function InvoicesTab({ project }: { project: Project }) {
               <div className="font-mono text-sm font-medium">{i.invoiceNumber}</div>
               <div className="text-xs text-muted-foreground">Due {formatDate(i.dueDate)}</div>
             </div>
-            <Badge variant={INVOICE_STATUS_VARIANT[i.status]}>
-              {INVOICE_STATUS_LABEL[i.status]}
-            </Badge>
+            <Badge variant={INVOICE_STATUS_VARIANT[i.status]}>{INVOICE_STATUS_LABEL[i.status]}</Badge>
             <span className="w-20 text-right font-mono text-sm tabular-nums">
               {formatFull(i.amount, i.currency)}
             </span>
@@ -550,9 +521,6 @@ function InvoicesTab({ project }: { project: Project }) {
   )
 }
 
-/** Version-position badge computed from the fetched list (the admin API returns
- * every version, so grouping by title is enough). "Current version" for the live
- * one, "Older version" for a superseded sibling; nothing for a lone version. */
 function versionBadgeFor(
   d: Deliverable,
   list: Deliverable[]
@@ -564,42 +532,20 @@ function versionBadgeFor(
     : { label: "Older version", variant: "secondary" }
 }
 
-/** Live: reads this project's deliverables from the Clover CMS API via React
- * Query. (The global list/detail pages stay on mock — the admin API has no
- * global-list or single-get endpoint, and no admin review data.) */
 function DeliverablesTab({ project }: { project: Project }) {
-  const { data, isLoading, isError, refetch, isFetching } = useProjectDeliverables(
-    project.id
-  )
+  const { data, isLoading, isError } = useProjectDeliverables(project.id)
   const newHref = `/admin/deliverables/new?project=${project.id}`
 
-  if (isLoading) {
-    return (
-      <div className="rounded-2xl border border-dashed border-border px-6 py-12 text-center text-sm text-muted-foreground">
-        Loading deliverables…
-      </div>
-    )
-  }
-
-  if (isError) {
-    return (
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border px-6 py-12 text-center">
-        <p className="text-sm text-muted-foreground">Couldn’t load deliverables.</p>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-          {isFetching ? "Retrying…" : "Retry"}
-        </Button>
-      </div>
-    )
-  }
+  if (isLoading) return <Loading />
+  if (isError) return <ErrorLine label="deliverables" />
 
   const items = data ?? []
-
   if (items.length === 0) {
     return (
       <EmptyTab
         icon={File01Icon}
         title="No deliverables yet"
-        body="Upload finished work or link an external asset (Figma, a hosted build) for the client to review and download."
+        body="Upload finished work or link an external asset for the client to review."
         action={
           <Button className="gap-1.5" render={<Link href={newHref} />}>
             <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-4" />
@@ -613,9 +559,7 @@ function DeliverablesTab({ project }: { project: Project }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <SectionLabel>
-          {items.length} deliverable{items.length > 1 ? "s" : ""}
-        </SectionLabel>
+        <SectionLabel>{items.length} deliverable{items.length > 1 ? "s" : ""}</SectionLabel>
         <Button variant="outline" size="sm" className="gap-1.5" render={<Link href={newHref} />}>
           <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-3.5" />
           New deliverable
@@ -631,27 +575,36 @@ function DeliverablesTab({ project }: { project: Project }) {
               className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
             >
               <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                <HugeiconsIcon
-                  icon={d.externalLink ? LinkSquare02Icon : File01Icon}
-                  className="size-4"
-                />
+                <HugeiconsIcon icon={d.externalLink ? LinkSquare02Icon : File01Icon} className="size-4" />
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="truncate text-sm font-medium">{d.title}</span>
-                  <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                    v{d.version}
-                  </span>
+                  <span className="shrink-0 font-mono text-[11px] text-muted-foreground">v{d.version}</span>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Uploaded {formatDate(d.uploadedAt)}
-                </div>
+                <div className="text-xs text-muted-foreground">Uploaded {formatDate(d.uploadedAt)}</div>
               </div>
               {vBadge && <Badge variant={vBadge.variant}>{vBadge.label}</Badge>}
             </Link>
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function Loading() {
+  return (
+    <div className="flex items-center justify-center rounded-2xl border border-dashed border-border py-10 text-muted-foreground">
+      <HugeiconsIcon icon={Loading03Icon} className="size-5 animate-spin" />
+    </div>
+  )
+}
+
+function ErrorLine({ label }: { label: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
+      Couldn’t load {label}.
     </div>
   )
 }
@@ -681,8 +634,6 @@ function EmptyTab({
   )
 }
 
-/* --------------------------------------------------------------------- bits */
-
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
@@ -694,6 +645,8 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function ProjectActions({ project }: { project: Project }) {
   const router = useRouter()
   const [confirmOpen, setConfirmOpen] = React.useState(false)
+  const del = useDeleteProject()
+  const update = useUpdateProject()
   const archived = project.archived
 
   return (
@@ -706,16 +659,16 @@ function ProjectActions({ project }: { project: Project }) {
           <HugeiconsIcon icon={MoreHorizontalIcon} className="size-5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={() => router.push(`/admin/projects/${project.id}/edit`)}
-          >
+          <DropdownMenuItem onClick={() => router.push(`/admin/projects/${project.id}/edit`)}>
             <HugeiconsIcon icon={PencilEdit02Icon} />
             Edit project
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={() => toast.success(`${archived ? "Unarchived" : "Archived"} ${project.name}`)}
+            onClick={() =>
+              update.mutate({ id: project.id, input: { ...toInput(project), archived: !archived } })
+            }
           >
-            <HugeiconsIcon icon={Archive02Icon} />
+            <HugeiconsIcon icon={CircleIcon} />
             {archived ? "Unarchive" : "Archive"}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -738,11 +691,14 @@ function ProjectActions({ project }: { project: Project }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              onClick={() => {
-                setConfirmOpen(false)
-                toast.success(`Deleted ${project.name}`)
-                router.push("/admin/projects")
-              }}
+              onClick={() =>
+                del.mutate(project.id, {
+                  onSuccess: () => {
+                    setConfirmOpen(false)
+                    router.push("/admin/projects")
+                  },
+                })
+              }
             >
               Delete
             </AlertDialogAction>

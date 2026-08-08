@@ -1,12 +1,19 @@
 "use client"
 
 import * as React from "react"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Loading03Icon } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
-import { CLIENTS, getClient, type ClientStatus } from "@/lib/mock/clients"
-import { ClientsLedger } from "@/components/admin/clients/clients-ledger"
+import { convert } from "@/lib/mock/currencies"
+import { useSiteCurrency } from "@/hooks/use-site-currency"
+import { useClients } from "@/lib/queries/clients-queries"
+import { useProjects } from "@/lib/queries/projects-queries"
+import type { ClientStatus } from "@/lib/api/models"
+import { ClientsLedger, type ClientRollup } from "@/components/admin/clients/clients-ledger"
 import { ClientsEmpty } from "@/components/admin/clients/clients-empty"
 import { ClientDetailPanel } from "@/components/admin/clients/client-detail-panel"
+import { Button } from "@/components/ui/button"
 
 type Filter = "all" | ClientStatus
 
@@ -19,28 +26,61 @@ const TABS: { key: Filter; label: string }[] = [
   { key: "CHURNED", label: "Churned" },
 ]
 
+const ACTIVE_PROJECT = (status: string) =>
+  status !== "COMPLETED" && status !== "CANCELLED"
+
 /**
- * Clients page — a status filter toolbar over the ledger, with a detail panel
- * that docks beside the list (desktop) / covers the screen (mobile) when a
- * client is selected via `?c=<id>`. Title, global search and New-client live in
- * the shell top bar. `selectedId` comes from the page's search param.
+ * Clients page — status filter over the ledger + a detail panel docked by the
+ * `?c=<id>` param. Clients come from the API; per-client project rollups
+ * (active count + pipeline value) are composed from the projects list.
  */
 export function ClientsList({ selectedId }: { selectedId?: string }) {
+  const [display] = useSiteCurrency()
   const [filter, setFilter] = React.useState<Filter>("all")
 
-  const data =
-    filter === "all" ? CLIENTS : CLIENTS.filter((c) => c.status === filter)
+  const clientsQ = useClients()
+  const projectsQ = useProjects()
 
+  // Compose per-client rollups from projects (one request, cheap).
+  const rollups = React.useMemo(() => {
+    const map = new Map<string, ClientRollup>()
+    for (const p of projectsQ.data ?? []) {
+      const r = map.get(p.clientId) ?? { active: 0, pipeline: 0 }
+      if (!p.archived && ACTIVE_PROJECT(p.status)) r.active += 1
+      r.pipeline += convert(p.totalValue, p.currency, display)
+      map.set(p.clientId, r)
+    }
+    return map
+  }, [projectsQ.data, display])
+
+  if (clientsQ.isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        <HugeiconsIcon icon={Loading03Icon} className="size-6 animate-spin" />
+      </div>
+    )
+  }
+
+  if (clientsQ.isError) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+        <p className="text-sm text-muted-foreground">Couldn’t load clients.</p>
+        <Button variant="outline" size="sm" onClick={() => clientsQ.refetch()}>
+          Retry
+        </Button>
+      </div>
+    )
+  }
+
+  const clients = clientsQ.data ?? []
+  if (!clients.length) return <ClientsEmpty />
+
+  const data = filter === "all" ? clients : clients.filter((c) => c.status === filter)
   const countFor = (key: Filter) =>
-    key === "all" ? CLIENTS.length : CLIENTS.filter((c) => c.status === key).length
-
-  const selected = selectedId ? getClient(selectedId) : undefined
-
-  if (!CLIENTS.length) return <ClientsEmpty />
+    key === "all" ? clients.length : clients.filter((c) => c.status === key).length
 
   return (
     <div className="flex h-full min-h-0 gap-4 md:gap-5">
-      {/* List column — shrinks when the panel is open */}
       <div className="flex min-w-0 flex-1 flex-col gap-5">
         <div className="-mb-px flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border">
           {TABS.map((tab) => {
@@ -73,7 +113,12 @@ export function ClientsList({ selectedId }: { selectedId?: string }) {
 
         {data.length ? (
           <div className="flex min-h-0 flex-1 flex-col">
-            <ClientsLedger data={data} selectedId={selectedId} />
+            <ClientsLedger
+              data={data}
+              rollups={rollups}
+              display={display}
+              selectedId={selectedId}
+            />
           </div>
         ) : (
           <div className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
@@ -82,8 +127,7 @@ export function ClientsList({ selectedId }: { selectedId?: string }) {
         )}
       </div>
 
-      {/* Detail panel */}
-      {selected && <ClientDetailPanel id={selected.id} />}
+      {selectedId && <ClientDetailPanel id={selectedId} />}
     </div>
   )
 }

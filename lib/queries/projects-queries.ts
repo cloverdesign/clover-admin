@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/api/query-client"
 import { ProjectsService } from "@/lib/services/projects-service"
 import type {
+  Project,
   ProjectInput,
   ProjectUpdateInput,
   MilestoneInput,
@@ -70,14 +71,22 @@ export function useDeleteProject() {
 
 /* --------------------------------------------------------------- milestones */
 
+/**
+ * Milestone mutations drive the cached project directly from their responses.
+ * The project endpoint doesn't return milestones (and there's no list endpoint),
+ * so invalidating/refetching would wipe the list — instead we merge the created/
+ * updated/removed milestone into the cached project so the change is visible.
+ */
 export function useCreateMilestone() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (vars: { projectId: string; input: MilestoneInput }) =>
       ProjectsService.createMilestone(vars.projectId, vars.input),
     meta: { successMessage: "Milestone added.", errorMessage: "Failed to add milestone." },
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: queryKeys.projects.byId(vars.projectId) })
+    onSuccess: (created, vars) => {
+      qc.setQueryData<Project>(queryKeys.projects.byId(vars.projectId), (old) =>
+        old ? { ...old, milestones: [...(old.milestones ?? []), created] } : old
+      )
     },
   })
 }
@@ -91,8 +100,17 @@ export function useUpdateMilestone() {
       input: MilestoneInput
     }) => ProjectsService.updateMilestone(vars.projectId, vars.milestoneId, vars.input),
     meta: { successMessage: "Milestone updated.", errorMessage: "Failed to update milestone." },
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: queryKeys.projects.byId(vars.projectId) })
+    onSuccess: (updated, vars) => {
+      qc.setQueryData<Project>(queryKeys.projects.byId(vars.projectId), (old) =>
+        old
+          ? {
+              ...old,
+              milestones: (old.milestones ?? []).map((m) =>
+                m.id === updated.id ? updated : m
+              ),
+            }
+          : old
+      )
     },
   })
 }
@@ -104,7 +122,14 @@ export function useDeleteMilestone() {
       ProjectsService.removeMilestone(vars.projectId, vars.milestoneId),
     meta: { successMessage: "Milestone removed.", errorMessage: "Failed to remove milestone." },
     onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: queryKeys.projects.byId(vars.projectId) })
+      qc.setQueryData<Project>(queryKeys.projects.byId(vars.projectId), (old) =>
+        old
+          ? {
+              ...old,
+              milestones: (old.milestones ?? []).filter((m) => m.id !== vars.milestoneId),
+            }
+          : old
+      )
     },
   })
 }

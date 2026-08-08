@@ -3,25 +3,27 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Mail01Icon,
   Call02Icon,
-  Location01Icon,
   Add01Icon,
-  Invoice01Icon,
   MoreHorizontalIcon,
   PencilEdit02Icon,
   Archive02Icon,
   Delete02Icon,
   UserCheck01Icon,
   Mail02Icon,
+  Loading03Icon,
 } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
 import { formatDate } from "@/lib/format"
+import { convert } from "@/lib/mock/currencies"
+import { formatMoney, CLIENT_STATUS_LABEL } from "@/lib/mock/clients"
+import { useSiteCurrency } from "@/hooks/use-site-currency"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -39,38 +41,45 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
-import { PhaseBadge } from "@/components/admin/dashboard/atoms"
-import {
-  getClient,
-  activeProjectCount,
-  formatMoney,
-  portalStatus,
-  PORTAL_LABEL,
-  type Client,
-} from "@/lib/mock/clients"
-import { Badge } from "@/components/ui/badge"
-import {
-  Monogram,
-  ClientStatusBadge,
-  useDisplayMoney,
-} from "@/components/admin/clients/atoms"
+import { useClient, useDeleteClient, useUpdateClient, useSendPortalInvite } from "@/lib/queries/clients-queries"
+import { useProjects } from "@/lib/queries/projects-queries"
+import type { Client } from "@/lib/api/models"
+import { Monogram, ClientStatusBadge } from "@/components/admin/clients/atoms"
 
 /**
- * Client detail content — shared by the desktop side panel (intercepted route)
- * and the full mobile/refresh page, so both stay identical. Pure content: the
- * wrappers own width, scroll, and the close/back affordance.
+ * Client detail — reads the client from the API and composes its projects +
+ * rollups from the projects list. Shared by the desktop side panel and the full
+ * page. Delete / status-change / portal-invite are real mutations.
  */
 export function ClientDetail({ id }: { id: string }) {
-  const money = useDisplayMoney()
-  const client = getClient(id)
+  const clientQ = useClient(id)
 
-  if (!client) {
+  if (clientQ.isLoading) {
     return (
-      <div className="p-6 text-sm text-muted-foreground">
-        Client not found.
+      <div className="flex items-center justify-center p-12 text-muted-foreground">
+        <HugeiconsIcon icon={Loading03Icon} className="size-5 animate-spin" />
       </div>
     )
   }
+  if (clientQ.isError || !clientQ.data) {
+    return <div className="p-6 text-sm text-muted-foreground">Client not found.</div>
+  }
+  return <ClientDetailInner client={clientQ.data} />
+}
+
+function ClientDetailInner({ client }: { client: Client }) {
+  const [display] = useSiteCurrency()
+  const projectsQ = useProjects()
+  const invite = useSendPortalInvite()
+
+  const projects = (projectsQ.data ?? []).filter((p) => p.clientId === client.id)
+  const active = projects.filter(
+    (p) => !p.archived && p.status !== "COMPLETED" && p.status !== "CANCELLED"
+  ).length
+  const pipeline = projects.reduce(
+    (s, p) => s + convert(p.totalValue, p.currency, display),
+    0
+  )
 
   return (
     <div className="flex flex-col gap-6 p-5 sm:p-6">
@@ -97,26 +106,44 @@ export function ClientDetail({ id }: { id: string }) {
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Contact icon={Mail01Icon} value={client.email} />
         {client.phone && <Contact icon={Call02Icon} value={client.phone} />}
-        {client.location && <Contact icon={Location01Icon} value={client.location} />}
       </div>
 
       {/* Portal access */}
-      <PortalAccess client={client} />
+      <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+          <HugeiconsIcon icon={UserCheck01Icon} className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">Client portal</div>
+          <div className="truncate text-xs text-muted-foreground">
+            Signs in with {client.email}
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          disabled={invite.isPending}
+          onClick={() => invite.mutate(client.id)}
+        >
+          <HugeiconsIcon icon={Mail02Icon} data-icon="inline-start" className="size-3.5" />
+          {invite.isPending ? "Sending…" : "Send invite"}
+        </Button>
+      </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <Stat label="Total value" value={money.total(client)} />
-        <Stat label="Active projects" value={String(activeProjectCount(client))} />
-        <Stat
-          label="Outstanding"
-          value={
-            client.outstanding > 0
-              ? formatMoney(client.outstanding, client.currency)
-              : "—"
-          }
-          tone={client.outstanding > 0 ? "warning" : undefined}
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <Stat label="Active projects" value={String(active)} />
+        <Stat label="Pipeline value" value={formatMoney(pipeline, display)} />
       </div>
+
+      {/* Notes */}
+      {client.notes && (
+        <section>
+          <SectionLabel>Notes</SectionLabel>
+          <p className="mt-2 text-sm leading-relaxed text-foreground/90">{client.notes}</p>
+        </section>
+      )}
 
       {/* Projects */}
       <section>
@@ -132,19 +159,22 @@ export function ClientDetail({ id }: { id: string }) {
             New project
           </Button>
         </div>
-        {client.projects.length ? (
+        {projects.length ? (
           <div className="flex flex-col divide-y divide-border rounded-xl border border-border">
-            {client.projects.map((p) => (
-              <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+            {projects.map((p) => (
+              <Link
+                key={p.id}
+                href={`/admin/projects/${p.id}`}
+                className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+              >
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{p.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {formatMoney(p.value, p.currency)}
-                    {p.status === "completed" ? " · Completed" : ""}
+                    {formatMoney(p.totalValue, p.currency)}
                   </div>
                 </div>
-                <PhaseBadge phase={p.phase} />
-              </div>
+                <Badge variant="secondary">{p.phase}</Badge>
+              </Link>
             ))}
           </div>
         ) : (
@@ -152,29 +182,6 @@ export function ClientDetail({ id }: { id: string }) {
             No projects yet — prospect.
           </div>
         )}
-      </section>
-
-      {/* Invoices */}
-      <section>
-        <SectionLabel>Invoices</SectionLabel>
-        <Link
-          href="/admin/invoices"
-          className="mt-2 flex items-center gap-3 rounded-xl border border-border px-4 py-3 transition-colors hover:bg-muted/40"
-        >
-          <span className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <HugeiconsIcon icon={Invoice01Icon} className="size-4" />
-          </span>
-          <div className="min-w-0 flex-1 text-sm">
-            {client.openInvoices > 0
-              ? `${client.openInvoices} open invoice${client.openInvoices > 1 ? "s" : ""}`
-              : "No open invoices"}
-          </div>
-          {client.outstanding > 0 && (
-            <span className="font-mono text-sm text-warning">
-              {formatMoney(client.outstanding, client.currency)}
-            </span>
-          )}
-        </Link>
       </section>
     </div>
   )
@@ -189,66 +196,11 @@ function Contact({ icon, value }: { icon: typeof Mail01Icon; value: string }) {
   )
 }
 
-/** Portal access state + send/resend the passwordless portal invite (§1.1,
- * §1.5). Dummy — sending confirms with a toast, no real email. */
-function PortalAccess({ client }: { client: Client }) {
-  const status = portalStatus(client)
-  const invited = status !== "not-invited"
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-border px-4 py-3">
-      <span
-        className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-lg",
-          status === "active"
-            ? "bg-success/10 text-success"
-            : "bg-muted text-muted-foreground"
-        )}
-      >
-        <HugeiconsIcon icon={UserCheck01Icon} className="size-4" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 text-sm font-medium">
-          Client portal
-          <Badge variant={status === "active" ? "success" : "secondary"}>
-            {PORTAL_LABEL[status]}
-          </Badge>
-        </div>
-        <div className="truncate text-xs text-muted-foreground">
-          {invited ? `Signs in with ${client.email}` : "Not yet invited to the portal"}
-        </div>
-      </div>
-      <Button
-        variant="outline"
-        size="sm"
-        className="gap-1.5"
-        onClick={() =>
-          toast.success(
-            `${invited ? "Resent" : "Sent"} portal invite to ${client.email}`
-          )
-        }
-      >
-        <HugeiconsIcon icon={Mail02Icon} data-icon="inline-start" className="size-3.5" />
-        {invited ? "Resend invite" : "Send invite"}
-      </Button>
-    </div>
-  )
-}
-
-function Stat({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: string
-  tone?: "warning"
-}) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-border p-3">
       <div className="text-[11px] text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 font-mono text-base font-semibold", tone === "warning" && "text-warning")}>
-        {value}
-      </div>
+      <div className="mt-1 font-mono text-base font-semibold">{value}</div>
     </div>
   )
 }
@@ -261,12 +213,27 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-/** Edit / Archive / Delete for a client. No backend yet — actions confirm with
- * a toast (delete also returns to the list). */
+/** Edit / status-toggle / delete — real mutations. */
 function ClientActions({ client }: { client: Client }) {
   const router = useRouter()
   const [confirmOpen, setConfirmOpen] = React.useState(false)
+  const del = useDeleteClient()
+  const update = useUpdateClient()
   const churned = client.status === "CHURNED"
+
+  const toggleChurned = () => {
+    update.mutate({
+      id: client.id,
+      input: {
+        name: client.name,
+        email: client.email,
+        company: client.company,
+        phone: client.phone ?? undefined,
+        notes: client.notes ?? undefined,
+        status: churned ? "ACTIVE" : "CHURNED",
+      },
+    })
+  }
 
   return (
     <>
@@ -278,19 +245,11 @@ function ClientActions({ client }: { client: Client }) {
           <HugeiconsIcon icon={MoreHorizontalIcon} className="size-5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={() => router.push(`/admin/clients/${client.id}/edit`)}
-          >
+          <DropdownMenuItem onClick={() => router.push(`/admin/clients/${client.id}/edit`)}>
             <HugeiconsIcon icon={PencilEdit02Icon} />
             Edit client
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() =>
-              toast.success(
-                `${churned ? "Reactivated" : "Marked churned"} ${client.company}`
-              )
-            }
-          >
+          <DropdownMenuItem onClick={toggleChurned}>
             <HugeiconsIcon icon={Archive02Icon} />
             {churned ? "Mark active" : "Mark churned"}
           </DropdownMenuItem>
@@ -315,11 +274,14 @@ function ClientActions({ client }: { client: Client }) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              onClick={() => {
-                setConfirmOpen(false)
-                toast.success(`Deleted ${client.company}`)
-                router.push("/admin/clients")
-              }}
+              onClick={() =>
+                del.mutate(client.id, {
+                  onSuccess: () => {
+                    setConfirmOpen(false)
+                    router.push("/admin/clients")
+                  },
+                })
+              }
             >
               Delete
             </AlertDialogAction>

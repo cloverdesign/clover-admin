@@ -3,7 +3,8 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Loading03Icon } from "@hugeicons/core-free-icons"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,63 +16,76 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { formatDate } from "@/lib/format"
 import { CURRENCIES } from "@/lib/mock/currencies"
 import { PHASE_ORDER } from "@/lib/phase-colors"
-import type { Phase } from "@/lib/mock/dashboard"
-import {
-  getProject,
-  PROJECT_STATUS_LABEL,
-  type ProjectStatus,
-} from "@/lib/mock/projects"
+import { PROJECT_STATUS_LABEL } from "@/lib/mock/projects"
+import { useProject, useUpdateProject } from "@/lib/queries/projects-queries"
+import { useClient } from "@/lib/queries/clients-queries"
+import type { Project, ProjectStatus } from "@/lib/api/models"
 import { Monogram } from "@/components/admin/clients/atoms"
 import { Field } from "@/components/admin/clients/new-client/fields"
 import { EditorialFrame } from "@/components/admin/clients/new-client/editorial-parts"
 
-const STATUSES: ProjectStatus[] = [
-  "PLANNING",
-  "IN_PROGRESS",
-  "REVIEW",
-  "COMPLETED",
-  "ON_HOLD",
-  "CANCELLED",
-]
+const STATUSES: ProjectStatus[] = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD", "CANCELLED"]
 
-/**
- * Edit Project — same editorial split as the create flows, pre-filled from the
- * project. No backend: Save confirms with a toast and returns to the project.
- */
+/** Edit Project — PUT /api/projects/{id}. */
 export function EditProjectPage({ id }: { id?: string }) {
   const router = useRouter()
-  const project = id ? getProject(id) : undefined
+  const projectQ = useProject(id ?? "")
 
-  const [name, setName] = React.useState(project?.name ?? "")
-  const [type, setType] = React.useState(project?.type ?? "")
-  const [phase, setPhase] = React.useState<Phase>(project?.phase ?? "Kickoff")
-  const [status, setStatus] = React.useState<ProjectStatus>(project?.status ?? "PLANNING")
-  const [value, setValue] = React.useState(project ? String(project.totalValue) : "")
-  const [currency, setCurrency] = React.useState(project?.currency ?? "USD")
-  const [start, setStart] = React.useState(formatDate(project?.startDate, "month"))
-  const [target, setTarget] = React.useState(formatDate(project?.endDate, "month"))
-  const [brief, setBrief] = React.useState(project?.description ?? "")
-
-  if (!project) {
+  if (projectQ.isLoading) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-24 text-center">
-        <p className="text-sm text-muted-foreground">Project not found.</p>
-        <Button variant="outline" render={<Link href="/admin/projects" />}>
-          Go to projects
-        </Button>
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        <HugeiconsIcon icon={Loading03Icon} className="size-6 animate-spin" />
       </div>
     )
   }
+  if (projectQ.isError || !projectQ.data) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-24 text-center">
+        <p className="text-sm text-muted-foreground">Project not found.</p>
+        <Button variant="outline" render={<Link href="/admin/projects" />}>Go to projects</Button>
+      </div>
+    )
+  }
+  return <EditProjectForm project={projectQ.data} router={router} />
+}
 
+function EditProjectForm({ project, router }: { project: Project; router: ReturnType<typeof useRouter> }) {
+  const update = useUpdateProject()
+  const clientQ = useClient(project.clientId)
   const backHref = `/admin/projects/${project.id}`
+
+  const [name, setName] = React.useState(project.name)
+  const [type, setType] = React.useState(project.type)
+  const [phase, setPhase] = React.useState(project.phase)
+  const [status, setStatus] = React.useState<ProjectStatus>(project.status)
+  const [value, setValue] = React.useState(String(project.totalValue))
+  const [currency, setCurrency] = React.useState(project.currency)
+  const [start, setStart] = React.useState((project.startDate ?? "").slice(0, 10))
+  const [end, setEnd] = React.useState((project.endDate ?? "").slice(0, 10))
+  const [brief, setBrief] = React.useState(project.description ?? "")
+
   const valid = name.trim().length > 0
 
   const save = () => {
-    toast.success(`Saved changes to ${name}`)
-    router.push(backHref)
+    update.mutate(
+      {
+        id: project.id,
+        input: {
+          name: name.trim(),
+          type,
+          phase,
+          status,
+          currency,
+          totalValue: Number(value) || 0,
+          startDate: start || undefined,
+          endDate: end || undefined,
+          description: brief || undefined,
+        },
+      },
+      { onSuccess: () => router.push(backHref) }
+    )
   }
 
   return (
@@ -81,14 +95,13 @@ export function EditProjectPage({ id }: { id?: string }) {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Edit project</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Update the project's details. Phase and status also change from the
-              project page.
+              Update the project's details. Phase and status also change from the project page.
             </p>
             <div className="mt-8 flex items-center gap-3 rounded-xl border bg-card p-3">
-              <Monogram company={project.client} className="size-10" />
+              <Monogram company={clientQ.data?.company ?? project.name} className="size-10" />
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium">{project.name}</div>
-                <div className="truncate text-xs text-muted-foreground">{project.client}</div>
+                <div className="truncate text-xs text-muted-foreground">{clientQ.data?.company ?? ""}</div>
               </div>
             </div>
           </div>
@@ -97,9 +110,7 @@ export function EditProjectPage({ id }: { id?: string }) {
       right={
         <div className="flex min-h-0 flex-col overflow-y-auto p-8">
           <h2 className="text-lg font-semibold tracking-tight">Project details</h2>
-          <p className="mt-1 mb-6 text-sm text-muted-foreground">
-            Name, phase, budget and timeline.
-          </p>
+          <p className="mt-1 mb-6 text-sm text-muted-foreground">Name, phase, budget and timeline.</p>
 
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
@@ -112,28 +123,20 @@ export function EditProjectPage({ id }: { id?: string }) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Phase" htmlFor="pphase">
-                <Select value={phase} onValueChange={(v) => v && setPhase(v as Phase)}>
-                  <SelectTrigger id="pphase" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
+                <Select value={phase} onValueChange={(v) => v && setPhase(v)}>
+                  <SelectTrigger id="pphase" className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {PHASE_ORDER.map((p) => (
-                      <SelectItem key={p} value={p}>{p}</SelectItem>
-                    ))}
+                    {PHASE_ORDER.map((p) => (<SelectItem key={p} value={p}>{p}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </Field>
               <Field label="Status" htmlFor="pstatus">
                 <Select value={status} onValueChange={(v) => v && setStatus(v as ProjectStatus)}>
                   <SelectTrigger id="pstatus" className="w-full">
-                    <SelectValue>
-                      {(v) => PROJECT_STATUS_LABEL[v as ProjectStatus] ?? v}
-                    </SelectValue>
+                    <SelectValue>{(v) => PROJECT_STATUS_LABEL[v as ProjectStatus] ?? v}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUSES.map((s) => (
-                      <SelectItem key={s} value={s}>{PROJECT_STATUS_LABEL[s]}</SelectItem>
-                    ))}
+                    {STATUSES.map((s) => (<SelectItem key={s} value={s}>{PROJECT_STATUS_LABEL[s]}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </Field>
@@ -144,25 +147,19 @@ export function EditProjectPage({ id }: { id?: string }) {
               </Field>
               <Field label="Currency" htmlFor="pcurrency">
                 <Select value={currency} onValueChange={(v) => v && setCurrency(v)}>
-                  <SelectTrigger id="pcurrency" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger id="pcurrency" className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {CURRENCIES.map((c) => (
-                      <SelectItem key={c.code} value={c.code}>
-                        {c.flag} {c.code} — {c.name}
-                      </SelectItem>
-                    ))}
+                    {CURRENCIES.map((c) => (<SelectItem key={c.code} value={c.code}>{c.flag} {c.code} — {c.name}</SelectItem>))}
                   </SelectContent>
                 </Select>
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Start" htmlFor="pstart">
-                <Input id="pstart" value={start} onChange={(e) => setStart(e.target.value)} placeholder="Mar 2024" />
+                <Input id="pstart" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
               </Field>
               <Field label="Target" htmlFor="ptarget">
-                <Input id="ptarget" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="Sep 2024" />
+                <Input id="ptarget" type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
               </Field>
             </div>
             <Field label="Brief" htmlFor="pbrief">
@@ -172,7 +169,9 @@ export function EditProjectPage({ id }: { id?: string }) {
 
           <div className="mt-auto flex justify-end gap-2 pt-8">
             <Button variant="outline" render={<Link href={backHref} />}>Cancel</Button>
-            <Button onClick={save} disabled={!valid}>Save changes</Button>
+            <Button onClick={save} disabled={!valid || update.isPending}>
+              {update.isPending ? "Saving…" : "Save changes"}
+            </Button>
           </div>
         </div>
       }

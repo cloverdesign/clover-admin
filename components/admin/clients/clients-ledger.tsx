@@ -4,53 +4,42 @@ import Link from "next/link"
 
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import {
-  type Client,
-  activeProjectCount,
-  clientTotalValue,
-  formatMoney,
-} from "@/lib/mock/clients"
-import { convert } from "@/lib/mock/currencies"
-import {
-  Monogram,
-  ClientStatusBadge,
-  useDisplayMoney,
-} from "@/components/admin/clients/atoms"
+import { formatMoney } from "@/lib/mock/clients"
+import type { Client } from "@/lib/api/models"
+import { Monogram, ClientStatusBadge } from "@/components/admin/clients/atoms"
+
+/** Per-client rollup composed from the projects list. */
+export type ClientRollup = { active: number; pipeline: number }
 
 /**
  * Ledger layout for the Clients page — a summary metrics strip over a flat
- * customer list with right-aligned monospace figures (Stripe Customers feel).
- * Numbers-first: pipeline value and outstanding lead the surface. Receives the
- * already-filtered client set from the page.
+ * customer list with right-aligned monospace figures. Numbers (active projects,
+ * pipeline value) are composed from the projects list and passed in as rollups.
  */
 export function ClientsLedger({
   data,
+  rollups,
+  display,
   selectedId,
 }: {
   data: Client[]
+  rollups: Map<string, ClientRollup>
+  display: string
   selectedId?: string
 }) {
-  const money = useDisplayMoney()
-
   const activeCount = data.filter((c) => c.status === "ACTIVE").length
-  const pipeline = data.reduce((s, c) => s + clientTotalValue(c, money.display), 0)
-  const outstanding = data.reduce(
-    (s, c) => s + convert(c.outstanding, c.currency, money.display),
+  const pipeline = data.reduce(
+    (s, c) => s + (rollups.get(c.id)?.pipeline ?? 0),
     0
   )
 
   return (
     <div className="flex h-full flex-col gap-5">
       {/* Summary strip */}
-      <div className="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border md:grid-cols-4">
+      <div className="grid shrink-0 grid-cols-3 gap-px overflow-hidden rounded-2xl border bg-border">
         <Metric label="Clients" value={String(data.length)} />
         <Metric label="Active" value={String(activeCount)} />
-        <Metric label="Pipeline value" value={formatMoney(pipeline, money.display)} />
-        <Metric
-          label="Outstanding"
-          value={formatMoney(outstanding, money.display)}
-          tone={outstanding > 0 ? "warning" : undefined}
-        />
+        <Metric label="Pipeline value" value={formatMoney(pipeline, display)} />
       </div>
 
       {/* Flat list — only the rows scroll; header stays pinned */}
@@ -62,71 +51,56 @@ export function ClientsLedger({
           <span className="text-right">Value</span>
         </div>
         <div className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-y-auto">
-          {data.map((client) => (
-            <Link
-              key={client.id}
-              href={`/admin/clients?c=${client.id}`}
-              scroll={false}
-              className={cn(
-                "grid grid-cols-[1fr_auto] items-center gap-4 px-5 py-3 text-left transition-colors hover:bg-muted/40 sm:grid-cols-[1.6fr_1fr_0.8fr_0.9fr]",
-                selectedId === client.id && "bg-muted/60"
-              )}
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <Monogram company={client.company} className="size-8 text-[10px]" />
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">{client.company}</div>
-                  <div className="truncate text-xs text-muted-foreground sm:hidden">
-                    {client.email}
-                  </div>
-                </div>
-              </div>
-              <div className="hidden min-w-0 sm:block">
-                <div className="truncate text-sm">{client.name}</div>
-                <div className="truncate text-xs text-muted-foreground">{client.email}</div>
-              </div>
-              <div className="hidden items-center justify-end gap-2 sm:flex">
-                <ClientStatusBadge status={client.status} />
-                <Badge variant="secondary" className="tabular-nums">
-                  {activeProjectCount(client)} active
-                </Badge>
-              </div>
-              <div className="text-right">
-                <div className="font-mono text-sm font-medium tabular-nums">
-                  {money.total(client)}
-                </div>
-                {client.outstanding > 0 && (
-                  <div className="font-mono text-xs text-warning tabular-nums">
-                    {formatMoney(client.outstanding, client.currency)} due
-                  </div>
+          {data.map((client) => {
+            const roll = rollups.get(client.id)
+            return (
+              <Link
+                key={client.id}
+                href={`/admin/clients?c=${client.id}`}
+                scroll={false}
+                className={cn(
+                  "grid grid-cols-[1fr_auto] items-center gap-4 px-5 py-3 text-left transition-colors hover:bg-muted/40 sm:grid-cols-[1.6fr_1fr_0.8fr_0.9fr]",
+                  selectedId === client.id && "bg-muted/60"
                 )}
-              </div>
-            </Link>
-          ))}
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  <Monogram company={client.company} className="size-8 text-[10px]" />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{client.company}</div>
+                    <div className="truncate text-xs text-muted-foreground sm:hidden">
+                      {client.email}
+                    </div>
+                  </div>
+                </div>
+                <div className="hidden min-w-0 sm:block">
+                  <div className="truncate text-sm">{client.name}</div>
+                  <div className="truncate text-xs text-muted-foreground">{client.email}</div>
+                </div>
+                <div className="hidden items-center justify-end gap-2 sm:flex">
+                  <ClientStatusBadge status={client.status} />
+                  <Badge variant="secondary" className="tabular-nums">
+                    {roll?.active ?? 0} active
+                  </Badge>
+                </div>
+                <div className="text-right">
+                  <div className="font-mono text-sm font-medium tabular-nums">
+                    {formatMoney(roll?.pipeline ?? 0, display)}
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
         </div>
       </div>
     </div>
   )
 }
 
-function Metric({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: string
-  tone?: "warning"
-}) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-card p-4">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div
-        className={cn(
-          "mt-1 font-mono text-xl font-semibold tracking-tight tabular-nums",
-          tone === "warning" && "text-warning"
-        )}
-      >
+      <div className="mt-1 font-mono text-xl font-semibold tracking-tight tabular-nums">
         {value}
       </div>
     </div>
