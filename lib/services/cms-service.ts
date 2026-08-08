@@ -72,8 +72,10 @@ export class PagesService {
     pageId: string,
     blockIds: string[]
   ): Promise<void> {
+    // The API expects each block paired with its new zero-based order, not a
+    // bare list of ids.
     await apiClient.put<ApiEnvelope<null>>(PageEndpoints.reorderBlocks(pageId), {
-      blocks: blockIds,
+      blocks: blockIds.map((id, order) => ({ id, order })),
     })
   }
 
