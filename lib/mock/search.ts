@@ -9,6 +9,7 @@ import { CLIENTS } from "@/lib/mock/clients"
 import { DASHBOARD_DATA } from "@/lib/mock/dashboard"
 import { INVOICES } from "@/lib/mock/invoices"
 import { REVISIONS, revisionTitle } from "@/lib/mock/revisions"
+import { DELIVERABLES } from "@/lib/mock/deliverables"
 
 export type SearchType =
   | "client"
@@ -70,6 +71,17 @@ function buildIndex(): SearchEntity[] {
       subtitle: `${r.client} · ${r.projectName}`,
       href: `/admin/revisions/${r.id}`,
       keywords: `${r.description} ${r.client} ${r.projectName} ${r.status}`.toLowerCase(),
+    })
+  }
+
+  for (const d of DELIVERABLES) {
+    out.push({
+      id: `deliverable-${d.id}`,
+      type: "deliverable",
+      title: `${d.title} · v${d.version}`,
+      subtitle: `${d.client} · ${d.projectName}`,
+      href: `/admin/deliverables/${d.id}`,
+      keywords: `${d.title} ${d.client} ${d.projectName} ${d.status}`.toLowerCase(),
     })
   }
 
