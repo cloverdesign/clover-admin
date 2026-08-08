@@ -92,6 +92,10 @@ export interface Project {
   notes: string | null
   createdAt: string
   updatedAt: string
+  /** Relations the detail endpoint may embed. The API has no GET for these, so
+   * they're optional — present if the backend includes them, else undefined. */
+  milestones?: Milestone[]
+  updates?: ProjectUpdatePost[]
 }
 
 export interface ProjectInput {
@@ -217,7 +221,7 @@ export interface RevisionStatusInput {
 
 /** Approve → scaffold as a new phase on the same project, or a new project. */
 export interface RevisionApproveInput {
-  type: "PHASE" | "PROJECT"
+  type: "new_phase" | "new_project"
   projectName?: string
   projectDescription?: string
   phaseNote?: string

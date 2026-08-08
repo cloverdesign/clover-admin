@@ -22,7 +22,14 @@ import { toast } from "sonner"
 import type { ApiError } from "@/lib/api/types"
 
 function messageOf(error: unknown, fallback: string): string {
-  return (error as ApiError)?.message ?? fallback
+  const e = error as ApiError | undefined
+  // Don't leak server-side internals (stack traces, DB errors) from 5xx —
+  // show the friendly fallback. 4xx messages ("Email already registered",
+  // "Invalid credentials") are meant for the user, so keep those.
+  if (!e?.message || (typeof e.status === "number" && e.status >= 500)) {
+    return fallback
+  }
+  return e.message
 }
 
 function makeQueryClient(): QueryClient {
