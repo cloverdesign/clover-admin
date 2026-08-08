@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Logout01Icon,
@@ -34,6 +34,9 @@ import { CommandPaletteProvider } from "@/components/admin/shell/command-palette
 import { getProject } from "@/lib/mock/projects"
 import { getInvoice } from "@/lib/mock/invoices"
 import { getRevision, revisionTitle } from "@/lib/mock/revisions"
+import { getDeliverable } from "@/lib/mock/deliverables"
+import { getPage, getCaseStudy, getTestimonial } from "@/lib/mock/cms"
+import { clearToken } from "@/lib/api/auth-storage"
 import { Toaster } from "@/components/ui/sonner"
 
 /** Is this nav item the current page? `/admin` matches exactly (so it isn't lit
@@ -52,6 +55,13 @@ function SidebarBody({
   showCurrency?: boolean
 }) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const signOut = () => {
+    clearToken()
+    onNavigate?.()
+    router.push("/admin/login")
+  }
 
   return (
     <>
@@ -115,6 +125,7 @@ function SidebarBody({
         <button
           type="button"
           aria-label="Sign out"
+          onClick={signOut}
           className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
         >
           <HugeiconsIcon icon={Logout01Icon} className="size-5" />
@@ -135,6 +146,14 @@ const DEEP_CRUMBS: Record<string, string> = {
   "/admin/clients/new": "New client",
   "/admin/clients/new-project": "New project",
   "/admin/invoices/new": "New invoice",
+  "/admin/deliverables/new": "New deliverable",
+  "/admin/cms/pages": "Pages",
+  "/admin/cms/case-studies": "Case studies",
+  "/admin/cms/case-studies/new": "New case study",
+  "/admin/cms/testimonials": "Testimonials",
+  "/admin/cms/testimonials/new": "New testimonial",
+  "/admin/cms/media": "Media",
+  "/admin/cms/settings": "Site settings",
 }
 
 /** Label for the deepest crumb: an explicit map entry, else a resolved entity
@@ -145,6 +164,7 @@ function deepLabel(pathname: string): string {
   if (/^\/admin\/clients\/[^/]+\/edit$/.test(pathname)) return "Edit client"
   if (/^\/admin\/projects\/[^/]+\/edit$/.test(pathname)) return "Edit project"
   if (/^\/admin\/invoices\/[^/]+\/edit$/.test(pathname)) return "Edit invoice"
+  if (/^\/admin\/deliverables\/[^/]+\/edit$/.test(pathname)) return "Edit deliverable"
 
   const projectMatch = pathname.match(/^\/admin\/projects\/([^/]+)$/)
   if (projectMatch) {
@@ -162,6 +182,30 @@ function deepLabel(pathname: string): string {
   if (revisionMatch) {
     const revision = getRevision(revisionMatch[1])
     if (revision) return revisionTitle(revision)
+  }
+
+  const deliverableMatch = pathname.match(/^\/admin\/deliverables\/([^/]+)$/)
+  if (deliverableMatch) {
+    const deliverable = getDeliverable(deliverableMatch[1])
+    if (deliverable) return deliverable.title
+  }
+
+  const cmsPageMatch = pathname.match(/^\/admin\/cms\/pages\/([^/]+)$/)
+  if (cmsPageMatch) {
+    const page = getPage(cmsPageMatch[1])
+    if (page) return page.title
+  }
+
+  const caseStudyMatch = pathname.match(/^\/admin\/cms\/case-studies\/([^/]+)$/)
+  if (caseStudyMatch) {
+    const cs = getCaseStudy(caseStudyMatch[1])
+    if (cs) return cs.title
+  }
+
+  const testimonialMatch = pathname.match(/^\/admin\/cms\/testimonials\/([^/]+)$/)
+  if (testimonialMatch) {
+    const t = getTestimonial(testimonialMatch[1])
+    if (t) return t.author
   }
 
   const last = pathname.split("/").filter(Boolean).pop() ?? ""
