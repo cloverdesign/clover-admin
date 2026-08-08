@@ -9,6 +9,7 @@ import {
   Invoice01Icon,
   Task01Icon,
   DeliveryBox01Icon,
+  BrowserIcon,
 } from "@hugeicons/core-free-icons"
 
 import {
@@ -22,10 +23,10 @@ import {
 } from "@/components/ui/command"
 import { ALL_ITEMS } from "@/components/admin/shell/nav-data"
 import {
-  SEARCH_INDEX,
+  useSearchIndex,
   type SearchEntity,
   type SearchType,
-} from "@/lib/mock/search"
+} from "@/lib/queries/search-queries"
 
 /** Open-state context so the shell's search field (and ⌘K) can summon the palette. */
 const CommandPaletteContext = React.createContext<{
@@ -42,6 +43,7 @@ const TYPE_ICON: Record<SearchType, typeof UserGroupIcon> = {
   invoice: Invoice01Icon,
   revision: Task01Icon,
   deliverable: DeliveryBox01Icon,
+  page: BrowserIcon,
 }
 
 const GROUPS: { type: SearchType; label: string }[] = [
@@ -50,6 +52,7 @@ const GROUPS: { type: SearchType; label: string }[] = [
   { type: "invoice", label: "Invoices" },
   { type: "revision", label: "Revision requests" },
   { type: "deliverable", label: "Deliverables" },
+  { type: "page", label: "Pages" },
 ]
 
 export function CommandPaletteProvider({
@@ -60,6 +63,7 @@ export function CommandPaletteProvider({
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
+  const { index } = useSearchIndex(open)
 
   // ⌘K / Ctrl+K toggles the palette from anywhere.
   React.useEffect(() => {
@@ -122,7 +126,8 @@ export function CommandPaletteProvider({
 
           {query === "" ? (
             <CommandGroup heading="Recent clients">
-              {SEARCH_INDEX.filter((e) => e.type === "client")
+              {index
+                .filter((e) => e.type === "client")
                 .slice(0, 5)
                 .map((e) => (
                   <ResultItem key={e.id} entity={e} onSelect={go} />
@@ -130,7 +135,7 @@ export function CommandPaletteProvider({
             </CommandGroup>
           ) : (
             GROUPS.map((g) => {
-              const items = SEARCH_INDEX.filter((e) => e.type === g.type)
+              const items = index.filter((e) => e.type === g.type)
               if (!items.length) return null
               return (
                 <CommandGroup key={g.type} heading={g.label}>

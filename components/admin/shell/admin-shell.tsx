@@ -31,13 +31,13 @@ import {
 } from "@/components/ui/sheet"
 import { CurrencyControls } from "@/components/admin/shell/currency-controls"
 import { CommandPaletteProvider } from "@/components/admin/shell/command-palette"
-import { getProject } from "@/lib/mock/projects"
-import { getInvoice } from "@/lib/mock/invoices"
-import { getRevision, revisionTitle } from "@/lib/mock/revisions"
-import { getDeliverable } from "@/lib/mock/deliverables"
-import { getPage, getCaseStudy, getTestimonial } from "@/lib/mock/cms"
+import { useProject } from "@/lib/queries/projects-queries"
+import { useInvoice } from "@/lib/queries/invoices-queries"
+import { useRevision } from "@/lib/queries/revisions-queries"
+import { useDeliverable } from "@/lib/queries/deliverables-queries"
+import { usePage } from "@/lib/queries/cms-queries"
+import { revisionTitle } from "@/components/admin/revisions/revisions-table"
 import { clearToken } from "@/lib/api/auth-storage"
-import { Toaster } from "@/components/ui/sonner"
 
 /** Is this nav item the current page? `/admin` matches exactly (so it isn't lit
  * for every sub-route); everything else matches on prefix. */
@@ -148,68 +148,69 @@ const DEEP_CRUMBS: Record<string, string> = {
   "/admin/invoices/new": "New invoice",
   "/admin/deliverables/new": "New deliverable",
   "/admin/cms/pages": "Pages",
-  "/admin/cms/case-studies": "Case studies",
-  "/admin/cms/case-studies/new": "New case study",
-  "/admin/cms/testimonials": "Testimonials",
-  "/admin/cms/testimonials/new": "New testimonial",
+  "/admin/cms/pages/new": "New page",
   "/admin/cms/media": "Media",
-  "/admin/cms/settings": "Site settings",
 }
 
-/** Label for the deepest crumb: an explicit map entry, else a resolved entity
- * name (project detail), else the title-cased last path segment. */
-function deepLabel(pathname: string): string {
-  if (DEEP_CRUMBS[pathname]) return DEEP_CRUMBS[pathname]
+/** Title-cased last path segment — the fallback while an entity name loads. */
+function segmentLabel(pathname: string): string {
+  const last = pathname.split("/").filter(Boolean).pop() ?? ""
+  return last.charAt(0).toUpperCase() + last.slice(1)
+}
 
+/** Synchronous label for routes whose crumb doesn't need a live lookup: the
+ * explicit map and the edit forms. Returns null when the crumb is an entity name
+ * resolved reactively by `DeepCrumb`. */
+function staticDeepLabel(pathname: string): string | null {
+  if (DEEP_CRUMBS[pathname]) return DEEP_CRUMBS[pathname]
   if (/^\/admin\/clients\/[^/]+\/edit$/.test(pathname)) return "Edit client"
   if (/^\/admin\/projects\/[^/]+\/edit$/.test(pathname)) return "Edit project"
   if (/^\/admin\/invoices\/[^/]+\/edit$/.test(pathname)) return "Edit invoice"
   if (/^\/admin\/deliverables\/[^/]+\/edit$/.test(pathname)) return "Edit deliverable"
+  if (/^\/admin\/cms\/pages\/[^/]+$/.test(pathname)) return "Edit page"
+  return null
+}
 
-  const projectMatch = pathname.match(/^\/admin\/projects\/([^/]+)$/)
-  if (projectMatch) {
-    const project = getProject(projectMatch[1])
-    if (project) return project.name
-  }
+/** Reactive label for an entity-detail route. Each variant reuses the same query
+ * hook the detail page itself uses, so the request dedupes (no extra fetch) and
+ * the crumb updates to the real name once it resolves; until then it shows the
+ * title-cased id. Rendered only on the matching route, so no hook runs off-route. */
+function ProjectCrumb({ id, fallback }: { id: string; fallback: string }) {
+  return <>{useProject(id).data?.name ?? fallback}</>
+}
+function InvoiceCrumb({ id, fallback }: { id: string; fallback: string }) {
+  return <>{useInvoice(id).data?.invoiceNumber ?? fallback}</>
+}
+function RevisionCrumb({ id, fallback }: { id: string; fallback: string }) {
+  const { data } = useRevision(id)
+  return <>{data ? revisionTitle(data.description) : fallback}</>
+}
+function DeliverableCrumb({ id, fallback }: { id: string; fallback: string }) {
+  return <>{useDeliverable(id).data?.title ?? fallback}</>
+}
+function PageCrumb({ id, fallback }: { id: string; fallback: string }) {
+  return <>{usePage(id).data?.title ?? fallback}</>
+}
 
-  const invoiceMatch = pathname.match(/^\/admin\/invoices\/([^/]+)$/)
-  if (invoiceMatch) {
-    const invoice = getInvoice(invoiceMatch[1])
-    if (invoice) return invoice.invoiceNumber
-  }
+/** The deepest crumb as a node: a static label, else a reactive entity name. */
+function DeepCrumb({ pathname }: { pathname: string }) {
+  const staticLabel = staticDeepLabel(pathname)
+  if (staticLabel) return <>{staticLabel}</>
 
-  const revisionMatch = pathname.match(/^\/admin\/revisions\/([^/]+)$/)
-  if (revisionMatch) {
-    const revision = getRevision(revisionMatch[1])
-    if (revision) return revisionTitle(revision)
-  }
+  const fallback = segmentLabel(pathname)
+  let m: RegExpMatchArray | null
+  if ((m = pathname.match(/^\/admin\/projects\/([^/]+)$/)))
+    return <ProjectCrumb id={m[1]} fallback={fallback} />
+  if ((m = pathname.match(/^\/admin\/invoices\/([^/]+)$/)))
+    return <InvoiceCrumb id={m[1]} fallback={fallback} />
+  if ((m = pathname.match(/^\/admin\/revisions\/([^/]+)$/)))
+    return <RevisionCrumb id={m[1]} fallback={fallback} />
+  if ((m = pathname.match(/^\/admin\/deliverables\/([^/]+)$/)))
+    return <DeliverableCrumb id={m[1]} fallback={fallback} />
+  if ((m = pathname.match(/^\/admin\/cms\/pages\/([^/]+)$/)))
+    return <PageCrumb id={m[1]} fallback={fallback} />
 
-  const deliverableMatch = pathname.match(/^\/admin\/deliverables\/([^/]+)$/)
-  if (deliverableMatch) {
-    const deliverable = getDeliverable(deliverableMatch[1])
-    if (deliverable) return deliverable.title
-  }
-
-  const cmsPageMatch = pathname.match(/^\/admin\/cms\/pages\/([^/]+)$/)
-  if (cmsPageMatch) {
-    const page = getPage(cmsPageMatch[1])
-    if (page) return page.title
-  }
-
-  const caseStudyMatch = pathname.match(/^\/admin\/cms\/case-studies\/([^/]+)$/)
-  if (caseStudyMatch) {
-    const cs = getCaseStudy(caseStudyMatch[1])
-    if (cs) return cs.title
-  }
-
-  const testimonialMatch = pathname.match(/^\/admin\/cms\/testimonials\/([^/]+)$/)
-  if (testimonialMatch) {
-    const t = getTestimonial(testimonialMatch[1])
-    if (t) return t.author
-  }
-
-  const last = pathname.split("/").filter(Boolean).pop() ?? ""
-  return last.charAt(0).toUpperCase() + last.slice(1)
+  return <>{fallback}</>
 }
 
 /** Breadcrumb trail + a back button, derived from the pathname. The active nav
@@ -221,11 +222,11 @@ function HeaderNav() {
   const base = active ?? { label: "Dashboard", href: "/admin" }
   const deeper = pathname !== base.href && pathname.startsWith(base.href)
 
-  const crumbs: { label: string; href?: string }[] = [
+  const crumbs: { label: React.ReactNode; href?: string }[] = [
     { label: base.label, href: deeper ? base.href : undefined },
   ]
   if (deeper) {
-    crumbs.push({ label: deepLabel(pathname) })
+    crumbs.push({ label: <DeepCrumb pathname={pathname} /> })
   }
 
   return (
@@ -243,7 +244,7 @@ function HeaderNav() {
         {crumbs.map((c, i) => {
           const isLast = i === crumbs.length - 1
           return (
-            <React.Fragment key={c.label}>
+            <React.Fragment key={i}>
               {i > 0 && (
                 <HugeiconsIcon
                   icon={ArrowRight01Icon}
@@ -325,7 +326,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
-    <Toaster />
     </CommandPaletteProvider>
   )
 }

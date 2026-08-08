@@ -132,10 +132,8 @@ function newAction(pathname: string): { label: string; href: string } {
     return { label: "New invoice", href: "/admin/invoices/new" }
   if (pathname.startsWith("/admin/deliverables"))
     return { label: "New deliverable", href: "/admin/deliverables/new" }
-  if (pathname.startsWith("/admin/cms/testimonials"))
-    return { label: "New testimonial", href: "/admin/cms/testimonials/new" }
   if (pathname.startsWith("/admin/cms"))
-    return { label: "New case study", href: "/admin/cms/case-studies/new" }
+    return { label: "New page", href: "/admin/cms/pages/new" }
   if (pathname.startsWith("/admin/projects"))
     return { label: "New project", href: "/admin/clients/new-project" }
   return { label: "New client", href: "/admin/clients/new" }
