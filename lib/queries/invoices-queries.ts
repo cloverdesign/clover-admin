@@ -7,11 +7,48 @@
  * `useCreateProjectInvoice` in `projects-queries`.
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 
 import { queryKeys } from "@/lib/api/query-client"
 import { InvoicesService } from "@/lib/services/invoices-service"
+import { ProjectsService } from "@/lib/services/projects-service"
+import { useProjects } from "@/lib/queries/projects-queries"
 import type { Invoice, InvoiceInput } from "@/lib/api/models"
+
+/**
+ * All invoices across the studio — composed client-side by fanning out over the
+ * projects list (the API has no global invoice endpoint). One request per
+ * project; results flatten into a single list.
+ */
+export function useAllInvoices(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true
+  const projectsQ = useProjects()
+  const projects = projectsQ.data ?? []
+
+  const results = useQueries({
+    queries: projects.map((p) => ({
+      queryKey: queryKeys.projects.invoices(p.id),
+      queryFn: () => ProjectsService.invoices(p.id),
+      enabled: enabled && projectsQ.isSuccess,
+      meta: { silent: true as const },
+    })),
+  })
+
+  return {
+    invoices: results.flatMap((r) => r.data ?? []) as Invoice[],
+    isLoading: projectsQ.isLoading || results.some((r) => r.isLoading),
+    isError: projectsQ.isError || results.some((r) => r.isError),
+    refetch: () => {
+      projectsQ.refetch()
+      results.forEach((r) => r.refetch())
+    },
+  }
+}
 
 export function useInvoice(id: string) {
   return useQuery({

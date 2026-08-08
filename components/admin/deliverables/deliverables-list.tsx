@@ -1,68 +1,82 @@
 "use client"
 
 import * as React from "react"
-import { DeliveryBox01Icon } from "@hugeicons/core-free-icons"
+import { DeliveryBox01Icon, Loading03Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
 
 import { cn } from "@/lib/utils"
 import { byNewest } from "@/lib/format"
-import {
-  DELIVERABLES,
-  reviewFor,
-  isAwaitingReview,
-  type Deliverable,
-} from "@/lib/mock/deliverables"
+import { useAllDeliverables } from "@/lib/queries/deliverables-queries"
+import { useProjects } from "@/lib/queries/projects-queries"
+import { useClients } from "@/lib/queries/clients-queries"
+import type { Deliverable } from "@/lib/api/models"
+import { Button } from "@/components/ui/button"
 import { PanelCard } from "@/components/admin/dashboard/cards"
-import { DeliverablesTable } from "@/components/admin/deliverables/deliverables-table"
+import { DeliverablesTable, type DeliverableRefs } from "@/components/admin/deliverables/deliverables-table"
 
-type Filter = "all" | "READY" | "awaiting" | "changes" | "SUPERSEDED"
+type Filter = "all" | "READY" | "SUPERSEDED"
 
 const TABS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "READY", label: "Current" },
-  { key: "awaiting", label: "Awaiting review" },
-  { key: "changes", label: "Changes requested" },
   { key: "SUPERSEDED", label: "Older versions" },
 ]
 
-function matches(d: Deliverable, filter: Filter): boolean {
-  switch (filter) {
-    case "all":
-      return true
-    case "READY":
-      return d.status === "READY"
-    case "SUPERSEDED":
-      return d.status === "SUPERSEDED"
-    case "awaiting":
-      return isAwaitingReview(d)
-    case "changes":
-      return reviewFor(d.id)?.status === "CHANGES_REQUESTED"
-  }
-}
-
-/** Most recent upload first. */
-const ALL = [...DELIVERABLES].sort((a, b) => byNewest(a.uploadedAt, b.uploadedAt))
-
 /**
- * Deliverables page — a status/review filter toolbar + metrics strip over a
- * sortable table (dashboard feel). Deliverables are the finished work uploaded
- * or linked per project (§1.2.6); the client reviews the live version. Only the
- * table body scrolls.
+ * Deliverables page — composed across projects (no global endpoint). Status
+ * (Ready/Superseded → Current/Older) + version; reviews aren't shown here (the
+ * admin API has no review data — that's portal-only). Only the table scrolls.
  */
 export function DeliverablesList() {
   const [filter, setFilter] = React.useState<Filter>("all")
+  const { deliverables, isLoading, isError, refetch } = useAllDeliverables()
+  const projectsQ = useProjects()
+  const clientsQ = useClients()
 
-  const data = ALL.filter((d) => matches(d, filter))
-  const countFor = (key: Filter) => ALL.filter((d) => matches(d, key)).length
+  const refs: DeliverableRefs = React.useMemo(() => {
+    const projById = new Map((projectsQ.data ?? []).map((p) => [p.id, p]))
+    const clientById = new Map((clientsQ.data ?? []).map((c) => [c.id, c]))
+    // Group siblings by project + title to derive current/older.
+    const siblingCount = new Map<string, number>()
+    for (const d of deliverables) {
+      const k = `${d.projectId}::${d.title}`
+      siblingCount.set(k, (siblingCount.get(k) ?? 0) + 1)
+    }
+    const key = (d: Deliverable) => `${d.projectId}::${d.title}`
+    return {
+      projectName: (id) => projById.get(id)?.name ?? "—",
+      clientName: (id) => {
+        const p = projById.get(id)
+        return (p && clientById.get(p.clientId)?.company) ?? "—"
+      },
+      isCurrent: (d) => d.status === "READY",
+      hasSiblings: (d) => (siblingCount.get(key(d)) ?? 0) > 1,
+    }
+  }, [deliverables, projectsQ.data, clientsQ.data])
 
-  const awaiting = ALL.filter(isAwaitingReview).length
-  const changes = ALL.filter(
-    (d) => reviewFor(d.id)?.status === "CHANGES_REQUESTED"
-  ).length
-  const approved = ALL.filter((d) => reviewFor(d.id)?.status === "APPROVED").length
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        <HugeiconsIcon icon={Loading03Icon} className="size-6 animate-spin" />
+      </div>
+    )
+  }
+  if (isError) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+        <p className="text-sm text-muted-foreground">Couldn’t load deliverables.</p>
+        <Button variant="outline" size="sm" onClick={refetch}>Retry</Button>
+      </div>
+    )
+  }
+
+  const all = [...deliverables].sort((a, b) => byNewest(a.uploadedAt, b.uploadedAt))
+  const data = filter === "all" ? all : all.filter((d) => d.status === filter)
+  const countFor = (key: Filter) =>
+    key === "all" ? all.length : all.filter((d) => d.status === key).length
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-5">
-      {/* Status filter */}
       <div className="-mb-px flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border">
         {TABS.map((tab) => {
           const active = filter === tab.key
@@ -73,18 +87,11 @@ export function DeliverablesList() {
               onClick={() => setFilter(tab.key)}
               className={cn(
                 "flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm whitespace-nowrap transition-colors",
-                active
-                  ? "border-foreground font-medium text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
+                active ? "border-foreground font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
               )}
             >
               {tab.label}
-              <span
-                className={cn(
-                  "text-xs tabular-nums",
-                  active ? "text-muted-foreground" : "text-muted-foreground/50"
-                )}
-              >
+              <span className={cn("text-xs tabular-nums", active ? "text-muted-foreground" : "text-muted-foreground/50")}>
                 {countFor(tab.key)}
               </span>
             </button>
@@ -92,23 +99,12 @@ export function DeliverablesList() {
         })}
       </div>
 
-      {/* Summary strip */}
-      <div className="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border md:grid-cols-4">
-        <Metric label="Deliverables" value={String(ALL.length)} />
-        <Metric
-          label="Awaiting review"
-          value={String(awaiting)}
-          tone={awaiting > 0 ? "info" : undefined}
-        />
-        <Metric
-          label="Changes requested"
-          value={String(changes)}
-          tone={changes > 0 ? "warning" : undefined}
-        />
-        <Metric label="Approved" value={String(approved)} />
+      <div className="grid shrink-0 grid-cols-3 gap-px overflow-hidden rounded-2xl border bg-border">
+        <Metric label="Deliverables" value={String(all.length)} />
+        <Metric label="Current" value={String(countFor("READY"))} />
+        <Metric label="Older versions" value={String(countFor("SUPERSEDED"))} />
       </div>
 
-      {/* Table */}
       <PanelCard
         icon={DeliveryBox01Icon}
         title="Deliverables"
@@ -116,38 +112,20 @@ export function DeliverablesList() {
         bodyClassName="min-h-0 overflow-y-auto px-2"
       >
         {data.length ? (
-          <DeliverablesTable data={data} />
+          <DeliverablesTable data={data} refs={refs} />
         ) : (
-          <div className="py-16 text-center text-sm text-muted-foreground">
-            No deliverables in this filter.
-          </div>
+          <div className="py-16 text-center text-sm text-muted-foreground">No deliverables in this filter.</div>
         )}
       </PanelCard>
     </div>
   )
 }
 
-function Metric({
-  label,
-  value,
-  tone,
-}: {
-  label: string
-  value: string
-  tone?: "info" | "warning"
-}) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-card p-4">
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div
-        className={cn(
-          "mt-1 font-mono text-xl font-semibold tracking-tight tabular-nums",
-          tone === "info" && "text-info",
-          tone === "warning" && "text-warning"
-        )}
-      >
-        {value}
-      </div>
+      <div className="mt-1 font-mono text-xl font-semibold tracking-tight tabular-nums">{value}</div>
     </div>
   )
 }

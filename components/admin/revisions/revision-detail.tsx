@@ -13,6 +13,7 @@ import {
   Cancel01Icon,
   ArrowRight01Icon,
   ArrowDown01Icon,
+  Loading03Icon,
 } from "@hugeicons/core-free-icons"
 
 import { formatDate } from "@/lib/format"
@@ -34,61 +35,74 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
+import { REVISION_STATUS_LABEL, REVISION_STATUS_VARIANT } from "@/lib/mock/revisions"
 import {
-  getRevision,
-  revisionTitle,
-  REVISION_STATUS_LABEL,
-  REVISION_STATUS_VARIANT,
-  type RevisionRequest,
-  type RevisionStatus,
-} from "@/lib/mock/revisions"
+  useRevision,
+  useUpdateRevisionStatus,
+  useApproveRevision,
+} from "@/lib/queries/revisions-queries"
+import { useProject } from "@/lib/queries/projects-queries"
+import { useClient } from "@/lib/queries/clients-queries"
+import type { RevisionRequest } from "@/lib/api/models"
+import { revisionTitle } from "@/components/admin/revisions/revisions-table"
 
 /**
- * Revision request detail — review the request, then decide (§1.2.5): approve
- * as a new phase on the existing project, approve as a new linked project, or
- * decline. Single-column document with the decision in the header bar. No
- * backend: decisions mutate local state + toast.
+ * Revision request detail — review, then decide (§1.2.5): approve as a new phase
+ * on the project, approve as a new linked project, or decline. Real mutations;
+ * status reflects the refetched record.
  */
 export function RevisionDetail({ id }: { id: string }) {
-  const revision = getRevision(id)
-  if (!revision) {
+  const revisionQ = useRevision(id)
+
+  if (revisionQ.isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        <HugeiconsIcon icon={Loading03Icon} className="size-6 animate-spin" />
+      </div>
+    )
+  }
+  if (revisionQ.isError || !revisionQ.data) {
     return <div className="p-6 text-sm text-muted-foreground">Request not found.</div>
   }
-  return <RevisionDetailInner revision={revision} />
+  return <RevisionDetailInner revision={revisionQ.data} />
 }
 
 function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
-  const title = revisionTitle(revision)
-  const [status, setStatus] = React.useState<RevisionStatus>(revision.status)
-  const [resultingProjectId, setResultingProjectId] = React.useState<string | null>(
-    revision.resultingProjectId
-  )
-  const [resultingPhaseNote, setResultingPhaseNote] = React.useState<string | null>(
-    revision.resultingPhaseNote
-  )
+  const title = revisionTitle(revision.description)
   const [declineOpen, setDeclineOpen] = React.useState(false)
 
+  const projectQ = useProject(revision.projectId)
+  const clientQ = useClient(revision.clientId)
+  const projectName = projectQ.data?.name ?? "the project"
+  const clientName = clientQ.data?.company ?? "the client"
+
+  const statusM = useUpdateRevisionStatus()
+  const approveM = useApproveRevision()
+  const busy = statusM.isPending || approveM.isPending
+
+  const status = revision.status
   const pending = status === "REQUESTED" || status === "IN_REVIEW"
 
-  const approveAsPhase = () => {
-    setStatus("APPROVED")
-    setResultingPhaseNote(`Added as a new phase on ${revision.projectName}`)
-    setResultingProjectId(null)
-    toast.success(`Approved — added a new phase to ${revision.projectName}`)
-  }
-  const approveAsProject = () => {
-    setStatus("APPROVED")
-    setResultingProjectId(revision.projectId)
-    setResultingPhaseNote(null)
-    toast.success(`Approved — scaffolded a linked project for ${revision.client}`)
-  }
+  const markInReview = () =>
+    statusM.mutate({ id: revision.id, input: { status: "IN_REVIEW" } })
   const decline = () => {
-    setStatus("DECLINED")
-    setResultingProjectId(null)
-    setResultingPhaseNote(null)
-    setDeclineOpen(false)
-    toast.success(`Declined “${title}”`)
+    statusM.mutate(
+      { id: revision.id, input: { status: "DECLINED" } },
+      { onSuccess: () => setDeclineOpen(false) }
+    )
   }
+  const approveAsPhase = () =>
+    approveM.mutate({
+      id: revision.id,
+      input: { type: "new_phase", phaseNote: `New phase from: ${title}` },
+    })
+  const approveAsProject = () =>
+    approveM.mutate({
+      id: revision.id,
+      input: { type: "new_project", projectName: title, projectDescription: revision.description },
+    })
+
+  const attachments = revision.attachments as { name?: string; size?: string }[]
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -97,17 +111,15 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-            <Badge variant={REVISION_STATUS_VARIANT[status]}>
-              {REVISION_STATUS_LABEL[status]}
-            </Badge>
+            <Badge variant={REVISION_STATUS_VARIANT[status]}>{REVISION_STATUS_LABEL[status]}</Badge>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
             <Link href={`/admin/clients?c=${revision.clientId}`} className="underline-offset-4 hover:text-foreground hover:underline">
-              {revision.client}
+              {clientName}
             </Link>
             <span>·</span>
             <Link href={`/admin/projects/${revision.projectId}`} className="underline-offset-4 hover:text-foreground hover:underline">
-              {revision.projectName}
+              {projectName}
             </Link>
             <span>·</span>
             <span>Requested {formatDate(revision.createdAt)}</span>
@@ -117,23 +129,13 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
         {pending && (
           <div className="flex shrink-0 items-center gap-2">
             {status === "REQUESTED" && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setStatus("IN_REVIEW")
-                  toast.success("Moved to in review")
-                }}
-              >
-                Mark in review
-              </Button>
+              <Button variant="ghost" disabled={busy} onClick={markInReview}>Mark in review</Button>
             )}
-            <Button variant="outline" onClick={() => setDeclineOpen(true)}>
-              Decline
-            </Button>
+            <Button variant="outline" disabled={busy} onClick={() => setDeclineOpen(true)}>Decline</Button>
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button className="gap-1.5">
+                  <Button className="gap-1.5" disabled={busy}>
                     Approve
                     <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" />
                   </Button>
@@ -144,18 +146,14 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
                   <HugeiconsIcon icon={GitMergeIcon} />
                   <div>
                     <div className="text-sm">As new phase</div>
-                    <div className="text-xs text-muted-foreground">
-                      Extends {revision.projectName}
-                    </div>
+                    <div className="text-xs text-muted-foreground">Extends {projectName}</div>
                   </div>
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={approveAsProject}>
                   <HugeiconsIcon icon={Folder01Icon} />
                   <div>
                     <div className="text-sm">As linked project</div>
-                    <div className="text-xs text-muted-foreground">
-                      Own brief, timeline & invoices
-                    </div>
+                    <div className="text-xs text-muted-foreground">Own brief, timeline & invoices</div>
                   </div>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -164,10 +162,10 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
         )}
       </div>
 
-      {/* Resolution banner (approved / declined) */}
-      {status === "APPROVED" && resultingProjectId && (
+      {/* Resolution banner */}
+      {status === "APPROVED" && revision.resultingProjectId && (
         <Link
-          href={`/admin/projects/${resultingProjectId}`}
+          href={`/admin/projects/${revision.resultingProjectId}`}
           className="mt-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 transition-colors hover:border-foreground/20"
         >
           <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success">
@@ -175,21 +173,19 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
           </span>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">Approved · linked project</div>
-            <div className="truncate text-xs text-muted-foreground">
-              Opens the linked project
-            </div>
+            <div className="truncate text-xs text-muted-foreground">Opens the linked project</div>
           </div>
           <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 text-muted-foreground" />
         </Link>
       )}
-      {status === "APPROVED" && resultingPhaseNote && (
+      {status === "APPROVED" && revision.resultingPhaseNote && (
         <div className="mt-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success">
             <HugeiconsIcon icon={GitMergeIcon} className="size-5" />
           </span>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">Approved · new phase</div>
-            <div className="truncate text-xs text-muted-foreground">{resultingPhaseNote}</div>
+            <div className="truncate text-xs text-muted-foreground">{revision.resultingPhaseNote}</div>
           </div>
         </div>
       )}
@@ -198,9 +194,7 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
           <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
             <HugeiconsIcon icon={Cancel01Icon} className="size-5" />
           </span>
-          <div className="text-sm text-muted-foreground">
-            Declined on review — follow up outside the system.
-          </div>
+          <div className="text-sm text-muted-foreground">Declined on review — follow up outside the system.</div>
         </div>
       )}
 
@@ -208,9 +202,7 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
       <div className="mt-6 flex flex-col gap-6">
         <section>
           <SectionLabel>Description</SectionLabel>
-          <p className="mt-2 text-sm leading-relaxed text-foreground/90">
-            {revision.description}
-          </p>
+          <p className="mt-2 text-sm leading-relaxed text-foreground/90">{revision.description}</p>
         </section>
 
         {revision.targetTimeframe && (
@@ -223,22 +215,22 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
           </section>
         )}
 
-        {revision.attachments.length > 0 && (
+        {attachments.length > 0 && (
           <section>
             <SectionLabel>Attachments</SectionLabel>
             <div className="mt-2 flex flex-col divide-y divide-border rounded-xl border bg-card">
-              {revision.attachments.map((a) => (
+              {attachments.map((a, i) => (
                 <button
-                  key={a.name}
+                  key={i}
                   type="button"
-                  onClick={() => toast.success(`Downloading ${a.name}`)}
+                  onClick={() => toast.success(`Downloading ${a.name ?? "attachment"}`)}
                   className="flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
                 >
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     <HugeiconsIcon icon={Attachment01Icon} className="size-4" />
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm">{a.name}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground">{a.size}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm">{a.name ?? `Attachment ${i + 1}`}</span>
+                  {a.size && <span className="shrink-0 text-xs text-muted-foreground">{a.size}</span>}
                 </button>
               ))}
             </div>
@@ -251,15 +243,12 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Decline this request?</AlertDialogTitle>
             <AlertDialogDescription>
-              The client will see it marked declined. You can follow up outside
-              the system.
+              The client will see it marked declined. You can follow up outside the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={decline}>
-              Decline
-            </AlertDialogAction>
+            <AlertDialogAction variant="destructive" onClick={decline}>Decline</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

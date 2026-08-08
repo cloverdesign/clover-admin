@@ -7,11 +7,17 @@
  * single-get), so these are all project-scoped. See `DeliverableEndpoints`.
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 
 import { queryKeys } from "@/lib/api/query-client"
 import { DeliverablesService } from "@/lib/services/deliverables-service"
-import type { DeliverableInput } from "@/lib/api/models"
+import { useProjects } from "@/lib/queries/projects-queries"
+import type { Deliverable, DeliverableInput } from "@/lib/api/models"
 
 export function useProjectDeliverables(projectId: string) {
   return useQuery({
@@ -20,6 +26,47 @@ export function useProjectDeliverables(projectId: string) {
     enabled: Boolean(projectId),
     meta: { errorMessage: "Failed to load deliverables." },
   })
+}
+
+/**
+ * All deliverables across the studio — composed by fanning out over projects
+ * (the API has no global deliverables endpoint). One request per project.
+ */
+export function useAllDeliverables(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true
+  const projectsQ = useProjects()
+  const projects = projectsQ.data ?? []
+
+  const results = useQueries({
+    queries: projects.map((p) => ({
+      queryKey: queryKeys.deliverables.byProject(p.id),
+      queryFn: () => DeliverablesService.listByProject(p.id),
+      enabled: enabled && projectsQ.isSuccess,
+      meta: { silent: true as const },
+    })),
+  })
+
+  return {
+    deliverables: results.flatMap((r) => r.data ?? []) as Deliverable[],
+    isLoading: projectsQ.isLoading || results.some((r) => r.isLoading),
+    isError: projectsQ.isError || results.some((r) => r.isError),
+    refetch: () => {
+      projectsQ.refetch()
+      results.forEach((r) => r.refetch())
+    },
+  }
+}
+
+/** A single deliverable, resolved from the composed set (no single-GET endpoint). */
+export function useDeliverable(id: string) {
+  const { deliverables, isLoading, isError, refetch } = useAllDeliverables()
+  return {
+    data: deliverables.find((d) => d.id === id),
+    all: deliverables,
+    isLoading,
+    isError,
+    refetch,
+  }
 }
 
 export function useCreateDeliverable() {
