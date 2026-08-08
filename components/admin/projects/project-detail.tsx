@@ -1,14 +1,10 @@
 "use client"
 
 /**
- * PROTOTYPE — Project detail layout directions (throwaway).
- * Four ways to arrange the same detail content, switchable via `?layout=`:
- *   tabs    — centered column + horizontal tabs (the current build)
- *   split   — sticky context rail on the left, working area on the right
- *   stacked — one long scroll, every section in sequence (doc-style)
- *   focus   — milestone-forward: the editor is the hero, context in an aside
- * Pick one, then fold it into a clean project-detail and delete the rest.
- * No backend — phase setter + milestone editor mutate local state + toast.
+ * Project detail — a stacked, document-style view: the identity/phase header,
+ * then each area (progress, brief, details, milestones, invoices, deliverables,
+ * linked revisions) as an independently collapsible section. No backend — the
+ * phase setter and milestone editor mutate local state and confirm with toasts.
  */
 
 import * as React from "react"
@@ -46,7 +42,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -80,16 +75,10 @@ import {
   INVOICE_STATUS_VARIANT,
   formatFull,
 } from "@/lib/mock/invoices"
+import { useProjectDeliverables } from "@/lib/queries/deliverables-queries"
+import type { Deliverable } from "@/lib/api/models"
 import { Monogram } from "@/components/admin/clients/atoms"
 import { PhaseBadge, ProgressBar } from "@/components/admin/dashboard/atoms"
-import { DETAIL_LAYOUTS, type DetailLayout } from "@/components/admin/projects/variant-types"
-
-const LAYOUT_LABEL: Record<DetailLayout, string> = {
-  tabs: "Tabs",
-  split: "Split",
-  stacked: "Stacked",
-  focus: "Focus",
-}
 
 /* ------------------------------------------------------------ shared state */
 
@@ -113,185 +102,100 @@ type State = ReturnType<typeof useProjectState>
 
 /* ------------------------------------------------------------------- entry */
 
-export function ProjectDetailVariants({
-  project,
-  layout,
-}: {
-  project: Project
-  layout: DetailLayout
-}) {
+export function ProjectDetail({ project }: { project: Project }) {
   const state = useProjectState(project)
+  const revisions = childProjects(project.id)
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {layout === "tabs" && <TabsLayout project={project} state={state} />}
-        {layout === "split" && <SplitLayout project={project} state={state} />}
-        {layout === "stacked" && <StackedLayout project={project} state={state} />}
-        {layout === "focus" && <FocusLayout project={project} state={state} />}
-      </div>
-      <Switcher active={layout} projectId={project.id} />
-    </div>
-  )
-}
-
-/* --------------------------------------------------------------- Layout A: tabs */
-
-function TabsLayout({ project, state }: { project: Project; state: State }) {
-  return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="mx-auto w-full max-w-3xl">
       <IdentityRow project={project} state={state} />
-      <ContentTabs project={project} state={state} className="mt-6" />
-    </div>
-  )
-}
-
-/* -------------------------------------------------------------- Layout B: split */
-
-function SplitLayout({ project, state }: { project: Project; state: State }) {
-  return (
-    <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-6 md:grid-cols-[300px_1fr]">
-      {/* Context rail */}
-      <aside className="flex flex-col gap-4 md:sticky md:top-0 md:self-start">
-        <div className="flex items-center gap-3">
-          <Monogram company={project.client} className="size-11 rounded-xl text-sm" />
-          <div className="min-w-0">
-            <h1 className="truncate text-lg font-semibold tracking-tight">
-              {project.name}
-            </h1>
-            <ClientLine project={project} />
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <PhaseSetter phase={state.phase} onPhase={state.setProjectPhase} className="flex-1" />
-          <ProjectActions project={project} />
-        </div>
-        <ProgressCard state={state} project={project} />
-        <FactsList project={project} />
-        <LinkedRevisions project={project} />
-      </aside>
-
-      {/* Working area */}
-      <div className="min-w-0">
-        <BriefSection project={project} />
-        <ContentTabs project={project} state={state} className="mt-6" hideOverview />
-      </div>
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------ Layout C: stacked */
-
-function StackedLayout({ project, state }: { project: Project; state: State }) {
-  return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
-      <IdentityRow project={project} state={state} />
-      <Block label="Progress">
-        <ProgressCard state={state} project={project} />
-      </Block>
-      <Block label="Brief">
-        <p className="text-sm leading-relaxed text-foreground/90">{project.description}</p>
-      </Block>
-      <Block label="Details">
-        <FactsGrid project={project} />
-      </Block>
-      <Block label={`Milestones · ${state.completed}/${state.milestones.length}`}>
-        <MilestonesEditor state={state} />
-      </Block>
-      <Block label="Invoices">
-        <InvoicesTab project={project} />
-      </Block>
-      <Block label="Deliverables">
-        <DeliverablesTab project={project} />
-      </Block>
-      <LinkedRevisions project={project} />
-    </div>
-  )
-}
-
-function Block({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <SectionLabel>{label}</SectionLabel>
-      <div className="mt-3">{children}</div>
-    </section>
-  )
-}
-
-/* -------------------------------------------------------------- Layout D: focus */
-
-function FocusLayout({ project, state }: { project: Project; state: State }) {
-  return (
-    <div className="mx-auto w-full max-w-5xl">
-      <IdentityRow project={project} state={state} />
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
-        {/* Milestones as the hero */}
-        <div className="min-w-0">
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-base font-semibold tracking-tight">Milestones</h2>
-            <span className="font-mono text-xs text-muted-foreground">
-              {state.completed}/{state.milestones.length} done
-            </span>
-          </div>
-          <MilestonesEditor state={state} />
-        </div>
-
-        {/* Context aside */}
-        <aside className="flex flex-col gap-4">
+      <div className="flex flex-col">
+        <Section label="Progress">
           <ProgressCard state={state} project={project} />
-          <div className="rounded-2xl border bg-card p-4">
-            <SectionLabel>Brief</SectionLabel>
-            <p className="mt-2 line-clamp-4 text-sm text-muted-foreground">
-              {project.description}
-            </p>
-          </div>
-          <FactsList project={project} />
-          <div className="grid grid-cols-2 gap-3">
-            <MiniEntry
-              icon={Invoice01Icon}
-              label="Invoices"
-              onClick={() => toast.success(`New invoice for ${project.name} (draft)`)}
-            />
-            <MiniEntry
-              icon={File01Icon}
-              label="Deliverables"
-              onClick={() => toast.success(`Upload deliverable to ${project.name}`)}
-            />
-          </div>
-          <LinkedRevisions project={project} />
-        </aside>
+        </Section>
+        <Section label="Brief">
+          <p className="text-sm leading-relaxed text-foreground/90">
+            {project.description}
+          </p>
+        </Section>
+        <Section label="Details">
+          <FactsGrid project={project} />
+        </Section>
+        <Section
+          label="Milestones"
+          count={`${state.completed}/${state.milestones.length}`}
+        >
+          <MilestonesEditor state={state} />
+        </Section>
+        <Section label="Invoices">
+          <InvoicesTab project={project} />
+        </Section>
+        <Section label="Deliverables">
+          <DeliverablesTab project={project} />
+        </Section>
+        {revisions.length > 0 && (
+          <Section label="Linked revisions" count={String(revisions.length)}>
+            <LinkedRevisionsList items={revisions} />
+          </Section>
+        )}
       </div>
     </div>
   )
 }
 
-function MiniEntry({
-  icon,
+/* ----------------------------------------------------------- collapsible section */
+
+function Section({
   label,
-  onClick,
+  count,
+  defaultOpen = true,
+  children,
 }: {
-  icon: typeof Invoice01Icon
   label: string
-  onClick: () => void
+  count?: string
+  defaultOpen?: boolean
+  children: React.ReactNode
 }) {
+  const [open, setOpen] = React.useState(defaultOpen)
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex flex-col items-start gap-2 rounded-xl border bg-card p-3 text-left transition-colors hover:border-foreground/20 hover:bg-muted/30"
-    >
-      <span className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-        <HugeiconsIcon icon={icon} className="size-4" />
-      </span>
-      <span className="text-xs font-medium">{label}</span>
-      <span className="text-[11px] text-muted-foreground">None yet · add</span>
-    </button>
+    <section className="border-b border-border py-4 last:border-b-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="group flex w-full items-center gap-2 text-left"
+      >
+        <HugeiconsIcon
+          icon={ArrowDown01Icon}
+          className={cn(
+            "size-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-hover:text-foreground",
+            !open && "-rotate-90"
+          )}
+        />
+        <SectionLabel>{label}</SectionLabel>
+        {count && (
+          <Badge variant="secondary" className="ml-1">
+            {count}
+          </Badge>
+        )}
+      </button>
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-200 ease-out",
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="pt-4">{children}</div>
+        </div>
+      </div>
+    </section>
   )
 }
 
 /* ============================================================ shared parts */
 
-/** Identity + phase setter + actions — the header shared by tabs/stacked/focus. */
+/** Identity + phase setter + actions — the always-visible header. */
 function IdentityRow({ project, state }: { project: Project; state: State }) {
   return (
     <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
@@ -380,30 +284,10 @@ function ProgressCard({ state, project }: { state: State; project: Project }) {
   )
 }
 
-function BriefSection({ project }: { project: Project }) {
-  return (
-    <section>
-      <SectionLabel>Brief</SectionLabel>
-      <p className="mt-2 text-sm leading-relaxed text-foreground/90">{project.description}</p>
-    </section>
-  )
-}
-
-/** Three facts as a horizontal grid (tabs/stacked overview). */
+/** Three facts as a horizontal grid. */
 function FactsGrid({ project }: { project: Project }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <Fact icon={UserGroupIcon} label="Client" value={project.client} />
-      <Fact icon={Money01Icon} label="Value" value={formatMoney(project.totalValue, project.currency)} />
-      <Fact icon={Calendar03Icon} label="Timeline" value={`${formatDate(project.startDate, "month")} — ${formatDate(project.endDate, "month")}`} />
-    </div>
-  )
-}
-
-/** Same facts stacked for a narrow rail (split/focus). */
-function FactsList({ project }: { project: Project }) {
-  return (
-    <div className="flex flex-col gap-2">
       <Fact icon={UserGroupIcon} label="Client" value={project.client} />
       <Fact icon={Money01Icon} label="Value" value={formatMoney(project.totalValue, project.currency)} />
       <Fact icon={Calendar03Icon} label="Timeline" value={`${formatDate(project.startDate, "month")} — ${formatDate(project.endDate, "month")}`} />
@@ -431,82 +315,25 @@ function Fact({
   )
 }
 
-function LinkedRevisions({ project }: { project: Project }) {
-  const children = childProjects(project.id)
-  if (children.length === 0) return null
+function LinkedRevisionsList({ items }: { items: Project[] }) {
   return (
-    <section>
-      <SectionLabel>Linked revisions</SectionLabel>
-      <div className="mt-2 flex flex-col divide-y divide-border rounded-xl border bg-card">
-        {children.map((c) => (
-          <Link
-            key={c.id}
-            href={`/admin/projects/${c.id}`}
-            className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium">{c.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {formatMoney(c.totalValue, c.currency)}
-              </div>
+    <div className="flex flex-col divide-y divide-border rounded-xl border bg-card">
+      {items.map((c) => (
+        <Link
+          key={c.id}
+          href={`/admin/projects/${c.id}`}
+          className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+        >
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium">{c.name}</div>
+            <div className="text-xs text-muted-foreground">
+              {formatMoney(c.totalValue, c.currency)}
             </div>
-            <PhaseBadge phase={c.phase} />
-          </Link>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-/* --------------------------------------------------------------- content tabs */
-
-function ContentTabs({
-  project,
-  state,
-  className,
-  hideOverview,
-}: {
-  project: Project
-  state: State
-  className?: string
-  hideOverview?: boolean
-}) {
-  return (
-    <Tabs defaultValue={hideOverview ? "milestones" : "overview"} className={className}>
-      <TabsList variant="line" className="shrink-0">
-        {!hideOverview && <TabsTrigger value="overview">Overview</TabsTrigger>}
-        <TabsTrigger value="milestones">
-          Milestones
-          <Badge variant="secondary" className="ml-1.5">
-            {state.completed}/{state.milestones.length}
-          </Badge>
-        </TabsTrigger>
-        <TabsTrigger value="invoices">Invoices</TabsTrigger>
-        <TabsTrigger value="deliverables">Deliverables</TabsTrigger>
-      </TabsList>
-
-      <div className="mt-4">
-        {!hideOverview && (
-          <TabsContent value="overview">
-            <div className="flex flex-col gap-6">
-              <ProgressCard state={state} project={project} />
-              <BriefSection project={project} />
-              <FactsGrid project={project} />
-              <LinkedRevisions project={project} />
-            </div>
-          </TabsContent>
-        )}
-        <TabsContent value="milestones">
-          <MilestonesEditor state={state} />
-        </TabsContent>
-        <TabsContent value="invoices">
-          <InvoicesTab project={project} />
-        </TabsContent>
-        <TabsContent value="deliverables">
-          <DeliverablesTab project={project} />
-        </TabsContent>
-      </div>
-    </Tabs>
+          </div>
+          <PhaseBadge phase={c.phase} />
+        </Link>
+      ))}
+    </div>
   )
 }
 
@@ -723,25 +550,109 @@ function InvoicesTab({ project }: { project: Project }) {
   )
 }
 
+/** Version-position badge computed from the fetched list (the admin API returns
+ * every version, so grouping by title is enough). "Current version" for the live
+ * one, "Older version" for a superseded sibling; nothing for a lone version. */
+function versionBadgeFor(
+  d: Deliverable,
+  list: Deliverable[]
+): { label: string; variant: "success" | "secondary" } | null {
+  const siblings = list.filter((x) => x.title === d.title)
+  if (siblings.length <= 1) return null
+  return d.status === "READY"
+    ? { label: "Current version", variant: "success" }
+    : { label: "Older version", variant: "secondary" }
+}
+
+/** Live: reads this project's deliverables from the Clover CMS API via React
+ * Query. (The global list/detail pages stay on mock — the admin API has no
+ * global-list or single-get endpoint, and no admin review data.) */
 function DeliverablesTab({ project }: { project: Project }) {
-  return (
-    <EmptyTab
-      icon={File01Icon}
-      title="No deliverables yet"
-      body="Upload finished work or link an external asset (Figma, a hosted build) for the client to review and download."
-      action={
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button className="gap-1.5" onClick={() => toast.success(`Upload deliverable to ${project.name}`)}>
+  const { data, isLoading, isError, refetch, isFetching } = useProjectDeliverables(
+    project.id
+  )
+  const newHref = `/admin/deliverables/new?project=${project.id}`
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-dashed border-border px-6 py-12 text-center text-sm text-muted-foreground">
+        Loading deliverables…
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border px-6 py-12 text-center">
+        <p className="text-sm text-muted-foreground">Couldn’t load deliverables.</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+          {isFetching ? "Retrying…" : "Retry"}
+        </Button>
+      </div>
+    )
+  }
+
+  const items = data ?? []
+
+  if (items.length === 0) {
+    return (
+      <EmptyTab
+        icon={File01Icon}
+        title="No deliverables yet"
+        body="Upload finished work or link an external asset (Figma, a hosted build) for the client to review and download."
+        action={
+          <Button className="gap-1.5" render={<Link href={newHref} />}>
             <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-4" />
             Add deliverable
           </Button>
-          <Button variant="outline" className="gap-1.5" onClick={() => toast.success("Link external asset")}>
-            <HugeiconsIcon icon={LinkSquare02Icon} data-icon="inline-start" className="size-4" />
-            Link asset
-          </Button>
-        </div>
-      }
-    />
+        }
+      />
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <SectionLabel>
+          {items.length} deliverable{items.length > 1 ? "s" : ""}
+        </SectionLabel>
+        <Button variant="outline" size="sm" className="gap-1.5" render={<Link href={newHref} />}>
+          <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-3.5" />
+          New deliverable
+        </Button>
+      </div>
+      <div className="flex flex-col divide-y divide-border rounded-2xl border bg-card">
+        {items.map((d) => {
+          const vBadge = versionBadgeFor(d, items)
+          return (
+            <Link
+              key={d.id}
+              href={`/admin/deliverables/${d.id}`}
+              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
+            >
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <HugeiconsIcon
+                  icon={d.externalLink ? LinkSquare02Icon : File01Icon}
+                  className="size-4"
+                />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-sm font-medium">{d.title}</span>
+                  <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                    v{d.version}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Uploaded {formatDate(d.uploadedAt)}
+                </div>
+              </div>
+              {vBadge && <Badge variant={vBadge.variant}>{vBadge.label}</Badge>}
+            </Link>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -839,31 +750,5 @@ function ProjectActions({ project }: { project: Project }) {
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
-}
-
-/* ----------------------------------------------------------------- switcher */
-
-function Switcher({ active, projectId }: { active: DetailLayout; projectId: string }) {
-  return (
-    <div className="pointer-events-none sticky bottom-4 z-20 mt-4 flex justify-center">
-      <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-popover/90 p-1 shadow-lg backdrop-blur">
-        {DETAIL_LAYOUTS.map((l) => (
-          <Link
-            key={l}
-            href={`/admin/projects/${projectId}?layout=${l}`}
-            scroll={false}
-            className={cn(
-              "rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors",
-              l === active
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            {LAYOUT_LABEL[l]}
-          </Link>
-        ))}
-      </div>
-    </div>
   )
 }
