@@ -111,7 +111,7 @@ export function StatCard({ kpi }: { kpi: DashboardKpi }) {
         </div>
 
         <div className="flex items-center gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
-          <DeltaBadge delta={kpi.delta} />
+          {kpi.delta?.label && <DeltaBadge delta={kpi.delta} />}
           <span className="truncate">{kpi.footer}</span>
         </div>
       </CardContent>
