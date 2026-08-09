@@ -73,6 +73,9 @@
     --color-violet-800: oklch(0.432 0.232 292.759);
     --color-violet-900: oklch(0.38 0.189 293.745);
     --color-violet-950: oklch(0.283 0.141 291.089);
+
+    /* Clover brand — the marketing site's green (#97FF80). The main accent. */
+    --color-brand: oklch(0.909 0.191 140.036);
 }
 
 @theme inline {
@@ -131,8 +134,8 @@
     --card-foreground: var(--color-neutral-950);
     --popover: var(--color-neutral-0);
     --popover-foreground: var(--color-neutral-950);
-    --primary: var(--color-neutral-900);
-    --primary-foreground: var(--color-neutral-50);
+    --primary: var(--color-brand);
+    --primary-foreground: var(--color-neutral-950);
     --secondary: var(--color-neutral-100);
     --secondary-foreground: var(--color-neutral-900);
     --muted: var(--color-neutral-100);
@@ -145,7 +148,7 @@
     --info: var(--color-violet-600);
     --border: var(--color-neutral-200);
     --input: var(--color-neutral-200);
-    --ring: var(--color-lime-400);
+    --ring: var(--color-brand);
     --overlay: var(--color-neutral-950);
     --chart-1: var(--color-lime-300);
     --chart-2: var(--color-lime-500);
@@ -178,8 +181,8 @@
     --card-foreground: var(--color-neutral-50);
     --popover: var(--color-neutral-900);
     --popover-foreground: var(--color-neutral-50);
-    --primary: var(--color-neutral-200);
-    --primary-foreground: var(--color-neutral-900);
+    --primary: var(--color-brand);
+    --primary-foreground: var(--color-neutral-950);
     --secondary: var(--color-neutral-800);
     --secondary-foreground: var(--color-neutral-50);
     --muted: var(--color-neutral-800);
@@ -192,7 +195,7 @@
     --info: var(--color-violet-400);
     --border: color-mix(in oklch, var(--color-neutral-0) 10%, transparent);
     --input: color-mix(in oklch, var(--color-neutral-0) 15%, transparent);
-    --ring: var(--color-lime-400);
+    --ring: var(--color-brand);
     --overlay: var(--color-neutral-950);
     --chart-1: var(--color-lime-300);
     --chart-2: var(--color-lime-500);
