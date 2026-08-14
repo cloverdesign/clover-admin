@@ -81,7 +81,7 @@ export function IconButton({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        "relative flex size-9 items-center justify-center rounded-(--button-radius) text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+        "relative flex size-9 items-center justify-center rounded-(--button-radius) border border-border bg-input/30 text-muted-foreground transition-colors hover:bg-input/50 hover:text-foreground",
         className
       )}
     >
