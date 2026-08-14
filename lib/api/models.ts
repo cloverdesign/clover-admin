@@ -395,3 +395,39 @@ export interface ClientProfileInput {
   phone?: string
   company?: string
 }
+
+/**
+ * Notifications — server-generated alerts for things needing an admin's
+ * attention. The backend derives these from domain signals (overdue invoices,
+ * incoming revision requests, deliverables awaiting review, milestones coming
+ * due) and returns them newest-first from `GET /api/notifications`.
+ *
+ * Read/seen state is tracked per-device on the client (localStorage), so there
+ * is intentionally no `read` field on the wire — see use-notification-reads.
+ */
+export type NotificationType =
+  | "INVOICE_OVERDUE"
+  | "REVISION_REQUESTED"
+  | "DELIVERABLE_REVIEW"
+  | "MILESTONE_DUE"
+
+export interface Notification {
+  id: string
+  type: NotificationType
+  /** Short headline, e.g. "Invoice overdue". */
+  title: string
+  /** One-line context, e.g. "Acme Co · $4,200 · 3 days late". */
+  body: string | null
+  /** In-app deep link the notification navigates to when clicked. */
+  href: string
+  /** Optional linkage to the originating entity (for grouping / icons). */
+  entityType:
+    | "invoice"
+    | "revision"
+    | "deliverable"
+    | "milestone"
+    | "project"
+    | null
+  entityId: string | null
+  createdAt: string
+}

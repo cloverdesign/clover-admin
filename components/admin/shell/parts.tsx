@@ -7,7 +7,6 @@ import { useTheme } from "next-themes"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Search01Icon,
-  Notification01Icon,
   Add01Icon,
   Sun03Icon,
   Moon02Icon,
@@ -99,14 +98,6 @@ export function SearchIconButton({ className }: { className?: string }) {
   return (
     <IconButton label="Search" className={className} onClick={() => setOpen(true)}>
       <HugeiconsIcon icon={Search01Icon} className="size-5" />
-    </IconButton>
-  )
-}
-
-export function NotificationButton() {
-  return (
-    <IconButton label="Notifications" dot>
-      <HugeiconsIcon icon={Notification01Icon} className="size-5" />
     </IconButton>
   )
 }
