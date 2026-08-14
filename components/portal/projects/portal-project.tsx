@@ -8,7 +8,8 @@ import { formatDate } from "@/lib/format"
 import { formatMoney } from "@/lib/mock/clients"
 import { Button } from "@/components/ui/button"
 import { usePortalProject } from "@/lib/queries/portal-queries"
-import { ProjectStatusBadge, ProgressBar } from "@/components/portal/parts"
+import { ProjectStatusBadge } from "@/components/portal/parts"
+import { SegmentedProgress } from "@/components/ui/segmented-progress"
 
 /**
  * Client project view — the read-only overview of one project: brief, current
@@ -64,11 +65,16 @@ export function PortalProject({ id }: { id: string }) {
           <h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>
           <ProjectStatusBadge status={project.status} />
         </div>
-        <div className="flex items-center gap-3">
-          <ProgressBar value={project.progress} className="max-w-sm" />
-          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
-            {Math.round(project.progress)}% · {project.phase || "In progress"}
-          </span>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline gap-2">
+            <span className="font-mono text-2xl font-semibold tracking-tight tabular-nums">
+              {Math.round(project.progress)}%
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {project.phase || "In progress"}
+            </span>
+          </div>
+          <SegmentedProgress value={project.progress} className="h-10 max-w-md" />
         </div>
       </div>
 
