@@ -32,9 +32,10 @@ import {
 } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
-import { formatDate } from "@/lib/format"
+import { formatDate, toApiDateTime } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Badge } from "@/components/ui/badge"
 import {
   Select,
@@ -71,6 +72,7 @@ import {
   useCreateMilestone,
   useUpdateMilestone,
   useDeleteMilestone,
+  useSyncProjectProgress,
   useProjects,
   useProjectInvoices,
 } from "@/lib/queries/projects-queries"
@@ -103,26 +105,36 @@ function ProjectDetailInner({ project }: { project: Project }) {
   const revisions = (revisionsQ.data ?? []).filter((p) => p.parentProjectId === project.id)
   const milestones = project.milestones ?? []
   const completed = milestones.filter((m) => m.status === "COMPLETED").length
+  const editHref = `/admin/projects/${project.id}/edit`
 
   return (
     <div className="mx-auto w-full max-w-3xl">
       <IdentityRow project={project} />
       <div className="flex flex-col">
-        <Section label="Progress">
+        <Section
+          label="Progress"
+          action={<SectionEditButton href={editHref} label="Edit progress" />}
+        >
           <ProgressCard project={project} />
         </Section>
         {project.description && (
-          <Section label="Brief">
+          <Section
+            label="Brief"
+            action={<SectionEditButton href={editHref} label="Edit brief" />}
+          >
             <p className="text-sm leading-relaxed text-foreground/90">
               {project.description}
             </p>
           </Section>
         )}
-        <Section label="Details">
+        <Section
+          label="Details"
+          action={<SectionEditButton href={editHref} label="Edit details" />}
+        >
           <FactsGrid project={project} />
         </Section>
         <Section label="Milestones" count={`${completed}/${milestones.length}`}>
-          <MilestonesEditor projectId={project.id} milestones={milestones} />
+          <MilestonesEditor project={project} />
         </Section>
         <Section label="Invoices">
           <InvoicesTab project={project} />
@@ -145,37 +157,47 @@ function ProjectDetailInner({ project }: { project: Project }) {
 function Section({
   label,
   count,
+  action,
   defaultOpen = true,
   children,
 }: {
   label: string
   count?: string
+  /** Optional control shown at the right, revealed on hover (e.g. an edit link). */
+  action?: React.ReactNode
   defaultOpen?: boolean
   children: React.ReactNode
 }) {
   const [open, setOpen] = React.useState(defaultOpen)
   return (
-    <section className="border-b border-border py-4 last:border-b-0">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="group flex w-full items-center gap-2 text-left"
-      >
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
-          className={cn(
-            "size-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-hover:text-foreground",
-            !open && "-rotate-90"
+    <section className="group/section border-b border-border py-4 last:border-b-0">
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          className="group/row flex flex-1 items-center gap-2 text-left"
+        >
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
+            className={cn(
+              "size-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-hover/row:text-foreground",
+              !open && "-rotate-90"
+            )}
+          />
+          <SectionLabel>{label}</SectionLabel>
+          {count && (
+            <Badge variant="secondary" className="ml-1">
+              {count}
+            </Badge>
           )}
-        />
-        <SectionLabel>{label}</SectionLabel>
-        {count && (
-          <Badge variant="secondary" className="ml-1">
-            {count}
-          </Badge>
+        </button>
+        {action && (
+          <div className="opacity-0 transition-opacity group-hover/section:opacity-100 focus-within:opacity-100">
+            {action}
+          </div>
         )}
-      </button>
+      </div>
       <div
         className={cn(
           "grid transition-[grid-template-rows] duration-200 ease-out",
@@ -191,6 +213,20 @@ function Section({
 }
 
 /* ============================================================ shared parts */
+
+/** Pencil link that opens the project edit form — the hover action on editable
+ * cards. */
+function SectionEditButton({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+    >
+      <HugeiconsIcon icon={PencilEdit02Icon} className="size-4" />
+    </Link>
+  )
+}
 
 function IdentityRow({ project }: { project: Project }) {
   const clientQ = useClient(project.clientId)
@@ -357,37 +393,53 @@ const MS_STATUS_META: Record<
   PENDING: { label: "Pending", variant: "secondary" },
 }
 
-function MilestonesEditor({
-  projectId,
-  milestones,
-}: {
-  projectId: string
-  milestones: Milestone[]
-}) {
+function MilestonesEditor({ project }: { project: Project }) {
+  const projectId = project.id
+  const milestones = project.milestones ?? []
   const create = useCreateMilestone()
   const update = useUpdateMilestone()
   const remove = useDeleteMilestone()
+  const syncProgress = useSyncProjectProgress()
   const [title, setTitle] = React.useState("")
   const [due, setDue] = React.useState("")
 
   const completed = milestones.filter((m) => m.status === "COMPLETED").length
   const progress = milestones.length === 0 ? 0 : Math.round((completed / milestones.length) * 100)
 
+  // Derive the durable project.progress from milestone completion and persist it,
+  // so the top progress bar (which reads project.progress) stays in sync and the
+  // value survives even though milestones themselves have no read endpoint.
+  const syncFrom = (list: Milestone[]) => {
+    if (list.length === 0) return
+    const done = list.filter((m) => m.status === "COMPLETED").length
+    const next = Math.round((done / list.length) * 100)
+    if (next !== project.progress) syncProgress.mutate({ id: projectId, progress: next })
+  }
+
   const toggle = (m: Milestone) => {
     const status: MilestoneStatus = m.status === "COMPLETED" ? "PENDING" : "COMPLETED"
-    update.mutate({
-      projectId,
-      milestoneId: m.id,
-      input: { title: m.title, description: m.description ?? undefined, status, dueDate: m.dueDate ?? undefined, order: m.order },
-    })
+    update.mutate(
+      {
+        projectId,
+        milestoneId: m.id,
+        input: { title: m.title, description: m.description ?? undefined, status, dueDate: m.dueDate ?? undefined, order: m.order },
+      },
+      { onSuccess: () => syncFrom(milestones.map((x) => (x.id === m.id ? { ...x, status } : x))) }
+    )
   }
 
   const add = () => {
     const t = title.trim()
     if (!t) return
     create.mutate(
-      { projectId, input: { title: t, dueDate: due.trim() || undefined, status: "PENDING", order: milestones.length } },
-      { onSuccess: () => { setTitle(""); setDue("") } }
+      { projectId, input: { title: t, dueDate: toApiDateTime(due), status: "PENDING", order: milestones.length } },
+      {
+        onSuccess: (created) => {
+          setTitle("")
+          setDue("")
+          syncFrom([...milestones, created])
+        },
+      }
     )
   }
 
@@ -425,7 +477,12 @@ function MilestonesEditor({
               <button
                 type="button"
                 aria-label="Remove"
-                onClick={() => remove.mutate({ projectId, milestoneId: m.id })}
+                onClick={() =>
+                  remove.mutate(
+                    { projectId, milestoneId: m.id },
+                    { onSuccess: () => syncFrom(milestones.filter((x) => x.id !== m.id)) }
+                  )
+                }
                 className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-all hover:bg-muted hover:text-foreground group-hover:opacity-100"
               >
                 <HugeiconsIcon icon={Delete02Icon} className="size-4" />
@@ -448,12 +505,11 @@ function MilestonesEditor({
           className="flex-1"
           onKeyDown={(e) => e.key === "Enter" && add()}
         />
-        <Input
+        <DatePicker
           value={due}
-          onChange={(e) => setDue(e.target.value)}
-          type="date"
-          className="sm:w-40"
-          onKeyDown={(e) => e.key === "Enter" && add()}
+          onChange={setDue}
+          placeholder="Due date"
+          className="sm:w-44"
         />
         <Button onClick={add} disabled={!title.trim() || create.isPending} className="gap-1.5">
           <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-4" />

@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/select"
 import { PHASE_ORDER } from "@/lib/phase-colors"
 import { CURRENCIES } from "@/lib/mock/currencies"
+import { toApiDateTime } from "@/lib/format"
+import { DatePicker } from "@/components/ui/date-picker"
 import { useClient } from "@/lib/queries/clients-queries"
 import { useCreateProject } from "@/lib/queries/projects-queries"
 import { Monogram } from "@/components/admin/clients/atoms"
@@ -35,6 +37,8 @@ export function NewProjectPage({ clientId }: { clientId?: string }) {
   const [phase, setPhase] = React.useState("Kickoff")
   const [value, setValue] = React.useState("")
   const [currency, setCurrency] = React.useState("USD")
+  const [start, setStart] = React.useState("")
+  const [end, setEnd] = React.useState("")
   const [brief, setBrief] = React.useState("")
 
   if (!clientId) {
@@ -60,6 +64,8 @@ export function NewProjectPage({ clientId }: { clientId?: string }) {
         status: "PLANNING",
         currency,
         totalValue: Number(value) || 0,
+        startDate: toApiDateTime(start),
+        endDate: toApiDateTime(end),
         description: brief || undefined,
       },
       { onSuccess: () => router.push(backHref) }
@@ -126,6 +132,14 @@ export function NewProjectPage({ clientId }: { clientId?: string }) {
             <Field label="Value" htmlFor="pvalue">
               <Input id="pvalue" type="number" inputMode="numeric" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0" />
             </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Start date" htmlFor="pstart" hint="Optional — set when the project kicks off.">
+                <DatePicker id="pstart" value={start} onChange={setStart} placeholder="No start date" />
+              </Field>
+              <Field label="Target end date" htmlFor="pend" hint="Optional.">
+                <DatePicker id="pend" value={end} onChange={setEnd} placeholder="No end date" />
+              </Field>
+            </div>
             <Field label="Brief" htmlFor="pbrief" hint="Optional — a short summary of the work.">
               <Textarea id="pbrief" value={brief} onChange={(e) => setBrief(e.target.value)} rows={4} placeholder="What are we building?" />
             </Field>

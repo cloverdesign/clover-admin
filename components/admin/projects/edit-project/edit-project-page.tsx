@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/select"
 import { CURRENCIES } from "@/lib/mock/currencies"
 import { PHASE_ORDER } from "@/lib/phase-colors"
+import { toApiDateTime } from "@/lib/format"
+import { DatePicker } from "@/components/ui/date-picker"
 import { PROJECT_STATUS_LABEL } from "@/lib/mock/projects"
 import { useProject, useUpdateProject } from "@/lib/queries/projects-queries"
 import { useClient } from "@/lib/queries/clients-queries"
@@ -64,6 +66,7 @@ function EditProjectForm({ project, router }: { project: Project; router: Return
   const [currency, setCurrency] = React.useState(project.currency)
   const [start, setStart] = React.useState((project.startDate ?? "").slice(0, 10))
   const [end, setEnd] = React.useState((project.endDate ?? "").slice(0, 10))
+  const [progress, setProgress] = React.useState(String(project.progress))
   const [brief, setBrief] = React.useState(project.description ?? "")
 
   const valid = name.trim().length > 0
@@ -79,8 +82,9 @@ function EditProjectForm({ project, router }: { project: Project; router: Return
           status,
           currency,
           totalValue: Number(value) || 0,
-          startDate: start || undefined,
-          endDate: end || undefined,
+          startDate: toApiDateTime(start),
+          endDate: toApiDateTime(end),
+          progress: Math.max(0, Math.min(100, Number(progress) || 0)),
           description: brief || undefined,
         },
       },
@@ -156,12 +160,27 @@ function EditProjectForm({ project, router }: { project: Project; router: Return
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Start" htmlFor="pstart">
-                <Input id="pstart" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+                <DatePicker id="pstart" value={start} onChange={setStart} placeholder="No start date" />
               </Field>
               <Field label="Target" htmlFor="ptarget">
-                <Input id="ptarget" type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+                <DatePicker id="ptarget" value={end} onChange={setEnd} placeholder="No end date" />
               </Field>
             </div>
+            <Field label="Progress" htmlFor="pprogress" hint="0–100%. Auto-syncs from milestone completion when the project has milestones.">
+              <div className="flex items-center gap-2">
+                <Input
+                  id="pprogress"
+                  type="number"
+                  min={0}
+                  max={100}
+                  inputMode="numeric"
+                  value={progress}
+                  onChange={(e) => setProgress(e.target.value)}
+                  className="w-28"
+                />
+                <span className="text-sm text-muted-foreground">%</span>
+              </div>
+            </Field>
             <Field label="Brief" htmlFor="pbrief">
               <Textarea id="pbrief" value={brief} onChange={(e) => setBrief(e.target.value)} rows={4} />
             </Field>

@@ -72,6 +72,27 @@ export function useDeleteProject() {
 /* --------------------------------------------------------------- milestones */
 
 /**
+ * Sync the project's durable `progress` field (e.g. from milestone completion).
+ * Patches it into the cached project in place rather than invalidating — a
+ * refetch would return a milestone-less project and wipe the in-session list.
+ * Silent: it's an automatic side-effect, not a user-initiated save.
+ */
+export function useSyncProjectProgress() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; progress: number }) =>
+      ProjectsService.update(vars.id, { progress: vars.progress }),
+    meta: { silent: true as const },
+    onSuccess: (_data, vars) => {
+      qc.setQueryData<Project>(queryKeys.projects.byId(vars.id), (old) =>
+        old ? { ...old, progress: vars.progress } : old
+      )
+      qc.invalidateQueries({ queryKey: queryKeys.projects.all })
+    },
+  })
+}
+
+/**
  * Milestone mutations drive the cached project directly from their responses.
  * The project endpoint doesn't return milestones (and there's no list endpoint),
  * so invalidating/refetching would wipe the list — instead we merge the created/
