@@ -19,7 +19,8 @@ import { useCommandPalette } from "@/components/admin/shell/command-palette"
 import { Kbd } from "@/components/ui/kbd"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CloverMark } from "@/components/admin/auth/clover-mark"
-import { CURRENT_USER } from "@/components/admin/shell/nav-data"
+import { useMe } from "@/lib/queries/auth-queries"
+import type { AdminRole } from "@/lib/api/models"
 
 /** Small shared atoms every shell variant composes — deliberately NOT a shared
  * layout. Each variant is free to arrange these however it likes. */
@@ -166,6 +167,19 @@ export function NewButton({ className }: { className?: string }) {
   )
 }
 
+/** "Tanya Ekekwe" → "TE"; single name → first two letters. */
+function initialsFrom(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return "?"
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+const ROLE_LABELS: Record<AdminRole, string> = {
+  SUPER_ADMIN: "Super Admin",
+  ADMIN: "Admin",
+}
+
 export function UserChip({
   compact,
   className,
@@ -173,19 +187,22 @@ export function UserChip({
   compact?: boolean
   className?: string
 }) {
+  const { data: me } = useMe()
+  const name = me?.name ?? ""
+  const initials = name ? initialsFrom(name) : ""
+  const role = me ? ROLE_LABELS[me.role] : ""
+
   return (
     <div className={cn("flex items-center gap-3", className)}>
       <Avatar className="size-9 rounded-full">
         <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
-          {CURRENT_USER.initials}
+          {initials}
         </AvatarFallback>
       </Avatar>
       {!compact && (
         <div className="min-w-0 flex-1 leading-tight">
-          <div className="truncate text-sm font-medium">{CURRENT_USER.name}</div>
-          <div className="truncate text-xs text-muted-foreground">
-            {CURRENT_USER.role}
-          </div>
+          <div className="truncate text-sm font-medium">{name}</div>
+          <div className="truncate text-xs text-muted-foreground">{role}</div>
         </div>
       )}
     </div>
