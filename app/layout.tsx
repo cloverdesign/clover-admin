@@ -11,7 +11,9 @@ const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans" })
 
 const fontMono = Geist_Mono({
   subsets: ["latin"],
-  variable: "--font-mono",
+  // Exposed under its own var so the mono stack in globals.css can put the
+  // ₦ "NairaFix" font ahead of it without dropping Geist Mono for digits.
+  variable: "--font-geist-mono",
 })
 
 export default function RootLayout({

@@ -11,6 +11,7 @@ import { useProjects } from "@/lib/queries/projects-queries"
 import { useClients } from "@/lib/queries/clients-queries"
 import type { Deliverable } from "@/lib/api/models"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { PanelCard } from "@/components/admin/dashboard/cards"
 import { DeliverablesTable, type DeliverableRefs } from "@/components/admin/deliverables/deliverables-table"
 
@@ -114,7 +115,12 @@ export function DeliverablesList() {
         {data.length ? (
           <DeliverablesTable data={data} refs={refs} />
         ) : (
-          <div className="py-16 text-center text-sm text-muted-foreground">No deliverables in this filter.</div>
+          <EmptyState
+            size="sm"
+            icon={DeliveryBox01Icon}
+            title="No deliverables"
+            description="No deliverables match this filter yet."
+          />
         )}
       </PanelCard>
     </div>

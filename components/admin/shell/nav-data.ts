@@ -18,13 +18,17 @@ export type NavItem = {
   label: string
   icon: IconGlyph
   href: string
-  /** Optional count pill (pending invoices, revision queue, etc). */
-  badge?: string
   /** One-liner used by the icon-rail variant's contextual panel. */
   hint?: string
   /** Only render for SUPER_ADMIN accounts (the shell filters on the role). */
   superAdminOnly?: boolean
 }
+
+/**
+ * Live count pills are keyed by NavItem `key` and computed at render time from
+ * query data — see use-nav-badges. Counts are intentionally NOT stored on the
+ * static nav items (that was the bug: the old hardcoded strings never updated).
+ */
 
 export type NavSection = {
   label: string
@@ -63,7 +67,6 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Invoices",
         icon: Invoice01Icon,
         href: "/admin/invoices",
-        badge: "3",
         hint: "Drafts and awaiting payment",
       },
       {
@@ -71,7 +74,6 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Revision requests",
         icon: Task01Icon,
         href: "/admin/revisions",
-        badge: "2",
         hint: "Incoming change requests",
       },
       {

@@ -23,6 +23,7 @@ import { convert } from "@/lib/mock/currencies"
 import { formatMoney, CLIENT_STATUS_LABEL } from "@/lib/mock/clients"
 import { useSiteCurrency } from "@/hooks/use-site-currency"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { CopyButton } from "@/components/ui/copy-button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -154,7 +155,7 @@ function ClientDetailInner({ client }: { client: Client }) {
             variant="outline"
             size="sm"
             className="gap-1.5"
-            render={<Link href={`/admin/clients/new-project?client=${client.id}`} />}
+            render={<Link href={`/admin/projects/new?client=${client.id}`} />}
           >
             <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-3.5" />
             New project
@@ -179,9 +180,7 @@ function ClientDetailInner({ client }: { client: Client }) {
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
-            No projects yet — prospect.
-          </div>
+          <EmptyState variant="subtle" bordered title="No projects yet — prospect." className="rounded-xl py-6" />
         )}
       </section>
     </div>

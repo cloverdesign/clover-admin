@@ -99,6 +99,14 @@ export const MediaEndpoints = {
   remove: (id: string) => `/api/media/${id}`,
 }
 
+/**
+ * Admin notifications — server-generated attention feed. Read/seen state is
+ * tracked client-side (localStorage), so only the list read is needed here.
+ */
+export const NotificationEndpoints = {
+  list: "/api/notifications",
+}
+
 /** Client-facing portal (passwordless OTP session; client-scoped reads). */
 export const PortalEndpoints = {
   requestOtp: "/api/portal/request-otp",

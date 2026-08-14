@@ -12,6 +12,7 @@ import { useProjects } from "@/lib/queries/projects-queries"
 import { useClients } from "@/lib/queries/clients-queries"
 import type { Project } from "@/lib/api/models"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { PanelCard } from "@/components/admin/dashboard/cards"
 import { ProjectsTable } from "@/components/admin/projects/projects-table"
 
@@ -78,9 +79,12 @@ export function ProjectsList() {
         {list.length ? (
           <ProjectsTable data={list} clientName={clientName} />
         ) : (
-          <div className="py-16 text-center text-sm text-muted-foreground">
-            No projects yet.
-          </div>
+          <EmptyState
+            size="sm"
+            icon={Folder01Icon}
+            title="No projects yet"
+            description="New projects show up here as work comes in."
+          />
         )}
       </PanelCard>
     </div>

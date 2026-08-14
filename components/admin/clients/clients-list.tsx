@@ -14,6 +14,7 @@ import { ClientsLedger, type ClientRollup } from "@/components/admin/clients/cli
 import { ClientsEmpty } from "@/components/admin/clients/clients-empty"
 import { ClientDetailPanel } from "@/components/admin/clients/client-detail-panel"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 
 type Filter = "all" | ClientStatus
 
@@ -121,9 +122,7 @@ export function ClientsList({ selectedId }: { selectedId?: string }) {
             />
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
-            No clients in this filter.
-          </div>
+          <EmptyState variant="subtle" bordered title="No clients in this filter." />
         )}
       </div>
 

@@ -7,7 +7,6 @@ import { useTheme } from "next-themes"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Search01Icon,
-  Notification01Icon,
   Add01Icon,
   Sun03Icon,
   Moon02Icon,
@@ -81,7 +80,7 @@ export function IconButton({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        "relative flex size-9 items-center justify-center rounded-(--button-radius) text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+        "relative flex size-9 items-center justify-center rounded-(--button-radius) border border-border bg-input/30 text-muted-foreground transition-colors hover:bg-input/50 hover:text-foreground",
         className
       )}
     >
@@ -99,14 +98,6 @@ export function SearchIconButton({ className }: { className?: string }) {
   return (
     <IconButton label="Search" className={className} onClick={() => setOpen(true)}>
       <HugeiconsIcon icon={Search01Icon} className="size-5" />
-    </IconButton>
-  )
-}
-
-export function NotificationButton() {
-  return (
-    <IconButton label="Notifications" dot>
-      <HugeiconsIcon icon={Notification01Icon} className="size-5" />
     </IconButton>
   )
 }
@@ -136,7 +127,7 @@ function newAction(pathname: string): { label: string; href: string } {
   if (pathname.startsWith("/admin/cms"))
     return { label: "New page", href: "/admin/cms/pages/new" }
   if (pathname.startsWith("/admin/projects"))
-    return { label: "New project", href: "/admin/clients/new-project" }
+    return { label: "New project", href: "/admin/projects/new" }
   return { label: "New client", href: "/admin/clients/new" }
 }
 

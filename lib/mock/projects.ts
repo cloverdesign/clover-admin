@@ -20,6 +20,26 @@ export type ProjectStatus =
   | "ON_HOLD"
   | "CANCELLED"
 
+/**
+ * Suggested project types for the type dropdown. The API stores `type` as a
+ * free-form nullable string (not an enum), so this is a convenience list for
+ * consistent labelling — callers may still persist a value outside it.
+ */
+export const PROJECT_TYPES = [
+  "Website",
+  "Web App",
+  "Mobile App",
+  "Branding",
+  "Brand Identity",
+  "Design System",
+  "Marketing Campaign",
+  "E-commerce",
+  "Packaging",
+  "Motion / Video",
+  "Retainer",
+  "Other",
+]
+
 /** Milestone status (Clover CMS API `Milestone.status`). */
 export type MilestoneStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED"
 

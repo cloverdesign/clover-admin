@@ -1,16 +1,14 @@
-import type { Metadata } from "next"
+import { redirect } from "next/navigation"
 
-import { NewProjectPage } from "@/components/admin/clients/new-project/new-project-page"
-
-export const metadata: Metadata = {
-  title: "New project — Clover Admin",
-}
-
+/**
+ * Legacy route — new-project moved to /admin/projects/new (a stepped flow that
+ * picks or creates its own client). Preserve the `?client=` scope on the way.
+ */
 export default async function Page({
   searchParams,
 }: {
   searchParams: Promise<{ client?: string }>
 }) {
   const { client } = await searchParams
-  return <NewProjectPage clientId={client} />
+  redirect(client ? `/admin/projects/new?client=${client}` : "/admin/projects/new")
 }

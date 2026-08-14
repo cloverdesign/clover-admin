@@ -78,9 +78,25 @@
     --color-brand: oklch(0.909 0.191 140.036);
 }
 
+/* Serves ONLY the naira sign (₦, U+20A6) from a clean system sans — the mono
+   fonts render it as an odd struck-through N. unicode-range scopes it to that
+   one codepoint, so every other mono glyph is untouched. If none of these are
+   installed the browser just falls through to the mono stack (current look). */
+@font-face {
+    font-family: "NairaFix";
+    src: local("Arial"), local("Helvetica Neue"), local("Segoe UI"),
+        local("Roboto"), local("DejaVu Sans");
+    unicode-range: U+20A6;
+}
+
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: var(--font-sans);
+    /* Keep Geist Mono (via --font-geist-mono) for everything, but put "NairaFix"
+       first so only the ₦ glyph — which Geist Mono draws as an odd struck N —
+       comes from a clean sans. Digits are unchanged. See the @font-face above. */
+    --font-mono: "NairaFix", var(--font-geist-mono), ui-monospace, SFMono-Regular,
+        Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);

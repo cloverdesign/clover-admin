@@ -1,9 +1,14 @@
 import Link from "next/link"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { FireIcon } from "@hugeicons/core-free-icons"
+import {
+  FireIcon,
+  CheckmarkCircle02Icon,
+  Clock01Icon,
+} from "@hugeicons/core-free-icons"
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { EmptyState } from "@/components/ui/empty-state"
 import type { AttentionItem, Milestone } from "@/lib/mock/dashboard"
 import {
   KindIcon,
@@ -60,6 +65,16 @@ function AttentionGroup({
 export function AttentionList({ items }: { items: AttentionItem[] }) {
   const high = items.filter((i) => i.urgency === "high")
   const later = items.filter((i) => i.urgency !== "high")
+  if (!items.length) {
+    return (
+      <EmptyState
+        size="sm"
+        icon={CheckmarkCircle02Icon}
+        title="All caught up"
+        description="Nothing needs your attention right now."
+      />
+    )
+  }
   return (
     <div className="flex flex-col pb-2">
       <AttentionGroup
@@ -75,6 +90,16 @@ export function AttentionList({ items }: { items: AttentionItem[] }) {
 
 /** Upcoming milestones with a date chip. */
 export function MilestonesList({ items }: { items: Milestone[] }) {
+  if (!items.length) {
+    return (
+      <EmptyState
+        size="sm"
+        icon={Clock01Icon}
+        title="No upcoming milestones"
+        description="Milestones with a due date show up here."
+      />
+    )
+  }
   return (
     <div className="flex flex-col divide-y divide-border">
       {items.map((m) => (

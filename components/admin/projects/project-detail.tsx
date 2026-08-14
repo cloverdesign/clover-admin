@@ -29,11 +29,17 @@ import {
   File01Icon,
   LinkSquare02Icon,
   Loading03Icon,
+  Clock01Icon,
+  ViewIcon,
+  PauseIcon,
+  CancelCircleIcon,
+  Archive02Icon,
 } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
 import { formatDate, toApiDateTime } from "@/lib/format"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Badge } from "@/components/ui/badge"
@@ -61,7 +67,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
-import { PHASE_ORDER } from "@/lib/phase-colors"
+import { PHASE_ORDER, PHASE_COLOR } from "@/lib/phase-colors"
 import { formatMoney } from "@/lib/mock/clients"
 import { PROJECT_STATUS_LABEL } from "@/lib/mock/projects"
 import { INVOICE_STATUS_LABEL, INVOICE_STATUS_VARIANT, formatFull } from "@/lib/mock/invoices"
@@ -78,9 +84,10 @@ import {
 } from "@/lib/queries/projects-queries"
 import { useProjectDeliverables } from "@/lib/queries/deliverables-queries"
 import { useClient } from "@/lib/queries/clients-queries"
-import type { Project, Milestone, MilestoneStatus, Deliverable } from "@/lib/api/models"
+import type { Project, ProjectStatus, Milestone, MilestoneStatus, Deliverable } from "@/lib/api/models"
 import { Monogram } from "@/components/admin/clients/atoms"
 import { ProgressBar } from "@/components/admin/dashboard/atoms"
+import { SegmentedProgress } from "@/components/ui/segmented-progress"
 
 /* ------------------------------------------------------------------- entry */
 
@@ -237,6 +244,10 @@ function IdentityRow({ project }: { project: Project }) {
     update.mutate({ id: project.id, input: { ...toInput(project), phase } })
   }
 
+  const setStatus = (status: ProjectStatus) => {
+    update.mutate({ id: project.id, input: { ...toInput(project), status } })
+  }
+
   return (
     <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex min-w-0 items-center gap-3">
@@ -270,14 +281,63 @@ function IdentityRow({ project }: { project: Project }) {
           </div>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
         <Select value={project.phase} onValueChange={(v) => v && setPhase(v)}>
           <SelectTrigger className="w-40" aria-label="Set phase">
-            <SelectValue />
+            <SelectValue>
+              {(value: string) => (
+                <>
+                  <span
+                    className="size-1.5 shrink-0 rounded-full"
+                    style={{ background: PHASE_COLOR[value as keyof typeof PHASE_COLOR] }}
+                  />
+                  {value}
+                </>
+              )}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {PHASE_ORDER.map((p) => (
-              <SelectItem key={p} value={p}>{p}</SelectItem>
+              <SelectItem key={p} value={p}>
+                <span className="flex items-center gap-2">
+                  <span
+                    className="size-1.5 shrink-0 rounded-full"
+                    style={{ background: PHASE_COLOR[p] }}
+                  />
+                  {p}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={project.status}
+          onValueChange={(v) => v && setStatus(v as ProjectStatus)}
+        >
+          <SelectTrigger className="w-40" aria-label="Set status">
+            <SelectValue>
+              {(value: ProjectStatus) => (
+                <>
+                  <HugeiconsIcon
+                    icon={STATUS_ICON[value]}
+                    className="size-4 shrink-0 text-muted-foreground"
+                  />
+                  {PROJECT_STATUS_LABEL[value]}
+                </>
+              )}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(PROJECT_STATUS_LABEL) as ProjectStatus[]).map((s) => (
+              <SelectItem key={s} value={s}>
+                <span className="flex items-center gap-2">
+                  <HugeiconsIcon
+                    icon={STATUS_ICON[s]}
+                    className="size-4 shrink-0 text-muted-foreground"
+                  />
+                  {PROJECT_STATUS_LABEL[s]}
+                </span>
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -306,15 +366,25 @@ function toInput(p: Project) {
   }
 }
 
+/** A glyph per project status — Planning through Cancelled. */
+const STATUS_ICON: Record<ProjectStatus, typeof Clock01Icon> = {
+  PLANNING: Clock01Icon,
+  IN_PROGRESS: Loading03Icon,
+  REVIEW: ViewIcon,
+  COMPLETED: CheckmarkCircle02Icon,
+  ON_HOLD: PauseIcon,
+  CANCELLED: CancelCircleIcon,
+}
+
 function ProgressCard({ project }: { project: Project }) {
   return (
     <div className="rounded-2xl border bg-card p-4">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">Progress</span>
-        <span className="font-mono text-muted-foreground">{project.progress}%</span>
+      <div className="text-sm font-medium">Progress</div>
+      <div className="mt-1 font-mono text-3xl font-semibold tracking-tight tabular-nums">
+        {project.progress}%
       </div>
-      <ProgressBar value={project.progress} className="mt-3" />
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <SegmentedProgress value={project.progress} className="mt-3" />
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <span className="text-xs text-muted-foreground">Phase</span>
         <Badge variant="secondary">{project.phase}</Badge>
         <Badge variant="secondary" className="ml-auto">
@@ -491,9 +561,11 @@ function MilestonesEditor({ project }: { project: Project }) {
           )
         })}
         {milestones.length === 0 && (
-          <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-            No milestones yet — add the first below.
-          </div>
+          <EmptyState
+            variant="subtle"
+            title="No milestones yet — add the first below."
+            className="py-8"
+          />
         )}
       </div>
 
@@ -677,16 +749,14 @@ function EmptyTab({
   action: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border px-6 py-16 text-center">
-      <span className="flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-        <HugeiconsIcon icon={icon} className="size-5" />
-      </span>
-      <div className="max-w-sm">
-        <div className="text-sm font-medium">{title}</div>
-        <p className="mt-1 text-sm text-muted-foreground">{body}</p>
-      </div>
-      {action}
-    </div>
+    <EmptyState
+      size="sm"
+      bordered
+      icon={icon}
+      title={title}
+      description={body}
+      action={action}
+    />
   )
 }
 
@@ -724,7 +794,7 @@ function ProjectActions({ project }: { project: Project }) {
               update.mutate({ id: project.id, input: { ...toInput(project), archived: !archived } })
             }
           >
-            <HugeiconsIcon icon={CircleIcon} />
+            <HugeiconsIcon icon={Archive02Icon} />
             {archived ? "Unarchive" : "Archive"}
           </DropdownMenuItem>
           <DropdownMenuSeparator />

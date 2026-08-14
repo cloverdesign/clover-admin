@@ -18,11 +18,11 @@ import {
   SearchField,
   SearchIconButton,
   IconButton,
-  NotificationButton,
   ThemeToggle,
   NewButton,
   UserChip,
 } from "@/components/admin/shell/parts"
+import { NotificationBell } from "@/components/admin/shell/notifications"
 import {
   Sheet,
   SheetContent,
@@ -37,6 +37,8 @@ import { useRevision } from "@/lib/queries/revisions-queries"
 import { useDeliverable } from "@/lib/queries/deliverables-queries"
 import { usePage } from "@/lib/queries/cms-queries"
 import { useMe } from "@/lib/queries/auth-queries"
+import { useNavBadges } from "@/hooks/use-nav-badges"
+import { useRates } from "@/lib/queries/rates-queries"
 import { revisionTitle } from "@/components/admin/revisions/revisions-table"
 import { clearToken } from "@/lib/api/auth-storage"
 
@@ -59,6 +61,7 @@ function SidebarBody({
   const router = useRouter()
   const { data: me } = useMe()
   const isSuperAdmin = me?.role === "SUPER_ADMIN"
+  const badges = useNavBadges()
 
   // Hide super-admin-only items (and any section left empty) for regular admins.
   const sections = NAV_SECTIONS.map((section) => ({
@@ -101,16 +104,16 @@ function SidebarBody({
                 >
                   <HugeiconsIcon icon={item.icon} className="size-4.5 shrink-0" />
                   <span className="flex-1 truncate">{item.label}</span>
-                  {item.badge && (
+                  {badges[item.key] > 0 && (
                     <span
                       className={cn(
-                        "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-medium",
+                        "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-medium tabular-nums",
                         current
                           ? "bg-background text-foreground"
                           : "bg-muted text-muted-foreground"
                       )}
                     >
-                      {item.badge}
+                      {badges[item.key]}
                     </span>
                   )}
                 </Link>
@@ -153,7 +156,7 @@ function SidebarBody({
 /** Labels for deep routes that aren't nav items, keyed by exact pathname. */
 const DEEP_CRUMBS: Record<string, string> = {
   "/admin/clients/new": "New client",
-  "/admin/clients/new-project": "New project",
+  "/admin/projects/new": "New project",
   "/admin/invoices/new": "New invoice",
   "/admin/deliverables/new": "New deliverable",
   "/admin/cms/pages": "Pages",
@@ -281,8 +284,9 @@ function HeaderNav() {
 }
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
   const [navOpen, setNavOpen] = React.useState(false)
+  // Hydrate live FX rates once for the whole admin app (feeds every convert()).
+  useRates()
 
   return (
     <CommandPaletteProvider>
@@ -325,7 +329,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <div className="ml-auto flex items-center gap-1 sm:gap-2 md:ml-0">
             <SearchIconButton className="md:hidden" />
             <CurrencyControls className="hidden sm:flex" />
-            <NotificationButton />
+            <NotificationBell />
             <ThemeToggle />
             <NewButton />
           </div>

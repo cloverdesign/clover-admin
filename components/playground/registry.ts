@@ -56,6 +56,7 @@ export const PLAYGROUND_CATEGORIES: PlaygroundCategory[] = [
       { id: "overlays", label: "Overlays", blurb: "Dialog, sheet, dropdown, popover, tooltip.", status: "ready" },
       { id: "data", label: "Data display", blurb: "Card, table, avatar, progress, chart.", status: "ready" },
       { id: "feedback", label: "Feedback", blurb: "Alert and toast.", status: "ready" },
+      { id: "empty-states", label: "Empty states", blurb: "The default + subtle empty-state pattern, every placement.", status: "ready" },
     ],
   },
 ]

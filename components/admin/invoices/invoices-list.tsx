@@ -14,6 +14,7 @@ import { useProjects } from "@/lib/queries/projects-queries"
 import { useClients } from "@/lib/queries/clients-queries"
 import type { InvoiceStatus } from "@/lib/api/models"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { PanelCard } from "@/components/admin/dashboard/cards"
 import { InvoicesTable, type InvoiceRefs } from "@/components/admin/invoices/invoices-table"
 
@@ -122,9 +123,12 @@ export function InvoicesList() {
         {data.length ? (
           <InvoicesTable data={data} refs={refs} />
         ) : (
-          <div className="py-16 text-center text-sm text-muted-foreground">
-            No invoices in this filter.
-          </div>
+          <EmptyState
+            size="sm"
+            icon={Invoice01Icon}
+            title="No invoices"
+            description="No invoices match this filter yet."
+          />
         )}
       </PanelCard>
     </div>

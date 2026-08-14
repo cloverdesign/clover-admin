@@ -20,7 +20,7 @@ import { CURRENCIES } from "@/lib/mock/currencies"
 import { PHASE_ORDER } from "@/lib/phase-colors"
 import { toApiDateTime } from "@/lib/format"
 import { DatePicker } from "@/components/ui/date-picker"
-import { PROJECT_STATUS_LABEL } from "@/lib/mock/projects"
+import { PROJECT_STATUS_LABEL, PROJECT_TYPES } from "@/lib/mock/projects"
 import { useProject, useUpdateProject } from "@/lib/queries/projects-queries"
 import { useClient } from "@/lib/queries/clients-queries"
 import type { Project, ProjectStatus } from "@/lib/api/models"
@@ -122,7 +122,19 @@ function EditProjectForm({ project, router }: { project: Project; router: Return
                 <Input id="pname" value={name} onChange={(e) => setName(e.target.value)} />
               </Field>
               <Field label="Type" htmlFor="ptype">
-                <Input id="ptype" value={type} onChange={(e) => setType(e.target.value)} placeholder="Website" />
+                <Select value={type} onValueChange={(v) => v && setType(v)}>
+                  <SelectTrigger id="ptype" className="w-full">
+                    <SelectValue placeholder="Select a type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(type && !PROJECT_TYPES.includes(type)
+                      ? [type, ...PROJECT_TYPES]
+                      : PROJECT_TYPES
+                    ).map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-3">

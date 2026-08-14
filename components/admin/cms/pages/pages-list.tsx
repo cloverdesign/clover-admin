@@ -11,6 +11,7 @@ import {
 
 import { formatDate } from "@/lib/format"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { PanelCard } from "@/components/admin/dashboard/cards"
 import { usePages } from "@/lib/queries/cms-queries"
 import { PageStatusBadge } from "@/components/admin/cms/parts"
@@ -41,12 +42,15 @@ export function PagesList() {
           Couldn’t load pages.
         </p>
       ) : !pages || pages.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <p className="text-sm text-muted-foreground">No pages yet.</p>
-          <Button size="sm" variant="outline" render={<Link href="/admin/cms/pages/new" />}>
-            Create your first page
-          </Button>
-        </div>
+        <EmptyState
+          variant="subtle"
+          title="No pages yet."
+          action={
+            <Button size="sm" variant="outline" render={<Link href="/admin/cms/pages/new" />}>
+              Create your first page
+            </Button>
+          }
+        />
       ) : (
         <div className="-mx-1 flex flex-col divide-y divide-border">
           {pages.map((p) => (
