@@ -7,41 +7,105 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp"
 import { AuthShell } from "@/components/admin/auth/auth-shell"
-import { PendingApproval } from "@/components/admin/auth/pending-approval"
-import { useLogin } from "@/lib/queries/auth-queries"
-import { tokenFromLogin } from "@/lib/services/auth-service"
+import { useLogin, useVerifyOtp } from "@/lib/queries/auth-queries"
 
-/** Login — POST /api/auth/login. On success with a token we land on the
- * dashboard; a tokenless success means the account isn't approved yet, so we
- * show the pending notice. Errors surface via the global toast handler. */
+/**
+ * Admin sign-in, two steps. Step 1: email + password → the API validates and
+ * emails a 6-digit code. Step 2: enter the code → verify-otp mints the JWT and
+ * we land on the dashboard (the guard then gates on approval/verification).
+ */
 export function Login() {
   const router = useRouter()
   const login = useLogin()
-  const [pending, setPending] = React.useState(false)
+  const verify = useVerifyOtp()
+
+  const [step, setStep] = React.useState<"credentials" | "otp">("credentials")
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
+  const [otp, setOtp] = React.useState("")
 
-  if (pending) return <PendingApproval />
+  const credsValid = /.+@.+\..+/.test(email) && password.length > 0
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const sendCode = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (!credsValid) return
     login.mutate(
-      { email, password },
+      { email: email.trim(), password },
       {
-        onSuccess: (result) => {
-          if (tokenFromLogin(result)) router.push("/admin")
-          else setPending(true)
+        onSuccess: () => {
+          setOtp("")
+          setStep("otp")
         },
       }
     )
   }
 
-  const valid = /.+@.+\..+/.test(email) && password.length > 0
+  const submitOtp = (value: string) => {
+    verify.mutate(
+      { email: email.trim(), otp: value },
+      { onSuccess: () => router.push("/admin") }
+    )
+  }
+
+  if (step === "otp") {
+    return (
+      <AuthShell title="Enter your code" subtitle={`We sent a 6-digit code to ${email}`}>
+        <div className="flex flex-col items-center gap-5">
+          <InputOTP
+            maxLength={6}
+            value={otp}
+            onChange={setOtp}
+            onComplete={submitOtp}
+            autoFocus
+            disabled={verify.isPending}
+          >
+            <InputOTPGroup>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <InputOTPSlot key={i} index={i} className="size-11 text-base" />
+              ))}
+            </InputOTPGroup>
+          </InputOTP>
+
+          <Button
+            className="w-full"
+            disabled={otp.length !== 6 || verify.isPending}
+            onClick={() => submitOtp(otp)}
+          >
+            {verify.isPending ? "Verifying…" : "Verify & sign in"}
+          </Button>
+
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <button
+              type="button"
+              className="underline-offset-4 hover:text-foreground hover:underline"
+              onClick={() => setStep("credentials")}
+            >
+              Back
+            </button>
+            <span aria-hidden>·</span>
+            <button
+              type="button"
+              className="underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50"
+              onClick={() => sendCode()}
+              disabled={login.isPending}
+            >
+              {login.isPending ? "Sending…" : "Resend code"}
+            </button>
+          </div>
+        </div>
+      </AuthShell>
+    )
+  }
 
   return (
     <AuthShell title="Sign in to Clover" subtitle="Admin panel — internal access">
-      <form className="flex flex-col gap-4" onSubmit={submit}>
+      <form className="flex flex-col gap-4" onSubmit={sendCode}>
         <div className="grid gap-2">
           <Label htmlFor="email">Email</Label>
           <Input
@@ -76,9 +140,9 @@ export function Login() {
         <Button
           type="submit"
           className="mt-1 w-full"
-          disabled={!valid || login.isPending}
+          disabled={!credsValid || login.isPending}
         >
-          {login.isPending ? "Signing in…" : "Sign in"}
+          {login.isPending ? "Sending code…" : "Continue"}
         </Button>
 
         <p className="text-center text-sm text-muted-foreground">

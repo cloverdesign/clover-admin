@@ -1,31 +1,44 @@
 /**
- * Auth hooks. `useLogin` persists the returned token so the axios interceptor
- * picks it up on subsequent requests; `useMe` reads the signed-in admin. The
- * login page still uses dummy navigation — wiring it to `useLogin` is a one-line
- * follow-up once the real auth flow is turned on.
+ * Admin auth hooks. Login is two-step (password → emailed OTP → verify-otp mints
+ * the JWT); registration verifies email (which also mints a JWT). The token-
+ * minting hooks persist the token and seed the `me` cache so the guard sees the
+ * signed-in admin immediately. `useMe` reads the profile (incl. `approved` /
+ * `emailVerified`, which the guard gates on).
  */
 
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { queryKeys } from "@/lib/api/query-client"
-import {
-  AuthService,
-  tokenFromLogin,
-  type LoginCredentials,
-  type RegisterInput,
-} from "@/lib/services/auth-service"
+import { AuthService } from "@/lib/services/auth-service"
 import { setToken, getToken } from "@/lib/api/auth-storage"
+import type {
+  LoginCredentialsInput,
+  LoginOtpVerifyInput,
+  RegisterInput,
+  EmailVerifyInput,
+} from "@/lib/api/models"
 
 export function useLogin() {
   return useMutation({
-    mutationFn: (credentials: LoginCredentials) => AuthService.login(credentials),
+    mutationFn: (credentials: LoginCredentialsInput) => AuthService.login(credentials),
     meta: {
-      successMessage: "Signed in.",
+      successMessage: "Code sent — check your email.",
       errorMessage: "Sign in failed. Check your email and password.",
     },
+  })
+}
+
+export function useVerifyOtp() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: LoginOtpVerifyInput) => AuthService.verifyOtp(input),
+    meta: {
+      successMessage: "Signed in.",
+      errorMessage: "That code didn’t work. Check it and try again.",
+    },
     onSuccess: (result) => {
-      const token = tokenFromLogin(result)
-      if (token) setToken(token)
+      setToken(result.token)
+      qc.setQueryData(queryKeys.auth.me, result.admin)
     },
   })
 }
@@ -35,6 +48,21 @@ export function useRegister() {
     mutationFn: (input: RegisterInput) => AuthService.register(input),
     meta: {
       errorMessage: "Couldn’t create your account. Please try again.",
+    },
+  })
+}
+
+export function useVerifyEmail() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: EmailVerifyInput) => AuthService.verifyEmail(input),
+    meta: {
+      successMessage: "Email verified.",
+      errorMessage: "This verification link is invalid or has expired.",
+    },
+    onSuccess: (result) => {
+      setToken(result.token)
+      qc.setQueryData(queryKeys.auth.me, result.admin)
     },
   })
 }

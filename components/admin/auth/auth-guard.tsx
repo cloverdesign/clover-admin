@@ -3,28 +3,34 @@
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Loading03Icon } from "@hugeicons/core-free-icons"
+import {
+  Loading03Icon,
+  Clock01Icon,
+  MailValidation01Icon,
+} from "@hugeicons/core-free-icons"
 
-import { getToken } from "@/lib/api/auth-storage"
+import { getToken, clearToken } from "@/lib/api/auth-storage"
 import { useMe } from "@/lib/queries/auth-queries"
+import { Button } from "@/components/ui/button"
+import { AuthNotice } from "@/components/admin/auth/auth-notice"
 
 /**
- * Client-side route protection for the admin app. Renders nothing but a spinner
- * until it knows the auth state:
- *   - no token           → redirect to /admin/login
- *   - token, validating  → spinner (useMe against /api/auth/me)
- *   - token invalid/401   → the axios interceptor clears it; we redirect to login
- *   - token valid        → render the app
- * Token lives in localStorage, so this check is client-only (no SSR gate).
+ * Client-side route protection for the admin app. Beyond "has a token", it gates
+ * on the account state the API enforces:
+ *   - no token / auth error → clear token, redirect to /admin/login
+ *   - validating            → spinner (useMe against /api/auth/me)
+ *   - email not verified    → "verify your email" notice (can't sign in yet)
+ *   - not approved          → "awaiting approval" notice (every resource 403s)
+ *   - verified + approved   → render the app
+ * Without the approval/verification gates an unapproved admin would land on the
+ * dashboard where every call returns "access denied".
  */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const [hasToken, setHasToken] = React.useState<boolean | null>(null)
 
-  // Read the token after mount (localStorage is client-only).
   React.useEffect(() => {
-    const token = getToken()
-    if (!token) {
+    if (!getToken()) {
       router.replace("/admin/login")
       setHasToken(false)
     } else {
@@ -32,21 +38,61 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [router])
 
-  // Validate the token; only runs once we know one exists.
   const me = useMe()
 
+  // Any auth failure (expired / invalid / insufficient token) — drop it and
+  // bounce, rather than stranding the user in a shell where everything 401/403s.
   React.useEffect(() => {
-    // A 401 clears the token in the interceptor — bounce to login.
-    if (hasToken && me.isError && !getToken()) {
+    if (hasToken && me.isError) {
+      clearToken()
       router.replace("/admin/login")
     }
   }, [hasToken, me.isError, router])
 
-  if (hasToken !== true || me.isLoading) {
+  const signOut = () => {
+    clearToken()
+    router.replace("/admin/login")
+  }
+
+  if (hasToken !== true || me.isLoading || me.isError || !me.data) {
     return (
       <div className="flex h-dvh items-center justify-center bg-background text-muted-foreground">
         <HugeiconsIcon icon={Loading03Icon} className="size-6 animate-spin" />
       </div>
+    )
+  }
+
+  const admin = me.data
+
+  if (!admin.emailVerified) {
+    return (
+      <AuthNotice
+        icon={MailValidation01Icon}
+        title="Verify your email"
+        subtitle="Check your inbox for the verification link to finish setting up your account."
+        body="Once your email is verified, sign in again."
+        action={
+          <Button variant="outline" className="w-full" onClick={signOut}>
+            Back to sign in
+          </Button>
+        }
+      />
+    )
+  }
+
+  if (!admin.approved) {
+    return (
+      <AuthNotice
+        icon={Clock01Icon}
+        title="Awaiting approval"
+        subtitle="Your account needs an admin to approve it before you can use the dashboard."
+        body="We’ll email you as soon as it’s approved — it usually doesn’t take long."
+        action={
+          <Button variant="outline" className="w-full" onClick={signOut}>
+            Sign out
+          </Button>
+        }
+      />
     )
   }
 

@@ -6,22 +6,39 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Mail01Icon } from "@hugeicons/core-free-icons"
+
 import { AuthShell } from "@/components/admin/auth/auth-shell"
-import { PendingApproval } from "@/components/admin/auth/pending-approval"
+import { AuthNotice } from "@/components/admin/auth/auth-notice"
 import { useRegister } from "@/lib/queries/auth-queries"
 
-/** Register — POST /api/auth/register (name, email, password). New accounts
- * start unapproved, so a successful registration shows the pending notice.
- * Confirm-password is client-side UX only. */
+/** Register — POST /api/auth/register (name, email, password). New accounts must
+ * verify their email before they can sign in, so a successful registration shows
+ * a "check your inbox" notice. Confirm-password is client-side UX only. */
 export function Register() {
   const register = useRegister()
-  const [pending, setPending] = React.useState(false)
+  const [sent, setSent] = React.useState(false)
   const [name, setName] = React.useState("")
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
   const [confirm, setConfirm] = React.useState("")
 
-  if (pending) return <PendingApproval />
+  if (sent) {
+    return (
+      <AuthNotice
+        icon={Mail01Icon}
+        title="Check your email"
+        subtitle={`We sent a verification link to ${email}.`}
+        body="Click the link to verify your account, then an admin will approve you."
+        action={
+          <Button variant="outline" className="w-full" render={<Link href="/admin/login" />}>
+            Back to sign in
+          </Button>
+        }
+      />
+    )
+  }
 
   const mismatch = confirm.length > 0 && confirm !== password
   const valid =
@@ -34,7 +51,7 @@ export function Register() {
     e.preventDefault()
     register.mutate(
       { name, email, password },
-      { onSuccess: () => setPending(true) }
+      { onSuccess: () => setSent(true) }
     )
   }
 
