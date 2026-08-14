@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils"
 import { formatDate } from "@/lib/format"
 import { Button } from "@/components/ui/button"
+import { CopyButton } from "@/components/ui/copy-button"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -93,6 +94,7 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <h1 className="font-mono text-xl font-semibold tracking-tight">{invoice.invoiceNumber}</h1>
+          <CopyButton value={invoice.invoiceNumber} label="invoice number" />
           <Badge variant={INVOICE_STATUS_VARIANT[status]}>{INVOICE_STATUS_LABEL[status]}</Badge>
         </div>
         <div className="flex items-center gap-2">

@@ -23,6 +23,7 @@ import { convert } from "@/lib/mock/currencies"
 import { formatMoney, CLIENT_STATUS_LABEL } from "@/lib/mock/clients"
 import { useSiteCurrency } from "@/hooks/use-site-currency"
 import { Button } from "@/components/ui/button"
+import { CopyButton } from "@/components/ui/copy-button"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -104,8 +105,8 @@ function ClientDetailInner({ client }: { client: Client }) {
 
       {/* Contact */}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <Contact icon={Mail01Icon} value={client.email} />
-        {client.phone && <Contact icon={Call02Icon} value={client.phone} />}
+        <Contact icon={Mail01Icon} value={client.email} label="email" />
+        {client.phone && <Contact icon={Call02Icon} value={client.phone} label="phone" />}
       </div>
 
       {/* Portal access */}
@@ -187,11 +188,20 @@ function ClientDetailInner({ client }: { client: Client }) {
   )
 }
 
-function Contact({ icon, value }: { icon: typeof Mail01Icon; value: string }) {
+function Contact({
+  icon,
+  value,
+  label,
+}: {
+  icon: typeof Mail01Icon
+  value: string
+  label?: string
+}) {
   return (
     <div className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2 text-sm">
       <HugeiconsIcon icon={icon} className="size-4 shrink-0 text-muted-foreground" />
       <span className="truncate">{value}</span>
+      <CopyButton value={value} label={label ?? "value"} className="ml-auto" />
     </div>
   )
 }

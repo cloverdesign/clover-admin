@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils"
 import { formatDate } from "@/lib/format"
 import { Button } from "@/components/ui/button"
+import { CopyButton } from "@/components/ui/copy-button"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
@@ -208,10 +209,13 @@ function Preview({ deliverable, onOpen }: { deliverable: Deliverable; onOpen: ()
             <div className="truncate font-mono text-xs text-muted-foreground">{deliverable.externalLink}</div>
           </div>
         </div>
-        <Button className="gap-1.5" onClick={onOpen}>
-          <HugeiconsIcon icon={LinkSquare02Icon} data-icon="inline-start" className="size-4" />
-          Open link
-        </Button>
+        <div className="flex items-center gap-2">
+          <CopyButton value={deliverable.externalLink} label="link" />
+          <Button className="gap-1.5" onClick={onOpen}>
+            <HugeiconsIcon icon={LinkSquare02Icon} data-icon="inline-start" className="size-4" />
+            Open link
+          </Button>
+        </div>
       </div>
     )
   }
