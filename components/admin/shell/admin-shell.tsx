@@ -38,6 +38,7 @@ import { useDeliverable } from "@/lib/queries/deliverables-queries"
 import { usePage } from "@/lib/queries/cms-queries"
 import { useMe } from "@/lib/queries/auth-queries"
 import { useNavBadges } from "@/hooks/use-nav-badges"
+import { useRates } from "@/lib/queries/rates-queries"
 import { revisionTitle } from "@/components/admin/revisions/revisions-table"
 import { clearToken } from "@/lib/api/auth-storage"
 
@@ -283,8 +284,9 @@ function HeaderNav() {
 }
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
   const [navOpen, setNavOpen] = React.useState(false)
+  // Hydrate live FX rates once for the whole admin app (feeds every convert()).
+  useRates()
 
   return (
     <CommandPaletteProvider>

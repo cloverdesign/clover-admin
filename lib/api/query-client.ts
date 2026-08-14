@@ -110,6 +110,9 @@ export const queryKeys = {
   notifications: {
     all: ["notifications"] as const,
   },
+  rates: {
+    usd: ["rates", "usd"] as const,
+  },
   portal: {
     me: ["portal", "me"] as const,
     projects: ["portal", "projects"] as const,

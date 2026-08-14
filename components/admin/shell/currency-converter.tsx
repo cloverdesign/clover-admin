@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CURRENCIES, convert, getCurrency } from "@/lib/mock/currencies"
+import { useRates } from "@/lib/queries/rates-queries"
 
 function CurrencySelect({
   value,
@@ -65,9 +66,11 @@ export function CurrencyConverter({ className }: { className?: string }) {
   const [from, setFrom] = React.useState("USD")
   const [to, setTo] = React.useState("EUR")
 
+  // Keeps the popover reactive to freshly-fetched rates (convert() reads them).
+  const { data: fx } = useRates()
+
   const amt = parseFloat(amount) || 0
   const result = convert(amt, from, to)
-  const unitRate = convert(1, from, to)
 
   const money = (v: number, code: string) =>
     new Intl.NumberFormat("en-US", {
@@ -97,7 +100,7 @@ export function CurrencyConverter({ className }: { className?: string }) {
         <div className="flex items-center justify-between">
           <div className="font-medium">Currency converter</div>
           <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
-            Indicative
+            {fx ? "Live" : "Indicative"}
           </span>
         </div>
 
@@ -148,10 +151,42 @@ export function CurrencyConverter({ className }: { className?: string }) {
           </div>
         </div>
 
+        {/* Rates reference — every currency against 1 unit of `from`. */}
+        <div className="space-y-1.5">
+          <span className="px-1 font-mono text-[10px] tracking-widest text-muted-foreground/70 uppercase">
+            Rates · 1 {from}
+          </span>
+          <div className="divide-y divide-border/60 overflow-hidden rounded-(--input-radius) border border-border">
+            {CURRENCIES.filter((c) => c.code !== from).map((c) => (
+              <div
+                key={c.code}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm"
+              >
+                <span>{c.flag}</span>
+                <span className="font-medium">{c.code}</span>
+                <span className="ml-auto tabular-nums">
+                  {convert(1, from, c.code).toLocaleString("en-US", {
+                    maximumFractionDigits: 4,
+                  })}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <p className="text-xs text-muted-foreground">
-          1 {from} ={" "}
-          {unitRate.toLocaleString("en-US", { maximumFractionDigits: 4 })} {to} ·
-          placeholder rates, not live
+          {fx
+            ? `Live · updated ${new Date(fx.updatedAt).toLocaleDateString("en-US", { day: "numeric", month: "short" })} · `
+            : "Indicative rates · "}
+          rates by{" "}
+          <a
+            href="https://www.exchangerate-api.com"
+            target="_blank"
+            rel="noreferrer"
+            className="underline underline-offset-2 hover:text-foreground"
+          >
+            exchangerate-api.com
+          </a>
         </p>
       </PopoverContent>
     </Popover>
