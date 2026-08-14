@@ -118,11 +118,3 @@ export const NAV_SECTIONS: NavSection[] = [
 ]
 
 export const ALL_ITEMS: NavItem[] = NAV_SECTIONS.flatMap((s) => s.items)
-
-/** Signed-in admin — placeholder identity for the shell footer/menu. */
-export const CURRENT_USER = {
-  name: "Tanya Ekekwe",
-  email: "tanya@clover.studio",
-  role: "Admin",
-  initials: "TE",
-}
