@@ -155,7 +155,7 @@ function ClientDetailInner({ client }: { client: Client }) {
             variant="outline"
             size="sm"
             className="gap-1.5"
-            render={<Link href={`/admin/clients/new-project?client=${client.id}`} />}
+            render={<Link href={`/admin/projects/new?client=${client.id}`} />}
           >
             <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-3.5" />
             New project

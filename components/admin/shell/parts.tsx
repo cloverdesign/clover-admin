@@ -127,7 +127,7 @@ function newAction(pathname: string): { label: string; href: string } {
   if (pathname.startsWith("/admin/cms"))
     return { label: "New page", href: "/admin/cms/pages/new" }
   if (pathname.startsWith("/admin/projects"))
-    return { label: "New project", href: "/admin/clients/new-project" }
+    return { label: "New project", href: "/admin/projects/new" }
   return { label: "New client", href: "/admin/clients/new" }
 }
 

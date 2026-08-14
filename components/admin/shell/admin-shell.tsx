@@ -156,7 +156,7 @@ function SidebarBody({
 /** Labels for deep routes that aren't nav items, keyed by exact pathname. */
 const DEEP_CRUMBS: Record<string, string> = {
   "/admin/clients/new": "New client",
-  "/admin/clients/new-project": "New project",
+  "/admin/projects/new": "New project",
   "/admin/invoices/new": "New invoice",
   "/admin/deliverables/new": "New deliverable",
   "/admin/cms/pages": "Pages",
