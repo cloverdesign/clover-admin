@@ -12,6 +12,7 @@ import {
 
 import { formatDate } from "@/lib/format"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   AlertDialog,
   AlertDialogContent,
@@ -81,12 +82,16 @@ export function MediaLibrary() {
           Couldn’t load the media library.
         </p>
       ) : !media || media.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-20 text-center">
-          <p className="text-sm text-muted-foreground">No media yet.</p>
-          <Button size="sm" variant="outline" onClick={() => inputRef.current?.click()}>
-            Upload your first asset
-          </Button>
-        </div>
+        <EmptyState
+          variant="subtle"
+          bordered
+          title="No media yet."
+          action={
+            <Button size="sm" variant="outline" onClick={() => inputRef.current?.click()}>
+              Upload your first asset
+            </Button>
+          }
+        />
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {media.map((m) => (

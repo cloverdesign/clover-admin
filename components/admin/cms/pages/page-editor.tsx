@@ -22,6 +22,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -268,10 +269,14 @@ function PageEditorInner({ page }: { page: Page }) {
         </div>
 
         {blocks.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed py-14 text-center">
-            <p className="text-sm text-muted-foreground">No blocks yet.</p>
-            <AddBlockMenu onAdd={addBlock} disabled={createBlock.isPending} label="Add a block" />
-          </div>
+          <EmptyState
+            variant="subtle"
+            bordered
+            title="No blocks yet."
+            action={
+              <AddBlockMenu onAdd={addBlock} disabled={createBlock.isPending} label="Add a block" />
+            }
+          />
         ) : (
           <div className="flex flex-col gap-3">
             {blocks.map((block, index) => (

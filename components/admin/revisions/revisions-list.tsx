@@ -11,6 +11,7 @@ import { useProjects } from "@/lib/queries/projects-queries"
 import { useClients } from "@/lib/queries/clients-queries"
 import type { RevisionStatus } from "@/lib/api/models"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { PanelCard } from "@/components/admin/dashboard/cards"
 import { RevisionsTable, type RevisionRefs } from "@/components/admin/revisions/revisions-table"
 
@@ -108,7 +109,12 @@ export function RevisionsList() {
         {data.length ? (
           <RevisionsTable data={data} refs={refs} />
         ) : (
-          <div className="py-16 text-center text-sm text-muted-foreground">No requests in this filter.</div>
+          <EmptyState
+            size="sm"
+            icon={GitPullRequestIcon}
+            title="No requests"
+            description="No revision requests match this filter yet."
+          />
         )}
       </PanelCard>
     </div>
