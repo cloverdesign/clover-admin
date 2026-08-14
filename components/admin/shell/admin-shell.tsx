@@ -36,6 +36,7 @@ import { useInvoice } from "@/lib/queries/invoices-queries"
 import { useRevision } from "@/lib/queries/revisions-queries"
 import { useDeliverable } from "@/lib/queries/deliverables-queries"
 import { usePage } from "@/lib/queries/cms-queries"
+import { useMe } from "@/lib/queries/auth-queries"
 import { revisionTitle } from "@/components/admin/revisions/revisions-table"
 import { clearToken } from "@/lib/api/auth-storage"
 
@@ -56,6 +57,14 @@ function SidebarBody({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { data: me } = useMe()
+  const isSuperAdmin = me?.role === "SUPER_ADMIN"
+
+  // Hide super-admin-only items (and any section left empty) for regular admins.
+  const sections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => !item.superAdminOnly || isSuperAdmin),
+  })).filter((section) => section.items.length > 0)
 
   const signOut = () => {
     clearToken()
@@ -70,7 +79,7 @@ function SidebarBody({
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto py-3">
-        {NAV_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div key={section.label} className="space-y-1">
             <div className="px-2 pb-1 font-mono text-[10px] tracking-widest text-muted-foreground/70 uppercase">
               {section.label}
