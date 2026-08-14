@@ -116,8 +116,10 @@ export interface ProjectInput {
   parentProjectId?: string
 }
 
-/** Update body — no clientId/parentProjectId (those are fixed at creation). */
-export type ProjectUpdateInput = Omit<ProjectInput, "clientId" | "parentProjectId">
+/** Update body — no clientId/parentProjectId (fixed at creation). All fields
+ * optional: the API's PUT is a partial update, so callers can send just the
+ * fields they're changing (e.g. `{ progress }`). */
+export type ProjectUpdateInput = Partial<Omit<ProjectInput, "clientId" | "parentProjectId">>
 
 /* --------------------------------------------------------------- milestones */
 
@@ -229,19 +231,55 @@ export interface RevisionApproveInput {
 
 /* --------------------------------------------------------------------- auth */
 
-/** Clover CMS API `Admin` (minimal — what the app reads). */
+export type AdminRole = "SUPER_ADMIN" | "ADMIN"
+
+/** Clover CMS API `Admin`. `emailVerified` and `approved` gate access: an admin
+ * must verify their email to sign in, and be approved to use any resource. */
 export interface Admin {
   id: string
   name: string
   email: string
+  role: AdminRole
+  emailVerified: boolean
+  approved: boolean
+  createdAt: string
+  updatedAt: string
 }
 
-/** `POST /api/auth/login` `data` payload. Shape is loosely specced as an
- * object; we read the token defensively. */
-export interface LoginResult {
-  token?: string
-  accessToken?: string
-  admin?: Admin
+/** Result of the token-minting steps (`verify-otp`, `verify-email`) — a 7-day
+ * admin JWT plus the admin record. */
+export interface AdminAuthResult {
+  token: string
+  admin: Admin
+}
+
+/** `POST /api/auth/login` — step 1: validate password, email an OTP. */
+export interface LoginCredentialsInput {
+  email: string
+  password: string
+}
+
+/** `POST /api/auth/verify-otp` — step 2: exchange the emailed OTP for a JWT. */
+export interface LoginOtpVerifyInput {
+  email: string
+  otp: string
+}
+
+/** `POST /api/auth/register`. */
+export interface RegisterInput {
+  name: string
+  email: string
+  password: string
+}
+
+/** `POST /api/auth/verify-email` — verify via the token from the email link. */
+export interface EmailVerifyInput {
+  token: string
+}
+
+/** `PUT /api/admins/{id}/role` — promote to super admin or demote to admin. */
+export interface AdminRoleInput {
+  role: AdminRole
 }
 
 /* ------------------------------------------------------------- cms: pages */
@@ -313,4 +351,47 @@ export interface MediaAsset {
   mimeType: string
   size: number
   createdAt: string
+}
+
+/* ------------------------------------------------------------- client portal */
+
+/** `POST /api/portal/request-otp` — start passwordless login. */
+export interface PortalOtpRequestInput {
+  email: string
+}
+
+/** `POST /api/portal/verify-otp` — exchange the emailed code for a session. */
+export interface PortalOtpVerifyInput {
+  email: string
+  code: string
+}
+
+/** `verify-otp` data — a 30-day bearer token plus the signed-in client. */
+export interface PortalSession {
+  token: string
+  client: Client
+}
+
+export type DeliverableReviewStatus = "APPROVED" | "CHANGES_REQUESTED"
+
+/** `POST /api/portal/deliverables/{id}/review`. */
+export interface DeliverableReviewInput {
+  status: DeliverableReviewStatus
+  /** Required when requesting changes. */
+  comment?: string
+}
+
+/** `POST /api/portal/projects/{id}/revision-requests`. */
+export interface PortalRevisionRequestInput {
+  description: string
+  targetTimeframe?: string
+  attachments?: { url: string; name: string }[]
+}
+
+/** `PUT /api/portal/me` — the client-editable subset of their profile. */
+export interface ClientProfileInput {
+  name?: string
+  email?: string
+  phone?: string
+  company?: string
 }

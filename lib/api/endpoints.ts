@@ -5,8 +5,20 @@
 
 export const AuthEndpoints = {
   login: "/api/auth/login",
+  verifyOtp: "/api/auth/verify-otp",
   register: "/api/auth/register",
+  verifyEmail: "/api/auth/verify-email",
   me: "/api/auth/me",
+}
+
+/** Admin account management — super-admin only (the API 403s otherwise). */
+export const AdminsEndpoints = {
+  list: "/api/admins",
+  byId: (id: string) => `/api/admins/${id}`,
+  approve: (id: string) => `/api/admins/${id}/approve`,
+  revoke: (id: string) => `/api/admins/${id}/revoke`,
+  role: (id: string) => `/api/admins/${id}/role`,
+  remove: (id: string) => `/api/admins/${id}`,
 }
 
 export const DeliverableEndpoints = {
@@ -85,4 +97,18 @@ export const MediaEndpoints = {
   list: "/api/media",
   upload: "/api/media/upload",
   remove: (id: string) => `/api/media/${id}`,
+}
+
+/** Client-facing portal (passwordless OTP session; client-scoped reads). */
+export const PortalEndpoints = {
+  requestOtp: "/api/portal/request-otp",
+  verifyOtp: "/api/portal/verify-otp",
+  logout: "/api/portal/logout",
+  me: "/api/portal/me",
+  projects: "/api/portal/projects",
+  project: (id: string) => `/api/portal/projects/${id}`,
+  projectDeliverables: (id: string) => `/api/portal/projects/${id}/deliverables`,
+  projectRevisions: (id: string) => `/api/portal/projects/${id}/revision-requests`,
+  revisions: "/api/portal/revision-requests",
+  reviewDeliverable: (id: string) => `/api/portal/deliverables/${id}/review`,
 }

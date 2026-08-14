@@ -55,6 +55,7 @@ function makeQueryClient(): QueryClient {
         if (mutation.meta?.successMessage) toast.success(mutation.meta.successMessage)
       },
       onError: (error, _vars, _ctx, mutation) => {
+        if (mutation.meta?.silent) return
         toast.error(messageOf(error, mutation.meta?.errorMessage ?? "Something went wrong."))
       },
     }),
@@ -74,6 +75,10 @@ export function getQueryClient(): QueryClient {
 export const queryKeys = {
   auth: {
     me: ["auth", "me"] as const,
+  },
+  admins: {
+    all: ["admins"] as const,
+    byId: (id: string) => ["admins", id] as const,
   },
   clients: {
     all: ["clients"] as const,
@@ -101,5 +106,13 @@ export const queryKeys = {
   },
   media: {
     all: ["media"] as const,
+  },
+  portal: {
+    me: ["portal", "me"] as const,
+    projects: ["portal", "projects"] as const,
+    project: (id: string) => ["portal", "projects", id] as const,
+    projectDeliverables: (id: string) =>
+      ["portal", "projects", id, "deliverables"] as const,
+    revisions: ["portal", "revisions"] as const,
   },
 } as const
