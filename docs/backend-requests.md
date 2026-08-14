@@ -134,15 +134,101 @@ change.
 
 ---
 
+## 4. Portal invoices — client-scoped read (blocking the portal invoices + billing)
+
+Invoices exist admin-side (`GET /api/projects/{id}/invoices`) but there is **no
+portal equivalent**, so the portal's invoices section and the dashboard billing
+snapshot can't load. `GET /api/portal/projects/{id}/invoices` currently **404s**.
+
+### New endpoint: `GET /api/portal/projects/{id}/invoices`
+- **Auth:** `ClientBearer`, scoped to the client's own project.
+- **Returns:** the project's **issued** invoices only — exclude `DRAFT` (drafts
+  stay internal to the studio) — sorted by `issuedDate` desc.
+- **Response** (standard envelope, `data` is an `Invoice[]`):
+
+```json
+{
+  "success": true,
+  "message": "Invoices retrieved",
+  "data": [
+    {
+      "id": "…",
+      "projectId": "…",
+      "invoiceNumber": "INV-0001",
+      "amount": 4200,
+      "currency": "USD",
+      "lineItems": [{ "description": "Design phase", "amount": 4200 }],
+      "description": null,
+      "status": "SENT",
+      "issuedDate": "2026-08-01T00:00:00.000Z",
+      "dueDate": "2026-08-15T00:00:00.000Z",
+      "paidDate": null,
+      "pdfUrl": "https://…/inv-0001.pdf",
+      "createdAt": "…",
+      "updatedAt": "…"
+    }
+  ]
+}
+```
+- **Errors:** `401` (no/invalid token), `404` (project not found).
+- **Frontend status:** already built and calling this route; it treats a `404`
+  as an empty list, so the invoices section and dashboard billing light up
+  automatically once it ships. The path is already in `docs/api/openapi.json`,
+  marked `x-status: planned`.
+
+Mirror of the admin `GET /api/projects/{id}/invoices`, client-scoped and
+draft-filtered.
+
+---
+
+## 5. Return the client's review on portal deliverables (persist approve / request-changes)
+
+The review **write** path exists — `POST /api/portal/deliverables/{id}/review` —
+but the deliverable **read** carries no review, so once a client approves or
+requests changes the outcome is **lost on reload** (the portal only holds it in
+session state). 
+
+### Change: embed the client's latest review in the portal deliverables read
+- **Endpoint:** `GET /api/portal/projects/{id}/deliverables`.
+- **Change:** add **`review: DeliverableReview | null`** to each returned
+  `Deliverable` — the client's most recent review of that version:
+
+```json
+{
+  "status": "APPROVED",               // or "CHANGES_REQUESTED"
+  "comment": "Looks great, ship it",  // nullable
+  "reviewedAt": "2026-08-12T10:30:00.000Z"
+}
+```
+- Lets the portal show "You approved this" / "Changes requested" durably and hide
+  the review controls once a version has been acted on, instead of resetting them
+  on every reload.
+
+---
+
+## 6. Client-wide aggregate reads for the dashboard (optional, perf)
+
+The client dashboard summarizes across **all** the client's projects, so it
+currently fans the per-project reads out (`…/deliverables`, `…/invoices`, and
+`…/{id}` for milestones) — an N+1 that grows with project count. Two
+client-scoped list endpoints would collapse each to a single request:
+- `GET /api/portal/deliverables` → the client's `READY` deliverables across all
+  their projects.
+- `GET /api/portal/invoices` → the client's issued invoices across all their
+  projects.
+- **Auth:** `ClientBearer`, scoped to the caller; item shapes identical to the
+  per-project reads (§4 for invoices).
+- **Frontend status:** nice-to-have. The dashboard works today via fan-out — this
+  is purely a performance win as a client's portfolio grows.
+
+---
+
 ## Related gaps (lower priority, same class)
 
 - **Project `updates`** are also write-only (`POST` / `DELETE`, no GET). If
   milestones get a read path, do the same for updates (embed in the portal
   project response and/or `GET /api/projects/{id}/updates`) so the client
   "project updates" feed can work.
-- **Portal invoices** — the PRD shows invoices in the portal, but there's no
-  `/api/portal/.../invoices` endpoint. A client-scoped read would light up an
-  invoices section on the portal.
 
 ---
 
@@ -151,5 +237,9 @@ change.
 - Frontend is already staged for §1: `Project.milestones?: Milestone[]` exists in
   the client models and the admin editor reads it — a read path makes it durable
   instead of session-only.
+- The **client portal** is fully built against §1b and §4–§5: the project
+  milestone timeline, the invoices section, the dashboard billing snapshot, and
+  deliverable review state are all wired and degrade gracefully (empty/quiet, no
+  errors) until these land. §6 is a later performance-only optimization.
 - Date fields are `date-time`; the frontend sends full ISO timestamps (a bare
   `yyyy-mm-dd` is rejected as an invalid datetime).
