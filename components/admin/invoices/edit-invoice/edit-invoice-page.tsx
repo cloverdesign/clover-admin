@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select"
 import { CURRENCIES } from "@/lib/mock/currencies"
 import { formatFull, INVOICE_STATUS_LABEL, INVOICE_STATUS_VARIANT } from "@/lib/mock/invoices"
+import { toApiDateTime } from "@/lib/format"
 import { useInvoice, useUpdateInvoice } from "@/lib/queries/invoices-queries"
 import type { Invoice } from "@/lib/api/models"
 import { Badge } from "@/components/ui/badge"
@@ -83,8 +84,8 @@ function EditInvoiceForm({ invoice, router }: { invoice: Invoice; router: Return
           amount: total,
           currency,
           lineItems,
-          dueDate: due || undefined,
-          issuedDate: issued || undefined,
+          dueDate: toApiDateTime(due),
+          issuedDate: toApiDateTime(issued),
           description: invoice.description ?? undefined,
         },
       },

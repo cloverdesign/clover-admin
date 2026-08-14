@@ -26,3 +26,13 @@ export function formatDate(
 export function byNewest(a: string, b: string): number {
   return a < b ? 1 : a > b ? -1 : 0
 }
+
+/** Turn a date-only input value ("yyyy-mm-dd" from `<input type="date">`) into a
+ * full ISO date-time the API's `date-time` fields require. Sending the bare date
+ * is rejected as an invalid datetime. Empty or unparseable → undefined. */
+export function toApiDateTime(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim()
+  if (!trimmed) return undefined
+  const d = new Date(trimmed)
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString()
+}

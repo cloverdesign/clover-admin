@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select"
 import { CURRENCIES } from "@/lib/mock/currencies"
 import { formatFull } from "@/lib/mock/invoices"
+import { toApiDateTime } from "@/lib/format"
 import { useProjects, useCreateProjectInvoice } from "@/lib/queries/projects-queries"
 import { useClients } from "@/lib/queries/clients-queries"
 import { useSendInvoice } from "@/lib/queries/invoices-queries"
@@ -74,8 +75,8 @@ export function NewInvoicePage({ projectId }: { projectId?: string }) {
           amount: total,
           currency,
           lineItems,
-          dueDate: due || undefined,
-          issuedDate: issued || undefined,
+          dueDate: toApiDateTime(due),
+          issuedDate: toApiDateTime(issued),
         },
       },
       {
