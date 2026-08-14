@@ -7,6 +7,7 @@ import {
   DeliveryBox01Icon,
   BrowserIcon,
   Settings01Icon,
+  ShieldKeyIcon,
 } from "@hugeicons/core-free-icons"
 
 /** All icons share the same shape; borrow one for the type. */
@@ -21,6 +22,8 @@ export type NavItem = {
   badge?: string
   /** One-liner used by the icon-rail variant's contextual panel. */
   hint?: string
+  /** Only render for SUPER_ADMIN accounts (the shell filters on the role). */
+  superAdminOnly?: boolean
 }
 
 export type NavSection = {
@@ -89,6 +92,19 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: BrowserIcon,
         href: "/admin/cms",
         hint: "Marketing site content",
+      },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      {
+        key: "team",
+        label: "Team",
+        icon: ShieldKeyIcon,
+        href: "/admin/team",
+        hint: "Admin accounts & access",
+        superAdminOnly: true,
       },
       {
         key: "settings",

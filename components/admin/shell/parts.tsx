@@ -1,6 +1,8 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -13,6 +15,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { useCommandPalette } from "@/components/admin/shell/command-palette"
 import { Kbd } from "@/components/ui/kbd"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CloverMark } from "@/components/admin/auth/clover-mark"
@@ -33,22 +36,28 @@ export function Brand({ className }: { className?: string }) {
   )
 }
 
+/** Looks like a search input, acts as a button — opens the global command
+ * palette (also ⌘K). The palette owns the actual searching. */
 export function SearchField({ className }: { className?: string }) {
+  const { setOpen } = useCommandPalette()
   return (
-    <div className={cn("relative", className)}>
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      className={cn(
+        "relative flex h-9 w-full items-center rounded-(--input-radius) border border-input bg-background pr-14 pl-9 text-left text-sm text-muted-foreground transition-colors hover:border-ring/60",
+        className
+      )}
+    >
       <HugeiconsIcon
         icon={Search01Icon}
         className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
       />
-      <input
-        type="text"
-        placeholder="Search clients, projects…"
-        className="h-9 w-full rounded-(--input-radius) border border-input bg-background pr-14 pl-9 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-      />
+      <span className="truncate">Search clients, projects…</span>
       <Kbd className="absolute top-1/2 right-2.5 hidden -translate-y-1/2 sm:inline-flex">
         ⌘K
       </Kbd>
-    </div>
+    </button>
   )
 }
 
@@ -83,6 +92,16 @@ export function IconButton({
   )
 }
 
+/** Icon-only search trigger for the condensed (mobile) header. */
+export function SearchIconButton({ className }: { className?: string }) {
+  const { setOpen } = useCommandPalette()
+  return (
+    <IconButton label="Search" className={className} onClick={() => setOpen(true)}>
+      <HugeiconsIcon icon={Search01Icon} className="size-5" />
+    </IconButton>
+  )
+}
+
 export function NotificationButton() {
   return (
     <IconButton label="Notifications" dot>
@@ -107,25 +126,41 @@ export function ThemeToggle() {
   )
 }
 
+/** The primary create action, scoped to the current section. */
+function newAction(pathname: string): { label: string; href: string } {
+  if (pathname.startsWith("/admin/invoices"))
+    return { label: "New invoice", href: "/admin/invoices/new" }
+  if (pathname.startsWith("/admin/deliverables"))
+    return { label: "New deliverable", href: "/admin/deliverables/new" }
+  if (pathname.startsWith("/admin/cms"))
+    return { label: "New page", href: "/admin/cms/pages/new" }
+  if (pathname.startsWith("/admin/projects"))
+    return { label: "New project", href: "/admin/clients/new-project" }
+  return { label: "New client", href: "/admin/clients/new" }
+}
+
 export function NewButton({ className }: { className?: string }) {
+  const pathname = usePathname()
+  const { label, href } = newAction(pathname)
   return (
     <>
       {/* Mobile: icon-only, perfectly centered (no inline-start padding). */}
       <Button
-        aria-label="New client"
+        aria-label={label}
         size="icon"
+        render={<Link href={href} />}
         className={cn("sm:hidden", className)}
       >
         <HugeiconsIcon icon={Add01Icon} className="size-4" />
       </Button>
       {/* sm+: labelled. */}
-      <Button className={cn("hidden gap-1.5 sm:inline-flex", className)}>
+      <Button render={<Link href={href} />} className={cn("hidden gap-1.5 sm:inline-flex", className)}>
         <HugeiconsIcon
           icon={Add01Icon}
           data-icon="inline-start"
           className="size-4"
         />
-        New client
+        {label}
       </Button>
     </>
   )

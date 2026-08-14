@@ -2,15 +2,21 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Logout01Icon, Menu01Icon, Search01Icon } from "@hugeicons/core-free-icons"
+import {
+  Logout01Icon,
+  Menu01Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+} from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
 import { NAV_SECTIONS, ALL_ITEMS } from "@/components/admin/shell/nav-data"
 import {
   Brand,
   SearchField,
+  SearchIconButton,
   IconButton,
   NotificationButton,
   ThemeToggle,
@@ -24,6 +30,15 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import { CurrencyControls } from "@/components/admin/shell/currency-controls"
+import { CommandPaletteProvider } from "@/components/admin/shell/command-palette"
+import { useProject } from "@/lib/queries/projects-queries"
+import { useInvoice } from "@/lib/queries/invoices-queries"
+import { useRevision } from "@/lib/queries/revisions-queries"
+import { useDeliverable } from "@/lib/queries/deliverables-queries"
+import { usePage } from "@/lib/queries/cms-queries"
+import { useMe } from "@/lib/queries/auth-queries"
+import { revisionTitle } from "@/components/admin/revisions/revisions-table"
+import { clearToken } from "@/lib/api/auth-storage"
 
 /** Is this nav item the current page? `/admin` matches exactly (so it isn't lit
  * for every sub-route); everything else matches on prefix. */
@@ -41,6 +56,21 @@ function SidebarBody({
   showCurrency?: boolean
 }) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { data: me } = useMe()
+  const isSuperAdmin = me?.role === "SUPER_ADMIN"
+
+  // Hide super-admin-only items (and any section left empty) for regular admins.
+  const sections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    items: section.items.filter((item) => !item.superAdminOnly || isSuperAdmin),
+  })).filter((section) => section.items.length > 0)
+
+  const signOut = () => {
+    clearToken()
+    onNavigate?.()
+    router.push("/admin/login")
+  }
 
   return (
     <>
@@ -49,7 +79,7 @@ function SidebarBody({
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto py-3">
-        {NAV_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div key={section.label} className="space-y-1">
             <div className="px-2 pb-1 font-mono text-[10px] tracking-widest text-muted-foreground/70 uppercase">
               {section.label}
@@ -65,8 +95,8 @@ function SidebarBody({
                   className={cn(
                     "flex items-center gap-3 rounded-full px-3 py-2 text-sm transition-colors",
                     current
-                      ? "bg-primary text-primary-foreground"
-                      : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                      ? "bg-secondary font-medium text-secondary-foreground"
+                      : "text-foreground/80 hover:bg-muted/60 hover:text-foreground"
                   )}
                 >
                   <HugeiconsIcon icon={item.icon} className="size-4.5 shrink-0" />
@@ -76,7 +106,7 @@ function SidebarBody({
                       className={cn(
                         "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-medium",
                         current
-                          ? "bg-primary-foreground/20 text-primary-foreground"
+                          ? "bg-background text-foreground"
                           : "bg-muted text-muted-foreground"
                       )}
                     >
@@ -104,6 +134,7 @@ function SidebarBody({
         <button
           type="button"
           aria-label="Sign out"
+          onClick={signOut}
           className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
         >
           <HugeiconsIcon icon={Logout01Icon} className="size-5" />
@@ -119,13 +150,142 @@ function SidebarBody({
  * header condenses its search/actions. The header title is derived from the
  * active nav item. Route protection lives elsewhere.
  */
+/** Labels for deep routes that aren't nav items, keyed by exact pathname. */
+const DEEP_CRUMBS: Record<string, string> = {
+  "/admin/clients/new": "New client",
+  "/admin/clients/new-project": "New project",
+  "/admin/invoices/new": "New invoice",
+  "/admin/deliverables/new": "New deliverable",
+  "/admin/cms/pages": "Pages",
+  "/admin/cms/pages/new": "New page",
+  "/admin/cms/media": "Media",
+}
+
+/** Title-cased last path segment — the fallback while an entity name loads. */
+function segmentLabel(pathname: string): string {
+  const last = pathname.split("/").filter(Boolean).pop() ?? ""
+  return last.charAt(0).toUpperCase() + last.slice(1)
+}
+
+/** Synchronous label for routes whose crumb doesn't need a live lookup: the
+ * explicit map and the edit forms. Returns null when the crumb is an entity name
+ * resolved reactively by `DeepCrumb`. */
+function staticDeepLabel(pathname: string): string | null {
+  if (DEEP_CRUMBS[pathname]) return DEEP_CRUMBS[pathname]
+  if (/^\/admin\/clients\/[^/]+\/edit$/.test(pathname)) return "Edit client"
+  if (/^\/admin\/projects\/[^/]+\/edit$/.test(pathname)) return "Edit project"
+  if (/^\/admin\/invoices\/[^/]+\/edit$/.test(pathname)) return "Edit invoice"
+  if (/^\/admin\/deliverables\/[^/]+\/edit$/.test(pathname)) return "Edit deliverable"
+  if (/^\/admin\/cms\/pages\/[^/]+$/.test(pathname)) return "Edit page"
+  return null
+}
+
+/** Reactive label for an entity-detail route. Each variant reuses the same query
+ * hook the detail page itself uses, so the request dedupes (no extra fetch) and
+ * the crumb updates to the real name once it resolves; until then it shows the
+ * title-cased id. Rendered only on the matching route, so no hook runs off-route. */
+function ProjectCrumb({ id, fallback }: { id: string; fallback: string }) {
+  return <>{useProject(id).data?.name ?? fallback}</>
+}
+function InvoiceCrumb({ id, fallback }: { id: string; fallback: string }) {
+  return <>{useInvoice(id).data?.invoiceNumber ?? fallback}</>
+}
+function RevisionCrumb({ id, fallback }: { id: string; fallback: string }) {
+  const { data } = useRevision(id)
+  return <>{data ? revisionTitle(data.description) : fallback}</>
+}
+function DeliverableCrumb({ id, fallback }: { id: string; fallback: string }) {
+  return <>{useDeliverable(id).data?.title ?? fallback}</>
+}
+function PageCrumb({ id, fallback }: { id: string; fallback: string }) {
+  return <>{usePage(id).data?.title ?? fallback}</>
+}
+
+/** The deepest crumb as a node: a static label, else a reactive entity name. */
+function DeepCrumb({ pathname }: { pathname: string }) {
+  const staticLabel = staticDeepLabel(pathname)
+  if (staticLabel) return <>{staticLabel}</>
+
+  const fallback = segmentLabel(pathname)
+  let m: RegExpMatchArray | null
+  if ((m = pathname.match(/^\/admin\/projects\/([^/]+)$/)))
+    return <ProjectCrumb id={m[1]} fallback={fallback} />
+  if ((m = pathname.match(/^\/admin\/invoices\/([^/]+)$/)))
+    return <InvoiceCrumb id={m[1]} fallback={fallback} />
+  if ((m = pathname.match(/^\/admin\/revisions\/([^/]+)$/)))
+    return <RevisionCrumb id={m[1]} fallback={fallback} />
+  if ((m = pathname.match(/^\/admin\/deliverables\/([^/]+)$/)))
+    return <DeliverableCrumb id={m[1]} fallback={fallback} />
+  if ((m = pathname.match(/^\/admin\/cms\/pages\/([^/]+)$/)))
+    return <PageCrumb id={m[1]} fallback={fallback} />
+
+  return <>{fallback}</>
+}
+
+/** Breadcrumb trail + a back button, derived from the pathname. The active nav
+ * item is the first crumb; any deeper route adds a second (labelled crumb), and
+ * a back button pointing at the parent appears. */
+function HeaderNav() {
+  const pathname = usePathname()
+  const active = ALL_ITEMS.find((item) => isActive(item.href, pathname))
+  const base = active ?? { label: "Dashboard", href: "/admin" }
+  const deeper = pathname !== base.href && pathname.startsWith(base.href)
+
+  const crumbs: { label: React.ReactNode; href?: string }[] = [
+    { label: base.label, href: deeper ? base.href : undefined },
+  ]
+  if (deeper) {
+    crumbs.push({ label: <DeepCrumb pathname={pathname} /> })
+  }
+
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      {deeper && (
+        <Link
+          href={base.href}
+          aria-label="Back"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5" />
+        </Link>
+      )}
+      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5">
+        {crumbs.map((c, i) => {
+          const isLast = i === crumbs.length - 1
+          return (
+            <React.Fragment key={i}>
+              {i > 0 && (
+                <HugeiconsIcon
+                  icon={ArrowRight01Icon}
+                  className="size-4 shrink-0 text-muted-foreground/50"
+                />
+              )}
+              {isLast || !c.href ? (
+                <span className="truncate text-base font-semibold tracking-tight">
+                  {c.label}
+                </span>
+              ) : (
+                <Link
+                  href={c.href}
+                  className="truncate text-base font-medium tracking-tight text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {c.label}
+                </Link>
+              )}
+            </React.Fragment>
+          )
+        })}
+      </nav>
+    </div>
+  )
+}
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [navOpen, setNavOpen] = React.useState(false)
-  const active = ALL_ITEMS.find((item) => isActive(item.href, pathname))
-  const title = active?.label ?? "Dashboard"
 
   return (
+    <CommandPaletteProvider>
     <div className="flex h-dvh gap-3 overflow-hidden bg-sidebar p-2 sm:p-3">
       {/* Desktop rail */}
       <aside className="hidden w-64 shrink-0 flex-col rounded-2xl bg-card p-3 ring-1 ring-foreground/10 md:flex">
@@ -148,7 +308,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       </Sheet>
 
       {/* Floating canvas */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-background ring-1 ring-foreground/10">
         <header className="flex h-16 items-center gap-2 border-b border-border px-4 sm:gap-4 sm:px-6">
           <IconButton
             label="Open navigation"
@@ -158,16 +318,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <HugeiconsIcon icon={Menu01Icon} className="size-5" />
           </IconButton>
 
-          <h1 className="truncate text-base font-semibold tracking-tight">
-            {title}
-          </h1>
+          <HeaderNav />
 
           <SearchField className="ml-auto hidden w-full max-w-xs md:block" />
 
           <div className="ml-auto flex items-center gap-1 sm:gap-2 md:ml-0">
-            <IconButton label="Search" className="md:hidden">
-              <HugeiconsIcon icon={Search01Icon} className="size-5" />
-            </IconButton>
+            <SearchIconButton className="md:hidden" />
             <CurrencyControls className="hidden sm:flex" />
             <NotificationButton />
             <ThemeToggle />
@@ -179,5 +335,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+    </CommandPaletteProvider>
   )
 }

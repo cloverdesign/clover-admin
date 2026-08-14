@@ -1,12 +1,11 @@
 import type { Metadata } from "next"
 
-import { DASHBOARD_DATA } from "@/lib/mock/dashboard"
-import { Dashboard } from "@/components/admin/dashboard/dashboard"
+import { DashboardView } from "@/components/admin/dashboard/dashboard-view"
 
 export const metadata: Metadata = {
   title: "Clover Admin — Dashboard",
 }
 
 export default function AdminDashboardPage() {
-  return <Dashboard data={DASHBOARD_DATA} />
+  return <DashboardView />
 }

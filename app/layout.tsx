@@ -4,6 +4,8 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { QueryProvider } from "@/components/providers/query-provider"
+import { Toaster } from "@/components/ui/sonner"
 
 const dmSans = DM_Sans({ subsets: ["latin"], variable: "--font-sans" })
 
@@ -29,9 +31,12 @@ export default function RootLayout({
       )}
     >
       <body>
-        <TooltipProvider>
-          <ThemeProvider>{children}</ThemeProvider>
-        </TooltipProvider>
+        <QueryProvider>
+          <TooltipProvider>
+            <ThemeProvider>{children}</ThemeProvider>
+          </TooltipProvider>
+          <Toaster />
+        </QueryProvider>
       </body>
     </html>
   )
