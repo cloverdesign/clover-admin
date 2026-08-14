@@ -71,6 +71,69 @@ both become real, grouped by phase, with per-phase progress possible.
 
 ---
 
+## 3. Notifications feed (header bell + attention badges)
+
+The admin shell now has a notifications bell and needs a server-generated
+attention feed. There is **no notification model or endpoint today**. The
+frontend is already built against the contract below and degrades gracefully
+(empty "all caught up" state, no errors) until it ships.
+
+### 3a. New endpoint: `GET /api/notifications`
+- **Auth:** `AdminBearer` (approved admin). Scoped to the calling admin.
+- **Returns:** the admin's notifications, **newest first** (`createdAt` desc).
+  A reasonable cap (e.g. the most recent 50) is fine — the UI is a dropdown,
+  not an archive.
+- **Polling:** the client refetches every ~60s; no websocket/SSE required.
+- **Response** (standard envelope, `data` is a `Notification[]`):
+
+```json
+{
+  "success": true,
+  "message": "Notifications retrieved",
+  "data": [
+    {
+      "id": "…",
+      "type": "INVOICE_OVERDUE",
+      "title": "Invoice overdue",
+      "body": "Acme Co · $4,200 · 3 days late",
+      "href": "/admin/invoices/inv_123",
+      "entityType": "invoice",
+      "entityId": "inv_123",
+      "createdAt": "2026-08-14T09:00:00.000Z"
+    }
+  ]
+}
+```
+- **Errors:** `401` (no/invalid token).
+
+### 3b. Notification model
+Server **derives** these from existing domain signals (no admin authoring). The
+four `type`s the frontend renders, and the signal each is generated from:
+
+| `type` | Generated when | `href` target |
+|---|---|---|
+| `INVOICE_OVERDUE` | an invoice passes its due date unpaid (`status = OVERDUE`) | the invoice |
+| `REVISION_REQUESTED` | a client raises / is awaiting a revision (`status` `REQUESTED` or `IN_REVIEW`) | the revision request |
+| `DELIVERABLE_REVIEW` | a deliverable is submitted and awaiting admin review / client sign-off | the deliverable's project |
+| `MILESTONE_DUE` | a milestone is due soon or overdue | the milestone's project |
+
+- `title` — short headline (e.g. "Invoice overdue").
+- `body` — nullable one-line context (e.g. "Acme Co · $4,200 · 3 days late").
+- `href` — in-app deep link the bell navigates to on click.
+- `entityType` — one of `invoice` | `revision` | `deliverable` | `milestone` |
+  `project` | `null`; `entityId` its id (for grouping / dedup).
+- `createdAt` — ISO `date-time`.
+
+### 3c. Read state — **no endpoint needed**
+Read/seen state is tracked **per-device on the client** (localStorage), so the
+wire model intentionally has **no `read` field** and there is **no
+mark-as-read endpoint** to build. If cross-device read state is wanted later,
+add `read: boolean` to the model plus `PATCH /api/notifications/{id}/read` and
+`POST /api/notifications/read-all`; the client can adopt them without a UI
+change.
+
+---
+
 ## Related gaps (lower priority, same class)
 
 - **Project `updates`** are also write-only (`POST` / `DELETE`, no GET). If
