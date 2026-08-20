@@ -223,6 +223,105 @@ client-scoped list endpoints would collapse each to a single request:
 
 ---
 
+## 7. Revision request flow — make each decision durable, navigable, communicated
+
+The status machine works (`REQUESTED → IN_REVIEW → APPROVED/DECLINED`, mirrored on
+both admin and portal), but the handoffs around it are thin. Today:
+`POST /api/portal/projects/{id}/revision-requests` (client submit) → admin
+`GET /api/revision-requests` → `PUT …/{id}/status` (in-review / decline) →
+`POST …/{id}/approve` `{ type: "new_phase" | "new_project" }`. The requests below
+close the gaps that leave a decision invisible or unexplained.
+
+### 7a. Approve "as new phase" must produce a structural, navigable result *(the main gap)*
+
+Approving `new_phase` today only writes a `resultingPhaseNote` **string** on the
+revision — **nothing changes on the project**. There's no Phase entity, milestones
+have no read path (§1), and the approve call carries no substance, so a client sees
+"Approved" with no new phase, milestones, or timeline change. (`new_project` works
+because it returns `resultingProjectId` the portal can link to.)
+
+Recommended contract for `POST /api/revision-requests/{id}/approve` when
+`type: "new_phase"`:
+
+```json
+{
+  "type": "new_phase",
+  "phase": "Phase 2 — Rollout",          // phase label, written to the new milestones (§2)
+  "endDate": "2026-11-30T00:00:00.000Z",  // optional: extend the project's target finish
+  "milestones": [                          // optional: milestones the new phase adds
+    { "title": "Rollout kickoff", "dueDate": "2026-10-01T00:00:00.000Z" }
+  ]
+}
+```
+
+Backend effects (all on the **parent** project = `revision.projectId`):
+- Create the supplied `milestones`, tagged with `phase` (needs `Milestone.phase`, §2),
+  appended after the current `order` max.
+- If `endDate` is given, extend `Project.endDate`; optionally set `Project.phase`
+  to the new label.
+- **Set `revision.resultingProjectId = revision.projectId`** (or a dedicated
+  `resultingPhaseProjectId`) so both surfaces can link to the project the phase
+  landed on — symmetric with `new_project`.
+- Return the updated `RevisionRequest`.
+
+Depends on **§1** (milestone read) + **§2** (`Milestone.phase`) to be visible.
+Once those land, the project timeline actually grows and the portal card can say
+"View the updated project."
+
+> **Open decision:** whether the admin authors the phase's milestones **inline at
+> approval** (payload above) or approves first and adds them afterward in the
+> existing milestone editor. Either works with §1/§2; the payload fields are
+> optional so the lighter path is supported.
+
+### 7b. Decline must capture a reason, shown to the client
+
+Decline today is `PUT …/{id}/status` `{ "status": "DECLINED" }` — no reason — so
+the client sees a bare "Declined" with no explanation or next step.
+
+- Accept an optional **`decisionNote: string`** on the status update (and on
+  approve), stored on the `RevisionRequest` and returned in every read
+  (`GET /api/portal/revision-requests` included).
+- The portal shows it under a declined/approved revision; the admin decline
+  dialog gains a reason field.
+- Prefer a single nullable `decisionNote` for any terminal decision over the
+  current narrowly-named `resultingPhaseNote`.
+
+### 7c. Revision attachments — one shape end to end (`{ url, name }[]`)
+
+The client submits `attachments: [{ "url": "…", "name": "…" }]`, but the stored /
+returned shape is inconsistent (admin reads `{ name, size }`), so the admin can't
+open what the client attached.
+
+- Accept and persist `attachments: { url: string, name: string }[]` on
+  `POST /api/portal/projects/{id}/revision-requests`.
+- Return the same shape on `GET /api/revision-requests` (admin) and
+  `GET /api/portal/revision-requests` (client). Admin detail links each to `url`.
+
+### 7d. Deliverable "request changes" → linked revision request
+
+PRD §1.2.6 wants a deliverable "request changes" to convert into a revision request
+tied to that deliverable. Today `POST /api/portal/deliverables/{id}/review`
+`{ status: "CHANGES_REQUESTED" }` and a revision request are unrelated records.
+
+- Add an optional **`deliverableId: string | null`** to `RevisionRequest` so a
+  change-request can reference the deliverable it came from.
+- Decision for the backend: either **auto-create** a linked revision (status
+  `REQUESTED`) when a `CHANGES_REQUESTED` review is posted, or expose the link so
+  the admin can promote a review into a revision. Frontend can drive the manual
+  path once `deliverableId` exists.
+
+### 7e. Status-change notifications to the client (PRD §1.5)
+
+The client only learns of a decision by reopening the portal — there's no push.
+
+- Email the client on revision status transitions: **received** (`REQUESTED` ack),
+  **approved**, **declined** (include `decisionNote` from §7b).
+- Notify the **admin** on a new `REQUESTED` — this is the `REVISION_REQUESTED`
+  notification type already specced in **§3b**; no new endpoint, just the trigger.
+- Server-derived; no frontend endpoint beyond the existing admin notifications feed.
+
+---
+
 ## Related gaps (lower priority, same class)
 
 - **Project `updates`** are also write-only (`POST` / `DELETE`, no GET). If
