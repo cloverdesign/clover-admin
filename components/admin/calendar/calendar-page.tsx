@@ -2,11 +2,18 @@
 
 import * as React from "react"
 import { useQueries } from "@tanstack/react-query"
-import { HugeiconsIcon } from "@hugeicons/react"
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import {
   Loading03Icon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  Calendar01Icon,
+  CalendarDaysIcon,
+  Calendar03Icon,
+  CalendarBlock01Icon,
+  CalendarRangeIcon,
+  LeftToRightListDashIcon,
+  GridViewIcon,
 } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
@@ -139,14 +146,18 @@ export function CalendarPage() {
           </div>
 
           <Segmented
-            options={supportedPeriods.map((p) => ({ value: p, label: PERIOD_LABEL[p] }))}
+            options={supportedPeriods.map((p) => ({
+              value: p,
+              label: PERIOD_LABEL[p],
+              icon: PERIOD_ICON[p],
+            }))}
             value={period}
             onChange={(v) => setPeriod(v as Period)}
           />
           <Segmented
             options={[
-              { value: "timeline", label: "Timeline" },
-              { value: "grid", label: "Grid" },
+              { value: "timeline", label: "Timeline", icon: LeftToRightListDashIcon },
+              { value: "grid", label: "Grid", icon: GridViewIcon },
             ]}
             value={view}
             onChange={(v) => switchView(v as CalView)}
@@ -154,7 +165,7 @@ export function CalendarPage() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col">
         {view === "timeline" ? (
           <TimelineView
             projects={projects}
@@ -180,12 +191,20 @@ export function CalendarPage() {
   )
 }
 
+const PERIOD_ICON: Record<Period, IconSvgElement> = {
+  day: Calendar01Icon,
+  week: CalendarDaysIcon,
+  month: Calendar03Icon,
+  quarter: CalendarBlock01Icon,
+  year: CalendarRangeIcon,
+}
+
 function Segmented({
   options,
   value,
   onChange,
 }: {
-  options: { value: string; label: string }[]
+  options: { value: string; label: string; icon?: IconSvgElement }[]
   value: string
   onChange: (value: string) => void
 }) {
@@ -199,12 +218,15 @@ function Segmented({
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "rounded-full px-3 py-1 text-sm transition-colors",
+              "flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
               active
                 ? "bg-background font-medium text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
+            {opt.icon && (
+              <HugeiconsIcon icon={opt.icon} className="size-3.5 shrink-0" />
+            )}
             {opt.label}
           </button>
         )

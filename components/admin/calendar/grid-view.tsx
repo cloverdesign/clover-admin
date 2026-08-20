@@ -75,8 +75,8 @@ export function GridView({
         })
 
   return (
-    <div className="overflow-hidden rounded-2xl border bg-card">
-      <div className="grid grid-cols-7 border-b border-border">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border bg-card">
+      <div className="grid shrink-0 grid-cols-7 border-b border-border">
         {WEEKDAYS.map((d) => (
           <div
             key={d}
@@ -86,7 +86,7 @@ export function GridView({
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7">
+      <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-7 overflow-y-auto">
         {days.map((day, i) => (
           <DayCell
             key={i}
@@ -135,7 +135,7 @@ function DayCell({
   return (
     <div
       className={cn(
-        "flex flex-col gap-1 border-border p-1.5",
+        "flex min-h-0 flex-col gap-1 overflow-hidden border-border p-1.5",
         tall ? "min-h-64" : "min-h-28",
         index % 7 !== 0 && "border-l",
         index >= 7 && "border-t",
@@ -207,7 +207,7 @@ function DayAgenda({
   byId: Map<string, CalProject>
 }) {
   return (
-    <div className="flex flex-col gap-6 rounded-2xl border bg-card p-5">
+    <div className="flex h-full min-h-0 flex-col gap-6 overflow-y-auto rounded-2xl border bg-card p-5">
       <div>
         <h2 className="font-heading text-sm font-medium">
           Milestones due

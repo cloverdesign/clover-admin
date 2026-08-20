@@ -56,7 +56,7 @@ export function TimelineView({
 
   if (rows.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-1 rounded-2xl border border-dashed py-20 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-1 rounded-2xl border border-dashed text-center">
         <p className="text-sm text-muted-foreground">No projects run through this range.</p>
         <p className="text-xs text-muted-foreground/70">
           Jump to a different period or zoom out.
@@ -66,10 +66,10 @@ export function TimelineView({
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border bg-card">
-      <div className="min-w-[760px]">
+    <div className="flex h-full min-h-0 flex-col overflow-x-auto rounded-2xl border bg-card">
+      <div className="flex min-h-0 min-w-[760px] flex-1 flex-col">
         {/* Axis */}
-        <div className="flex border-b border-border">
+        <div className="flex shrink-0 border-b border-border">
           <div className="w-48 shrink-0 border-r border-border px-4 py-2 text-[11px] font-medium tracking-wide text-muted-foreground/70 uppercase">
             Project
           </div>
@@ -95,7 +95,9 @@ export function TimelineView({
           </div>
         </div>
 
-        {/* Rows */}
+        {/* Rows — share the remaining height, with a floor so many-project timelines
+            scroll instead of squishing. */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {rows.map(({ project, span }, rowIndex) => {
           const style = spanStyle(span.start, span.end, start, end)!
           const color = projectColor(project)
@@ -104,7 +106,7 @@ export function TimelineView({
             <div
               key={project.id}
               className={cn(
-                "flex items-stretch",
+                "flex min-h-14 flex-1 items-stretch",
                 rowIndex > 0 && "border-t border-border"
               )}
             >
@@ -120,7 +122,7 @@ export function TimelineView({
                 </span>
               </Link>
 
-              <div className="relative h-14 flex-1">
+              <div className="relative flex-1">
                 {/* major gridlines */}
                 {ticks
                   .filter((t) => t.major)
@@ -171,6 +173,7 @@ export function TimelineView({
             </div>
           )
         })}
+        </div>
       </div>
     </div>
   )
