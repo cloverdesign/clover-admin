@@ -255,38 +255,46 @@ have no read path (§1), and the approve call carries no substance, so a client 
 "Approved" with no new phase, milestones, or timeline change. (`new_project` works
 because it returns `resultingProjectId` the portal can link to.)
 
-Recommended contract for `POST /api/revision-requests/{id}/approve` when
-`type: "new_phase"`:
+**Decided:** the admin authors the new phase **inline at approval** — the "As new
+phase" action opens a small form (phase name, one or more milestones, optional new
+end date) rather than a bare dropdown item, and the backend scaffolds it in one
+call. The existing milestone editor still edits those milestones afterward.
+
+Contract for `POST /api/revision-requests/{id}/approve` when `type: "new_phase"`:
 
 ```json
 {
   "type": "new_phase",
-  "phase": "Phase 2 — Rollout",          // phase label, written to the new milestones (§2)
-  "endDate": "2026-11-30T00:00:00.000Z",  // optional: extend the project's target finish
-  "milestones": [                          // optional: milestones the new phase adds
-    { "title": "Rollout kickoff", "dueDate": "2026-10-01T00:00:00.000Z" }
-  ]
+  "phase": "Phase 2 — Rollout",           // required: phase label, written to the new milestones (§2)
+  "milestones": [                          // required: at least one — the substance of the phase
+    { "title": "Rollout kickoff", "dueDate": "2026-10-01T00:00:00.000Z" },
+    { "title": "Go-live",          "dueDate": "2026-11-15T00:00:00.000Z" }
+  ],
+  "endDate": "2026-11-30T00:00:00.000Z"    // optional: extend the project's target finish
 }
 ```
 
+Validation:
+- `phase` non-empty and `milestones` has **≥ 1** entry (a phase with no milestones
+  is meaningless — reject with `400`).
+- `milestones[].title` required; `dueDate` optional ISO `date-time`.
+
 Backend effects (all on the **parent** project = `revision.projectId`):
-- Create the supplied `milestones`, tagged with `phase` (needs `Milestone.phase`, §2),
-  appended after the current `order` max.
-- If `endDate` is given, extend `Project.endDate`; optionally set `Project.phase`
-  to the new label.
+- Create the supplied `milestones`, tagged with `phase` (needs `Milestone.phase`,
+  §2), status `PENDING`, appended after the current `order` max (preserving array
+  order).
+- Set `Project.phase` to the new label; if `endDate` is given, extend
+  `Project.endDate` (only forward — ignore an earlier date).
 - **Set `revision.resultingProjectId = revision.projectId`** (or a dedicated
   `resultingPhaseProjectId`) so both surfaces can link to the project the phase
   landed on — symmetric with `new_project`.
-- Return the updated `RevisionRequest`.
+- Set status `APPROVED`; return the updated `RevisionRequest`.
 
 Depends on **§1** (milestone read) + **§2** (`Milestone.phase`) to be visible.
 Once those land, the project timeline actually grows and the portal card can say
-"View the updated project."
-
-> **Open decision:** whether the admin authors the phase's milestones **inline at
-> approval** (payload above) or approves first and adds them afterward in the
-> existing milestone editor. Either works with §1/§2; the payload fields are
-> optional so the lighter path is supported.
+"View the updated project." **Frontend implication:** the admin approve control
+changes from a plain dropdown item to a small form/dialog for the phase + its
+milestones.
 
 ### 7b. Decline must capture a reason, shown to the client
 
@@ -318,12 +326,17 @@ PRD §1.2.6 wants a deliverable "request changes" to convert into a revision req
 tied to that deliverable. Today `POST /api/portal/deliverables/{id}/review`
 `{ status: "CHANGES_REQUESTED" }` and a revision request are unrelated records.
 
+**Decided: manual promotion, not auto-create.** The PRD says a change-request
+*"can convert"* — opt-in, not automatic — and auto-raising a revision on every
+"request changes" would flood the queue with tweaks that aren't scope changes. So:
 - Add an optional **`deliverableId: string | null`** to `RevisionRequest` so a
-  change-request can reference the deliverable it came from.
-- Decision for the backend: either **auto-create** a linked revision (status
-  `REQUESTED`) when a `CHANGES_REQUESTED` review is posted, or expose the link so
-  the admin can promote a review into a revision. Frontend can drive the manual
-  path once `deliverableId` exists.
+  promoted request references the deliverable it came from.
+- Accept `deliverableId` on the create bodies —
+  `POST /api/portal/projects/{id}/revision-requests` (client "request changes →
+  raise a revision") and admin promotion — and return it in every read so both
+  sides can show "from deliverable X".
+- The `CHANGES_REQUESTED` deliverable review stays its own record; promotion is a
+  deliberate action, not a side effect of the review.
 
 ### 7e. Status-change notifications to the client (PRD §1.5)
 
