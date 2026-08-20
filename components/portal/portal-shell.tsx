@@ -43,6 +43,12 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
             >
               Projects
             </NavLink>
+            <NavLink
+              href="/portal/requests"
+              active={pathname.startsWith("/portal/requests")}
+            >
+              Requests
+            </NavLink>
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
