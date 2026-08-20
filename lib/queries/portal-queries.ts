@@ -115,6 +115,15 @@ export function usePortalProjectDeliverables(id: string) {
   })
 }
 
+export function usePortalProjectInvoices(id: string) {
+  return useQuery({
+    queryKey: queryKeys.portal.projectInvoices(id),
+    queryFn: () => PortalProjectsService.invoices(id),
+    enabled: Boolean(id),
+    meta: { errorMessage: "Couldn’t load invoices." },
+  })
+}
+
 export function usePortalRevisions() {
   return useQuery({
     queryKey: queryKeys.portal.revisions,
