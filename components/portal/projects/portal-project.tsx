@@ -9,6 +9,10 @@ import { formatMoney } from "@/lib/mock/clients"
 import { Button } from "@/components/ui/button"
 import { usePortalProject } from "@/lib/queries/portal-queries"
 import { ProjectStatusBadge } from "@/components/portal/parts"
+import { PortalMilestones } from "@/components/portal/projects/portal-milestones"
+import { PortalDeliverables } from "@/components/portal/projects/portal-deliverables"
+import { PortalInvoices } from "@/components/portal/projects/portal-invoices"
+import { PortalRevisions } from "@/components/portal/projects/portal-revisions"
 import { SegmentedProgress } from "@/components/ui/segmented-progress"
 
 /**
@@ -30,7 +34,7 @@ export function PortalProject({ id }: { id: string }) {
     return (
       <div className="flex flex-col items-center gap-3 py-24 text-center">
         <p className="text-sm text-muted-foreground">Couldn’t load this project.</p>
-        <Button variant="outline" size="sm" render={<Link href="/portal" />}>
+        <Button variant="outline" size="sm" render={<Link href="/portal/projects" />}>
           Back to projects
         </Button>
       </div>
@@ -53,7 +57,7 @@ export function PortalProject({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-6">
       <Link
-        href="/portal"
+        href="/portal/projects"
         className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
@@ -98,6 +102,14 @@ export function PortalProject({ id }: { id: string }) {
           ))}
         </dl>
       </section>
+
+      <PortalMilestones milestones={project.milestones ?? []} />
+
+      <PortalDeliverables projectId={project.id} />
+
+      <PortalInvoices projectId={project.id} />
+
+      <PortalRevisions projectId={project.id} />
     </div>
   )
 }
