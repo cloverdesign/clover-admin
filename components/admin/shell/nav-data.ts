@@ -5,6 +5,7 @@ import {
   Invoice01Icon,
   Task01Icon,
   DeliveryBox01Icon,
+  Calendar03Icon,
   BrowserIcon,
   Settings01Icon,
   ShieldKeyIcon,
@@ -61,6 +62,13 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Folder01Icon,
         href: "/admin/projects",
         hint: "Briefs, timelines, phases",
+      },
+      {
+        key: "calendar",
+        label: "Calendar",
+        icon: Calendar03Icon,
+        href: "/admin/calendar",
+        hint: "Projects and milestones across time",
       },
       {
         key: "invoices",
