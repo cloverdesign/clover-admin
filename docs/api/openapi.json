@@ -4748,6 +4748,68 @@
         }
       }
     },
+    "/api/portal/projects/{id}/invoices": {
+      "get": {
+        "tags": [
+          "Portal"
+        ],
+        "summary": "List issued invoices on a project",
+        "description": "Invoices the signed-in client can see for the project — issued only; DRAFT invoices stay internal to the studio. Mirrors the admin `GET /api/projects/{id}/invoices`, scoped to the authenticated portal client. Not yet implemented on the backend: the frontend already calls this route and treats a 404 as an empty list, so billing and the invoices section light up automatically once it ships.",
+        "security": [
+          {
+            "ClientBearer": []
+          }
+        ],
+        "x-status": "planned",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Invoice"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/portal/deliverables/{id}/review": {
       "post": {
         "tags": [
