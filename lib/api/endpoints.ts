@@ -116,6 +116,7 @@ export const PortalEndpoints = {
   projects: "/api/portal/projects",
   project: (id: string) => `/api/portal/projects/${id}`,
   projectDeliverables: (id: string) => `/api/portal/projects/${id}/deliverables`,
+  projectInvoices: (id: string) => `/api/portal/projects/${id}/invoices`,
   projectRevisions: (id: string) => `/api/portal/projects/${id}/revision-requests`,
   revisions: "/api/portal/revision-requests",
   reviewDeliverable: (id: string) => `/api/portal/deliverables/${id}/review`,

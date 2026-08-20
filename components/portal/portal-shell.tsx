@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Logout01Icon } from "@hugeicons/core-free-icons"
 
@@ -15,6 +15,7 @@ import { usePortalMe, usePortalLogout } from "@/lib/queries/portal-queries"
  */
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
   const { data: client } = usePortalMe()
   const logout = usePortalLogout()
 
@@ -31,6 +32,18 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
             <CloverMark className="size-6" />
             <span className="text-sm font-semibold tracking-tight">Clover</span>
           </Link>
+
+          <nav className="ml-3 hidden items-center gap-1 sm:flex">
+            <NavLink href="/portal" active={pathname === "/portal"}>
+              Dashboard
+            </NavLink>
+            <NavLink
+              href="/portal/projects"
+              active={pathname.startsWith("/portal/projects")}
+            >
+              Projects
+            </NavLink>
+          </nav>
 
           <div className="ml-auto flex items-center gap-3">
             {client && (
@@ -54,5 +67,29 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
     </div>
+  )
+}
+
+function NavLink({
+  href,
+  active,
+  children,
+}: {
+  href: string
+  active: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={
+        active
+          ? "rounded-full bg-muted px-3 py-1.5 text-sm font-medium text-foreground"
+          : "rounded-full px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+      }
+    >
+      {children}
+    </Link>
   )
 }
