@@ -17,6 +17,8 @@ import { formatDate, byNewest } from "@/lib/format"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogClose,
@@ -29,6 +31,7 @@ import {
 import {
   usePortalProjectDeliverables,
   useReviewDeliverable,
+  useSubmitRevision,
 } from "@/lib/queries/portal-queries"
 import type { Deliverable, DeliverableReviewStatus } from "@/lib/api/models"
 
@@ -125,23 +128,40 @@ function DeliverableCard({
   olderVersions: Deliverable[]
 }) {
   const review = useReviewDeliverable()
+  const submitRevision = useSubmitRevision()
   // Once the client acts, remember the outcome so the card updates immediately.
   const [outcome, setOutcome] = React.useState<DeliverableReviewStatus | null>(null)
   const [changesOpen, setChangesOpen] = React.useState(false)
   const [comment, setComment] = React.useState("")
+  // §7d: let a "request changes" optionally be promoted into a revision request.
+  const [raiseRevision, setRaiseRevision] = React.useState(false)
 
-  const submit = (status: DeliverableReviewStatus, note?: string) =>
+  const approve = () =>
+    review.mutate(
+      { deliverableId: deliverable.id, projectId, input: { status: "APPROVED" } },
+      { onSuccess: () => setOutcome("APPROVED") }
+    )
+
+  const requestChanges = () =>
     review.mutate(
       {
         deliverableId: deliverable.id,
         projectId,
-        input: { status, comment: note?.trim() || undefined },
+        input: { status: "CHANGES_REQUESTED", comment: comment.trim() || undefined },
       },
       {
         onSuccess: () => {
-          setOutcome(status)
+          setOutcome("CHANGES_REQUESTED")
           setChangesOpen(false)
+          // Promote to a full revision request tied to this deliverable (§7d).
+          if (raiseRevision) {
+            submitRevision.mutate({
+              projectId,
+              input: { description: comment.trim(), deliverableId: deliverable.id },
+            })
+          }
           setComment("")
+          setRaiseRevision(false)
         },
       }
     )
@@ -210,7 +230,7 @@ function DeliverableCard({
                 variant="default"
                 size="sm"
                 disabled={review.isPending}
-                onClick={() => submit("APPROVED")}
+                onClick={approve}
               >
                 <HugeiconsIcon icon={CheckmarkCircle02Icon} data-icon="inline-start" className="size-4" />
                 Approve
@@ -271,8 +291,10 @@ function DeliverableCard({
         onOpenChange={setChangesOpen}
         comment={comment}
         onCommentChange={setComment}
-        pending={review.isPending}
-        onSubmit={() => submit("CHANGES_REQUESTED", comment)}
+        raiseRevision={raiseRevision}
+        onRaiseRevisionChange={setRaiseRevision}
+        pending={review.isPending || submitRevision.isPending}
+        onSubmit={requestChanges}
         title={deliverable.title}
       />
     </div>
@@ -284,6 +306,8 @@ function RequestChangesDialog({
   onOpenChange,
   comment,
   onCommentChange,
+  raiseRevision,
+  onRaiseRevisionChange,
   pending,
   onSubmit,
   title,
@@ -292,6 +316,8 @@ function RequestChangesDialog({
   onOpenChange: (open: boolean) => void
   comment: string
   onCommentChange: (value: string) => void
+  raiseRevision: boolean
+  onRaiseRevisionChange: (value: boolean) => void
   pending: boolean
   onSubmit: () => void
   title: string
@@ -313,6 +339,15 @@ function RequestChangesDialog({
           placeholder="What would you like changed?"
           rows={4}
         />
+        <Label className="flex items-start gap-2.5 text-sm font-normal text-muted-foreground">
+          <Checkbox
+            checked={raiseRevision}
+            onCheckedChange={(v) => onRaiseRevisionChange(v === true)}
+            className="mt-0.5"
+          />
+          Also raise this as a revision request — for a bigger scope change your studio
+          tracks separately.
+        </Label>
         <DialogFooter>
           <DialogClose
             render={
