@@ -99,6 +99,7 @@ frontend is already built against the contract below and degrades gracefully
       "href": "/admin/invoices/inv_123",
       "entityType": "invoice",
       "entityId": "inv_123",
+      "read": false,
       "createdAt": "2026-08-14T09:00:00.000Z"
     }
   ]
@@ -122,15 +123,29 @@ four `type`s the frontend renders, and the signal each is generated from:
 - `href` — in-app deep link the bell navigates to on click.
 - `entityType` — one of `invoice` | `revision` | `deliverable` | `milestone` |
   `project` | `null`; `entityId` its id (for grouping / dedup).
+- `read` — `boolean`, whether the calling admin has read it (see §3c).
 - `createdAt` — ISO `date-time`.
 
-### 3c. Read state — **no endpoint needed**
-Read/seen state is tracked **per-device on the client** (localStorage), so the
-wire model intentionally has **no `read` field** and there is **no
-mark-as-read endpoint** to build. If cross-device read state is wanted later,
-add `read: boolean` to the model plus `PATCH /api/notifications/{id}/read` and
-`POST /api/notifications/read-all`; the client can adopt them without a UI
-change.
+### 3c. Read state — server-side, per admin
+
+Read/seen state lives **on the server**, per admin, so it's consistent across
+devices and survives a cache clear (a `localStorage` flag drifts the moment the
+admin opens a second browser). The model carries a **`read: boolean`** (§3b) and
+two write endpoints keep it in sync:
+
+- **`PATCH /api/notifications/{id}/read`** — mark one notification read.
+  - **Auth:** `AdminBearer`, scoped to the calling admin (404 if it isn't theirs).
+  - **Body:** none required; optionally `{ "read": false }` to mark unread again.
+  - **Returns:** the updated `Notification`.
+- **`POST /api/notifications/read-all`** — mark every one of the admin's
+  notifications read (the dropdown's "Mark all read").
+  - **Auth:** `AdminBearer`, scoped to the caller.
+  - **Returns:** `{ "success": true, "message": "…", "data": { "updated": 4 } }`.
+
+The unread **count** for the header badge is derived client-side from the list
+(`data.filter(n => !n.read).length`), so no separate count endpoint is needed
+while the list is capped (§3a). The frontend currently tracks read state in
+`localStorage` and will switch to these once they ship.
 
 ---
 
