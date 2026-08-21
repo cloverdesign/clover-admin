@@ -21,8 +21,9 @@ import { DashboardEmpty } from "@/components/admin/dashboard/dashboard-empty"
 /**
  * Admin dashboard — table-first layout (§1.4). KPI row → projects data table →
  * a three-up row of needs-attention / upcoming milestones / project phases.
- * Renders the empty state when the studio has no projects. Data is dummy for
- * now (lib/mock/dashboard); swap for the API later.
+ * Renders the empty state when the studio has no projects. Purely
+ * presentational — `DashboardView` composes the live data and passes it in;
+ * lib/mock/dashboard is now only the shared types plus a fixture.
  */
 export function Dashboard({ data }: { data: DashboardData }) {
   if (!hasDashboardData(data)) return <DashboardEmpty />
