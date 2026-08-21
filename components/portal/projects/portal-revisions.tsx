@@ -111,7 +111,7 @@ export function RevisionCard({
         {projectName && (
           <>
             <Link
-              href={`/portal/projects/${request.projectId}`}
+              href={`/projects/${request.projectId}`}
               className="font-medium text-foreground hover:underline"
             >
               {projectName}

@@ -44,8 +44,8 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
               Projects
             </NavLink>
             <NavLink
-              href="/portal/requests"
-              active={pathname.startsWith("/portal/requests")}
+              href="/requests"
+              active={pathname.startsWith("/requests")}
             >
               Requests
             </NavLink>
