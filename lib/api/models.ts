@@ -167,9 +167,13 @@ export interface ProjectUpdatePostInput {
 
 export type InvoiceStatus = "DRAFT" | "SENT" | "PAID" | "OVERDUE"
 
+/** A billed line. The API models every line as quantity x unit price, so the
+ * line's money value is `quantity * unitPrice` — there is no `amount` field.
+ * Use `lineTotal()` from lib/mock/invoices rather than recomputing it. */
 export interface InvoiceLineItem {
   description: string
-  amount: number
+  quantity: number
+  unitPrice: number
 }
 
 export interface Invoice {
@@ -194,7 +198,8 @@ export interface InvoiceInput {
   currency: string
   description?: string
   lineItems: InvoiceLineItem[]
-  dueDate?: string
+  /** Required by the API — POSTing without it 400s with a bare "Required". */
+  dueDate: string
   issuedDate?: string
 }
 

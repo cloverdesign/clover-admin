@@ -37,7 +37,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
-import { INVOICE_STATUS_LABEL, INVOICE_STATUS_VARIANT, formatFull } from "@/lib/mock/invoices"
+import { INVOICE_STATUS_LABEL, INVOICE_STATUS_VARIANT, formatFull, lineTotal } from "@/lib/mock/invoices"
 import {
   useInvoice,
   useSendInvoice,
@@ -167,15 +167,19 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
 
         {/* Line items */}
         <div className="mt-8">
-          <div className="grid grid-cols-[1fr_auto] gap-4 border-b border-border pb-2 text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+          <div className="grid grid-cols-[1fr_3rem_auto_auto] gap-4 border-b border-border pb-2 text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
             <span>Description</span>
+            <span className="text-right">Qty</span>
+            <span className="text-right">Unit price</span>
             <span className="text-right">Amount</span>
           </div>
           <div className="divide-y divide-border">
             {(invoice.lineItems ?? []).map((li, i) => (
-              <div key={i} className="grid grid-cols-[1fr_auto] gap-4 py-3 text-sm">
+              <div key={i} className="grid grid-cols-[1fr_3rem_auto_auto] gap-4 py-3 text-sm">
                 <span>{li.description}</span>
-                <span className="text-right font-mono tabular-nums">{formatFull(li.amount, invoice.currency)}</span>
+                <span className="text-right font-mono tabular-nums text-muted-foreground">{li.quantity}</span>
+                <span className="text-right font-mono tabular-nums text-muted-foreground">{formatFull(li.unitPrice, invoice.currency)}</span>
+                <span className="text-right font-mono tabular-nums">{formatFull(lineTotal(li), invoice.currency)}</span>
               </div>
             ))}
           </div>
