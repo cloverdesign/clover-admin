@@ -5,19 +5,24 @@
  * aggregate/dashboard endpoint). Produces the `DashboardData` shape the existing
  * dashboard components consume.
  *
+ * Milestones have no list endpoint, but `GET /api/projects/{id}` embeds them,
+ * so the upcoming-milestones panel fans out over the live projects and merges
+ * the results (same query key as the calendar, so the two share one cache).
+ *
  * Gaps vs the mock, per the API: no sparkline history or period deltas (no
- * time-series) — KPI cards show live values only; no milestones list (the API
- * has no GET for milestones) — that panel comes through empty; deliverable
- * reviews are portal-only, so "needs attention" is pending revisions + overdue
- * invoices.
+ * time-series) — KPI cards show live values only; deliverable reviews are
+ * portal-only, so "needs attention" is pending revisions + overdue invoices.
  */
 
 import * as React from "react"
+import { useQueries } from "@tanstack/react-query"
 
 import { convert } from "@/lib/mock/currencies"
 import { formatMoney } from "@/lib/mock/clients"
 import { formatDate } from "@/lib/format"
 import { useSiteCurrency } from "@/hooks/use-site-currency"
+import { queryKeys } from "@/lib/api/query-client"
+import { ProjectsService } from "@/lib/services/projects-service"
 import { useProjects } from "@/lib/queries/projects-queries"
 import { useClients } from "@/lib/queries/clients-queries"
 import { useAllInvoices } from "@/lib/queries/invoices-queries"
@@ -28,6 +33,7 @@ import type {
   DashboardKpi,
   ActiveProject,
   AttentionItem,
+  Milestone as DashboardMilestone,
   Phase,
 } from "@/lib/mock/dashboard"
 import type { Project, ProjectStatus } from "@/lib/api/models"
@@ -56,6 +62,16 @@ function ago(iso: string | null | undefined): string {
   return `${Math.round(days / 30)}mo`
 }
 
+/** Whole days from today to `iso` — negative once the date has passed. */
+function daysUntil(iso: string): number {
+  const then = new Date(iso).getTime()
+  if (Number.isNaN(then)) return 0
+  return Math.round((then - Date.now()) / 86_400_000)
+}
+
+/** How many upcoming milestones the dashboard panel shows. */
+const MILESTONE_LIMIT = 6
+
 export function useDashboardData(): {
   data: DashboardData | null
   isLoading: boolean
@@ -66,6 +82,20 @@ export function useDashboardData(): {
   const clientsQ = useClients()
   const invoicesAll = useAllInvoices()
   const revisionsQ = useRevisions()
+
+  // Milestones are embedded in the project detail, not listed anywhere, so
+  // fan out over the live projects to collect them. The query key matches the
+  // calendar's, so whichever page loads second reads a warm cache.
+  const live = React.useMemo(
+    () => (projectsQ.data ?? []).filter(isLive),
+    [projectsQ.data]
+  )
+  const detailQs = useQueries({
+    queries: live.map((p) => ({
+      queryKey: queryKeys.projects.byId(p.id),
+      queryFn: () => ProjectsService.getById(p.id),
+    })),
+  })
 
   const isLoading =
     projectsQ.isLoading || invoicesAll.isLoading || revisionsQ.isLoading
@@ -87,7 +117,6 @@ export function useDashboardData(): {
     const invoices = invoicesAll.invoices
     const revisions = revisionsQ.data ?? []
 
-    const live = projects.filter(isLive)
     const outstanding = invoices
       .filter((i) => i.status === "SENT" || i.status === "OVERDUE")
       .reduce((s, i) => s + convert(i.amount, i.currency, display), 0)
@@ -150,10 +179,38 @@ export function useDashboardData(): {
       today: formatDate(new Date().toISOString(), "medium"),
       kpis,
       attention,
-      milestones: [], // no GET-milestones endpoint
+      milestones: [], // merged in below, from the detail fan-out
       projects: activeProjects,
     }
-  }, [projectsQ.data, clientsQ.data, invoicesAll.invoices, revisionsQ.data, display])
+  }, [projectsQ.data, clientsQ.data, invoicesAll.invoices, revisionsQ.data, live, display])
 
-  return { data, isLoading, isError }
+  // Soonest-first across every live project, overdue-but-open ones included —
+  // a missed milestone is the one you least want hidden. Not memoised: the
+  // fan-out hands back a fresh array each render, so a memo would recompute
+  // anyway (the calendar collects its milestones the same way).
+  const milestones: DashboardMilestone[] = detailQs
+    .flatMap((q) => {
+      const project = q.data
+      if (!project?.milestones) return []
+      const client = clientsQ.data?.find((c) => c.id === project.clientId)
+      return project.milestones
+        .filter((m) => m.status !== "COMPLETED" && m.dueDate)
+        .map((m) => ({
+          id: m.id,
+          project: project.name,
+          client: client?.company ?? "—",
+          title: m.title,
+          phase: project.phase as Phase,
+          due: formatDate(m.dueDate, "compact"),
+          dueInDays: daysUntil(m.dueDate as string),
+        }))
+    })
+    .sort((a, b) => a.dueInDays - b.dueInDays)
+    .slice(0, MILESTONE_LIMIT)
+
+  return {
+    data: data ? { ...data, milestones } : null,
+    isLoading,
+    isError,
+  }
 }
