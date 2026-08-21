@@ -29,6 +29,15 @@ export function proxy(req: NextRequest) {
 
   const { pathname } = req.nextUrl
 
+  // Static files are served as-is on every host. Anything with a file
+  // extension lives in public/ (or is a Next internal) and has no
+  // counterpart under app/portal/*, so rewriting it 404s — that broke
+  // /auth-wash.png and /logo.svg on the clients host. Extension-less
+  // paths are routes and fall through to the rewrite below.
+  if (pathname.startsWith("/_next/") || /\.[a-zA-Z0-9]+$/.test(pathname)) {
+    return NextResponse.next()
+  }
+
   // Admin isn't reachable through the client-facing host.
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
     return NextResponse.redirect(new URL("/", req.url))
@@ -47,6 +56,8 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Skip Next internals, static assets, and internal API routes.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|api/).*)"],
+  // Skip Next internals and internal API routes outright. Everything else
+  // reaches proxy(), which additionally lets any file-extension path through
+  // untouched (see the static-file guard above).
+  matcher: ["/((?!_next/|api/).*)"],
 }
