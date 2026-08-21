@@ -47,7 +47,7 @@ export function PortalLogin() {
   const verify = (value: string) => {
     verifyOtp.mutate(
       { email: email.trim(), code: value },
-      { onSuccess: () => router.push("/portal") }
+      { onSuccess: () => router.push("/") }
     )
   }
 

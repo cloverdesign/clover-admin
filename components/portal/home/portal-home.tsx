@@ -266,7 +266,7 @@ function Greeting({
 function Spotlight({ project }: { project: Project }) {
   return (
     <Link
-      href={`/portal/projects/${project.id}`}
+      href={`/projects/${project.id}`}
       className="group flex h-full flex-col justify-between gap-6 rounded-2xl border bg-card p-6 transition-colors hover:border-foreground/20"
     >
       <div className="flex items-start justify-between gap-4">
@@ -527,7 +527,7 @@ function SectionHeader({
 function AllProjectsLink() {
   return (
     <Link
-      href="/portal/projects"
+      href="/projects"
       className="group inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
     >
       All projects

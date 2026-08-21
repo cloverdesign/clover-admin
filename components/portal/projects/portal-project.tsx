@@ -34,7 +34,7 @@ export function PortalProject({ id }: { id: string }) {
     return (
       <div className="flex flex-col items-center gap-3 py-24 text-center">
         <p className="text-sm text-muted-foreground">Couldn’t load this project.</p>
-        <Button variant="outline" size="sm" render={<Link href="/portal/projects" />}>
+        <Button variant="outline" size="sm" render={<Link href="/projects" />}>
           Back to projects
         </Button>
       </div>
@@ -57,7 +57,7 @@ export function PortalProject({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-6">
       <Link
-        href="/portal/projects"
+        href="/projects"
         className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
