@@ -11,7 +11,7 @@ import { usePortalMe } from "@/lib/queries/portal-queries"
 /**
  * Client-side route protection for the portal. Same shape as the admin guard but
  * against the portal session:
- *   - no token           → redirect to /portal/login
+ *   - no token           → redirect to /login
  *   - token, validating  → spinner (usePortalMe against /api/portal/me)
  *   - token invalid/401  → the portal axios client clears it; we redirect
  *   - token valid        → render the portal
@@ -22,7 +22,7 @@ export function PortalGuard({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (!getPortalToken()) {
-      router.replace("/portal/login")
+      router.replace("/login")
       setHasToken(false)
     } else {
       setHasToken(true)
@@ -33,7 +33,7 @@ export function PortalGuard({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (hasToken && me.isError && !getPortalToken()) {
-      router.replace("/portal/login")
+      router.replace("/login")
     }
   }, [hasToken, me.isError, router])
 

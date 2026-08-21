@@ -102,7 +102,7 @@ function RevisionCard({ request }: { request: RevisionRequest }) {
 
       {request.status === "APPROVED" && request.resultingProjectId && (
         <Link
-          href={`/portal/projects/${request.resultingProjectId}`}
+          href={`/projects/${request.resultingProjectId}`}
           className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
         >
           View the new project

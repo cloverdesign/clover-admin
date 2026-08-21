@@ -123,7 +123,7 @@ export function ProjectCard({
 }) {
   return (
     <Link
-      href={`/portal/projects/${project.id}`}
+      href={`/projects/${project.id}`}
       className="group flex items-center gap-4 rounded-2xl border bg-card p-4 transition-colors hover:border-foreground/20 hover:bg-muted/30 sm:p-5"
     >
       <span

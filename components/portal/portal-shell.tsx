@@ -21,25 +21,25 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
   const signOut = () =>
     logout.mutate(undefined, {
-      onSettled: () => router.replace("/portal/login"),
+      onSettled: () => router.replace("/login"),
     })
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-4xl items-center gap-3 px-4 sm:px-6">
-          <Link href="/portal" className="flex items-center gap-2.5" aria-label="Home">
+          <Link href="/" className="flex items-center gap-2.5" aria-label="Home">
             <CloverMark className="size-6" />
             <span className="text-sm font-semibold tracking-tight">Clover</span>
           </Link>
 
           <nav className="ml-3 hidden items-center gap-1 sm:flex">
-            <NavLink href="/portal" active={pathname === "/portal"}>
+            <NavLink href="/" active={pathname === "/"}>
               Dashboard
             </NavLink>
             <NavLink
-              href="/portal/projects"
-              active={pathname.startsWith("/portal/projects")}
+              href="/projects"
+              active={pathname.startsWith("/projects")}
             >
               Projects
             </NavLink>

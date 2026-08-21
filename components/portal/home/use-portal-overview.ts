@@ -221,7 +221,7 @@ export function usePortalOverview(): PortalOverview {
         tone: "danger",
         title: `Invoice ${inv.invoiceNumber} is overdue`,
         detail: projectName(inv.projectId),
-        href: `/portal/projects/${inv.projectId}`,
+        href: `/projects/${inv.projectId}`,
         at: inv.dueDate ?? inv.issuedDate ?? inv.createdAt,
       })
     } else if (inv.status === "SENT") {
@@ -230,7 +230,7 @@ export function usePortalOverview(): PortalOverview {
         tone: "warning",
         title: `Invoice ${inv.invoiceNumber} is due`,
         detail: projectName(inv.projectId),
-        href: `/portal/projects/${inv.projectId}`,
+        href: `/projects/${inv.projectId}`,
         at: inv.dueDate ?? inv.issuedDate ?? inv.createdAt,
       })
     }
@@ -242,7 +242,7 @@ export function usePortalOverview(): PortalOverview {
       tone: "brand",
       title: `“${d.title}” is ready for your review`,
       detail: projectName(d.projectId),
-      href: `/portal/projects/${d.projectId}`,
+      href: `/projects/${d.projectId}`,
       at: d.uploadedAt,
     })
   }
@@ -261,7 +261,7 @@ export function usePortalOverview(): PortalOverview {
       id: `a-del-${d.id}`,
       kind: "deliverable",
       title: `New deliverable — ${d.title}`,
-      href: `/portal/projects/${d.projectId}`,
+      href: `/projects/${d.projectId}`,
       at: d.uploadedAt,
     })
   }
@@ -271,7 +271,7 @@ export function usePortalOverview(): PortalOverview {
         id: `a-invp-${inv.id}`,
         kind: "invoice-paid",
         title: `Invoice ${inv.invoiceNumber} marked paid`,
-        href: `/portal/projects/${inv.projectId}`,
+        href: `/projects/${inv.projectId}`,
         at: inv.paidDate,
       })
     }
@@ -280,7 +280,7 @@ export function usePortalOverview(): PortalOverview {
         id: `a-invi-${inv.id}`,
         kind: "invoice-issued",
         title: `Invoice ${inv.invoiceNumber} issued`,
-        href: `/portal/projects/${inv.projectId}`,
+        href: `/projects/${inv.projectId}`,
         at: inv.issuedDate,
       })
     }
@@ -290,7 +290,7 @@ export function usePortalOverview(): PortalOverview {
       id: `a-rev-${r.id}`,
       kind: "revision-sent",
       title: "Revision request sent",
-      href: `/portal/projects/${r.projectId}`,
+      href: `/projects/${r.projectId}`,
       at: r.createdAt,
     })
     if (
@@ -301,7 +301,7 @@ export function usePortalOverview(): PortalOverview {
         id: `a-revd-${r.id}`,
         kind: "revision-decided",
         title: `Revision ${r.status === "APPROVED" ? "approved" : "declined"}`,
-        href: `/portal/projects/${r.resultingProjectId ?? r.projectId}`,
+        href: `/projects/${r.resultingProjectId ?? r.projectId}`,
         at: r.updatedAt,
       })
     }

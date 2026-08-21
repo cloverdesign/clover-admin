@@ -91,7 +91,7 @@ export function BillingSnapshot({ billing }: { billing: NonNullable<BillingSumma
 
       {billing.nextDue && (
         <Link
-          href={`/portal/projects/${billing.nextDue.projectId}`}
+          href={`/projects/${billing.nextDue.projectId}`}
           className="group -mx-2 mt-auto flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60"
         >
           <span className="min-w-0">
@@ -140,7 +140,7 @@ export function UpcomingMilestones({
         {milestones.map((milestone) => (
           <li key={milestone.id}>
             <Link
-              href={`/portal/projects/${milestone.projectId}`}
+              href={`/projects/${milestone.projectId}`}
               className="group -mx-2 flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60"
             >
               <DateChip iso={milestone.dueDate} overdue={milestone.overdue} />
@@ -200,7 +200,7 @@ export function LatestWork({ items }: { items: RecentDeliverable[] }) {
         {items.map((item) => (
           <Link
             key={item.id}
-            href={`/portal/projects/${item.projectId}`}
+            href={`/projects/${item.projectId}`}
             className="group w-40 shrink-0"
           >
             <div className="relative aspect-[4/3] overflow-hidden rounded-xl border bg-muted">

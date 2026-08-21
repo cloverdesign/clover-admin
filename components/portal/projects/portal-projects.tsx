@@ -50,7 +50,7 @@ export function PortalProjects() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
         <Link
-          href="/portal"
+          href="/"
           className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
