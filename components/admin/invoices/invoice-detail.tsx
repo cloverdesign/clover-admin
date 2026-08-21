@@ -3,7 +3,6 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Download04Icon,
@@ -110,7 +109,25 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
               Mark paid
             </Button>
           )}
-          <Button variant="outline" className="gap-1.5" onClick={() => toast.success(`Downloading ${invoice.invoiceNumber}.pdf`)}>
+          {/* The PDF is generated server-side on issue (§1.2.3), so a draft that
+              hasn't been rendered yet has no `pdfUrl` — show the action disabled
+              rather than handing over a link that goes nowhere. */}
+          <Button
+            variant="outline"
+            className="gap-1.5"
+            disabled={!invoice.pdfUrl}
+            title={invoice.pdfUrl ? undefined : "No PDF generated for this invoice yet"}
+            render={
+              invoice.pdfUrl ? (
+                <a
+                  href={invoice.pdfUrl}
+                  download={`${invoice.invoiceNumber}.pdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                />
+              ) : undefined
+            }
+          >
             <HugeiconsIcon icon={Download04Icon} data-icon="inline-start" className="size-4" />
             PDF
           </Button>
@@ -176,7 +193,7 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {invoice.invoiceNumber}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the invoice from the project and the client's portal. This can’t be undone.
+              This removes the invoice from the project and the client’s portal. This can’t be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
