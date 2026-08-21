@@ -85,7 +85,21 @@ export function PortalRevisions({ projectId }: { projectId: string }) {
   )
 }
 
-function RevisionCard({ request }: { request: RevisionRequest }) {
+export function RevisionCard({
+  request,
+  projectName,
+}: {
+  request: RevisionRequest
+  projectName?: string
+}) {
+  // §7b: the studio's message on a decision (decline reason or phase note).
+  const decisionNote = request.decisionNote ?? request.resultingPhaseNote
+  // §7a: a new-phase approval links back to this same project; a new-project
+  // approval points at a different, freshly-scaffolded one.
+  const isNewProject =
+    request.resultingProjectId != null &&
+    request.resultingProjectId !== request.projectId
+
   return (
     <li className="rounded-xl border bg-background p-4">
       <div className="flex items-start justify-between gap-3">
@@ -93,24 +107,41 @@ function RevisionCard({ request }: { request: RevisionRequest }) {
         <RevisionStatusBadge status={request.status} />
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+        {projectName && (
+          <>
+            <Link
+              href={`/projects/${request.projectId}`}
+              className="font-medium text-foreground hover:underline"
+            >
+              {projectName}
+            </Link>
+            <span>·</span>
+          </>
+        )}
         <span>Requested {formatDate(request.createdAt)}</span>
         {request.targetTimeframe && <span>· Target: {request.targetTimeframe}</span>}
       </div>
 
       <RevisionStepper status={request.status} className="mt-3" />
 
+      {decisionNote && (
+        <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+          {request.status === "DECLINED" && (
+            <span className="font-medium text-foreground">Why: </span>
+          )}
+          {decisionNote}
+        </p>
+      )}
+
       {request.status === "APPROVED" && request.resultingProjectId && (
         <Link
           href={`/projects/${request.resultingProjectId}`}
           className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
         >
-          View the new project
+          {isNewProject ? "View the new project" : "View the updated project"}
           <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
         </Link>
-      )}
-      {request.status === "APPROVED" && request.resultingPhaseNote && (
-        <p className="mt-2 text-sm text-muted-foreground">{request.resultingPhaseNote}</p>
       )}
     </li>
   )
