@@ -260,6 +260,9 @@ export function RequestRevisionButton({ projects }: { projects: Project[] }) {
     projectId ||
     selectable.find((p) => p.status === "IN_PROGRESS" || p.status === "REVIEW")?.id ||
     selectable[0].id
+  // base-ui reads the trigger label from `items` (id → name); without it the
+  // Select shows the raw project id.
+  const projectItems = Object.fromEntries(selectable.map((p) => [p.id, p.name]))
 
   const onSubmit = () =>
     submit.mutate(
@@ -302,7 +305,11 @@ export function RequestRevisionButton({ projects }: { projects: Project[] }) {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="revision-project">Project</Label>
-            <Select value={activeId} onValueChange={(v) => v && setProjectId(v)}>
+            <Select
+              items={projectItems}
+              value={activeId}
+              onValueChange={(v) => v && setProjectId(v)}
+            >
               <SelectTrigger id="revision-project" className="w-full">
                 <SelectValue />
               </SelectTrigger>
