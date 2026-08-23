@@ -45,17 +45,39 @@ import type {
   UpcomingMilestone,
   RecentDeliverable,
 } from "@/components/portal/home/use-portal-overview"
-import type { Project } from "@/lib/api/models"
+import type { Invoice, InvoiceStatus, Project } from "@/lib/api/models"
 
 /* ---------------------------------------------------------------- billing */
 
-/** Paid vs outstanding at a glance, plus the next invoice the client owes. */
-export function BillingSnapshot({ billing }: { billing: NonNullable<BillingSummary> }) {
+/** Status wording the client sees. Drafts never reach the portal, so there's no
+ * label for one. */
+const INVOICE_TONE: Record<
+  Exclude<InvoiceStatus, "DRAFT">,
+  { label: string; dot: string; text?: string }
+> = {
+  PAID: { label: "Paid", dot: "bg-primary" },
+  SENT: { label: "Due", dot: "bg-amber-500" },
+  OVERDUE: { label: "Overdue", dot: "bg-destructive", text: "text-destructive" },
+}
+
+/**
+ * Paid vs outstanding at a glance, then every invoice the studio has issued —
+ * newest first. The list is the card's body rather than a "next due" teaser: a
+ * client checking billing wants the whole ledger, and it keeps the card sized to
+ * real content instead of stretching to its neighbour with a void in the middle.
+ */
+export function BillingSnapshot({
+  billing,
+  invoices,
+}: {
+  billing: NonNullable<BillingSummary>
+  invoices: Invoice[]
+}) {
   const total = billing.paid + billing.outstanding
   const paidPct = total > 0 ? Math.round((billing.paid / total) * 100) : 0
 
   return (
-    <div className="flex h-full flex-col gap-4 rounded-2xl border bg-card p-5">
+    <div className="flex flex-col gap-4 rounded-2xl border bg-card p-5">
       <div className="flex items-center gap-2">
         <HugeiconsIcon icon={DollarCircleIcon} className="size-4 text-muted-foreground" />
         <h2 className="font-heading text-sm font-medium">Billing</h2>
@@ -89,34 +111,45 @@ export function BillingSnapshot({ billing }: { billing: NonNullable<BillingSumma
         <div className="h-full rounded-full bg-primary" style={{ width: `${paidPct}%` }} />
       </div>
 
-      {billing.nextDue && (
-        <Link
-          href={`/projects/${billing.nextDue.projectId}`}
-          className="group -mx-2 mt-auto flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60"
-        >
-          <span className="min-w-0">
-            <span className="block text-sm font-medium">
-              Next due · {billing.nextDue.invoiceNumber}
-            </span>
-            <span
-              className={cn(
-                "block text-xs",
-                billing.nextDue.overdue
-                  ? "text-destructive"
-                  : "text-muted-foreground"
-              )}
-            >
-              {billing.nextDue.overdue
-                ? "Overdue"
-                : billing.nextDue.dueDate
-                  ? `Due ${formatDate(billing.nextDue.dueDate)}`
-                  : "Due soon"}
-            </span>
-          </span>
-          <span className="shrink-0 font-mono text-sm font-semibold tabular-nums">
-            {formatFull(billing.nextDue.amount, billing.nextDue.currency)}
-          </span>
-        </Link>
+      {invoices.length > 0 && (
+        <ul className="flex flex-col gap-0.5 border-t border-border pt-2">
+          {invoices.map((invoice) => {
+            const tone = INVOICE_TONE[invoice.status as Exclude<InvoiceStatus, "DRAFT">]
+            if (!tone) return null
+            const when =
+              invoice.status === "PAID"
+                ? invoice.paidDate
+                  ? `Paid ${formatDate(invoice.paidDate)}`
+                  : "Paid"
+                : invoice.dueDate
+                  ? `${tone.label} ${formatDate(invoice.dueDate)}`
+                  : tone.label
+            return (
+              <li key={invoice.id}>
+                <Link
+                  href={`/projects/${invoice.projectId}`}
+                  className="group -mx-2 flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/60"
+                >
+                  <span
+                    aria-hidden
+                    className={cn("size-1.5 shrink-0 rounded-full", tone.dot)}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-mono text-sm">
+                      {invoice.invoiceNumber}
+                    </span>
+                    <span className={cn("block truncate text-xs text-muted-foreground", tone.text)}>
+                      {when}
+                    </span>
+                  </span>
+                  <span className="shrink-0 font-mono text-sm tabular-nums">
+                    {formatFull(invoice.amount, invoice.currency)}
+                  </span>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
       )}
     </div>
   )
@@ -130,7 +163,7 @@ export function UpcomingMilestones({
   milestones: UpcomingMilestone[]
 }) {
   return (
-    <div className="flex h-full flex-col gap-4 rounded-2xl border bg-card p-5">
+    <div className="flex flex-col gap-4 rounded-2xl border bg-card p-5">
       <div className="flex items-center gap-2">
         <HugeiconsIcon icon={Calendar03Icon} className="size-4 text-muted-foreground" />
         <h2 className="font-heading text-sm font-medium">Upcoming milestones</h2>
@@ -201,32 +234,48 @@ export function LatestWork({ items }: { items: RecentDeliverable[] }) {
           <Link
             key={item.id}
             href={`/projects/${item.projectId}`}
-            className="group w-40 shrink-0"
+            className="group flex w-60 shrink-0 flex-col gap-3 rounded-2xl border bg-card p-4 transition-colors hover:border-foreground/20 hover:bg-muted/30"
           >
-            <div className="relative aspect-[4/3] overflow-hidden rounded-xl border bg-muted">
+            <div className="flex items-start gap-3">
               {looksLikeImage(item.fileUrl) ? (
-                <Image
-                  src={item.fileUrl as string}
-                  alt={item.title}
-                  fill
-                  sizes="160px"
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  unoptimized
-                />
+                <span className="relative size-10 shrink-0 overflow-hidden rounded-lg border bg-muted">
+                  <Image
+                    src={item.fileUrl as string}
+                    alt=""
+                    fill
+                    sizes="40px"
+                    className="object-cover"
+                    unoptimized
+                  />
+                </span>
               ) : (
-                <span className="flex size-full items-center justify-center text-muted-foreground">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                   <HugeiconsIcon
                     icon={item.externalLink ? LinkSquare02Icon : File01Icon}
-                    className="size-7"
+                    className="size-4.5"
                   />
                 </span>
               )}
-              <span className="absolute right-2 bottom-2 flex size-6 items-center justify-center rounded-md bg-background/80 text-muted-foreground opacity-0 backdrop-blur transition-opacity group-hover:opacity-100">
-                <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
+              <span className="min-w-0 flex-1">
+                <span className="line-clamp-2 text-sm font-medium">{item.title}</span>
+                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                  {item.projectName}
+                </span>
               </span>
             </div>
-            <p className="mt-2 truncate text-sm font-medium">{item.title}</p>
-            <p className="truncate text-xs text-muted-foreground">{item.projectName}</p>
+
+            <div className="mt-auto flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground">
+                Shared {formatDate(item.uploadedAt)}
+              </span>
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors group-hover:text-foreground">
+                {item.externalLink ? "Open" : "View"}
+                <HugeiconsIcon
+                  icon={ArrowRight01Icon}
+                  className="size-3.5 transition-transform group-hover:translate-x-0.5"
+                />
+              </span>
+            </div>
           </Link>
         ))}
       </div>

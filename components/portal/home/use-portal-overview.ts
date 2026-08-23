@@ -95,6 +95,11 @@ export type PortalOverview = {
   stats: OverviewStats
   billing: BillingSummary
   milestones: UpcomingMilestone[]
+  /** The same upcoming milestones grouped by project, uncapped — the dashboard's
+   * spotlight shows the focused project's own next steps. */
+  milestonesByProject: Record<string, UpcomingMilestone[]>
+  /** Issued invoices (drafts stay internal to the studio), newest first. */
+  recentInvoices: Invoice[]
   recentDeliverables: RecentDeliverable[]
 }
 
@@ -324,21 +329,37 @@ export function usePortalOverview(): PortalOverview {
 
   /* -------------------------------------------------------------- milestones */
   const nowIso = new Date().toISOString()
-  const milestones: UpcomingMilestone[] = detailProjects
-    .flatMap((p) =>
-      (p.milestones ?? [])
-        .filter((m) => m.status !== "COMPLETED" && m.dueDate)
-        .map((m) => ({
-          id: m.id,
-          title: m.title,
-          dueDate: m.dueDate as string,
-          projectId: p.id,
-          projectName: p.name,
-          overdue: (m.dueDate as string) < nowIso,
-        }))
-    )
-    .sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0))
+  const byDueDate = (a: UpcomingMilestone, b: UpcomingMilestone) =>
+    a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0
+
+  const milestonesByProject: Record<string, UpcomingMilestone[]> = {}
+  for (const p of detailProjects) {
+    const upcoming = (p.milestones ?? [])
+      .filter((m) => m.status !== "COMPLETED" && m.dueDate)
+      .map((m) => ({
+        id: m.id,
+        title: m.title,
+        dueDate: m.dueDate as string,
+        projectId: p.id,
+        projectName: p.name,
+        overdue: (m.dueDate as string) < nowIso,
+      }))
+      .sort(byDueDate)
+    if (upcoming.length > 0) milestonesByProject[p.id] = upcoming
+  }
+  const milestones: UpcomingMilestone[] = Object.values(milestonesByProject)
+    .flat()
+    .sort(byDueDate)
     .slice(0, 5)
+
+  /* -------------------------------------------------------------- invoices */
+  const recentInvoices = invoices
+    .filter((i) => i.status !== "DRAFT")
+    .sort((a, b) => {
+      const da = a.issuedDate ?? a.createdAt
+      const db = b.issuedDate ?? b.createdAt
+      return da < db ? 1 : da > db ? -1 : 0
+    })
 
   /* ----------------------------------------------------------- recent work */
   const recentDeliverables: RecentDeliverable[] = deliverables
@@ -369,6 +390,8 @@ export function usePortalOverview(): PortalOverview {
     stats,
     billing: billingSummary(invoices),
     milestones,
+    milestonesByProject,
+    recentInvoices,
     recentDeliverables,
   }
 }

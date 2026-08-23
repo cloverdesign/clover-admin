@@ -11,7 +11,9 @@ import { usePortalMe, usePortalLogout } from "@/lib/queries/portal-queries"
 /**
  * Client-facing chrome: a slim top bar with the Clover mark, the signed-in
  * client's company, and sign out — over a centered content column. Deliberately
- * not the admin sidebar; the portal is a small, focused surface.
+ * not the admin sidebar; the portal is a small, focused surface. The nav stays
+ * visible on phones (the company name is what drops instead) so the project list
+ * is always one tap away.
  */
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -33,7 +35,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
             <span className="text-sm font-semibold tracking-tight">Clover</span>
           </Link>
 
-          <nav className="ml-3 hidden items-center gap-1 sm:flex">
+          <nav className="ml-1 flex items-center gap-1 sm:ml-3">
             <NavLink href="/" active={pathname === "/"}>
               Dashboard
             </NavLink>

@@ -17,6 +17,14 @@ import { ProjectCard } from "@/components/portal/parts"
  * under the project they branch from. The dashboard spotlights and summarizes;
  * this is the exhaustive view behind the "All projects" link.
  */
+/** "2 projects · 1 revision" — the revision count is called out separately so the
+ * line matches the number of cards on screen. */
+function summarize(projects: number, revisions: number): string {
+  const head = `${projects} project${projects === 1 ? "" : "s"} with Clover`
+  if (revisions === 0) return head
+  return `${head} · ${revisions} revision${revisions === 1 ? "" : "s"}`
+}
+
 export function PortalProjects() {
   const { data: projects, isLoading, isError } = usePortalProjects()
 
@@ -61,7 +69,7 @@ export function PortalProjects() {
           <p className="mt-1 text-sm text-muted-foreground">
             {projects.length === 0
               ? "You don’t have any projects yet."
-              : `${topLevel.length} project${topLevel.length === 1 ? "" : "s"} with Clover`}
+              : summarize(topLevel.length, projects.length - topLevel.length)}
           </p>
         </div>
       </div>
