@@ -6,17 +6,17 @@
  * views: what needs the client's action, a headline of where the engagement
  * stands, and a recent-activity stream.
  *
- * Invoices and deliverables each used to be a `useQueries` fan-out, one request
- * per project; the backend added single client-wide endpoints for exactly this,
- * so painting the dashboard is now a flat handful of requests rather than 2+3N.
- * The remaining fan-out is project detail, which carries the milestones the
- * list endpoint omits and warms the cache for the project view.
+ * This was three `useQueries` fan-outs — invoices, deliverables and detail, one
+ * request per project each, so 2+3N to paint. The backend added client-wide
+ * invoice and deliverable reads, and the projects LIST turns out to embed
+ * milestones (verified against a live session on 2026-08-28; the old comment
+ * here claiming otherwise was stale). So it is now four requests flat, however
+ * many projects the client has.
+ *
+ * Trade-off: the detail fan-out also warmed the per-project cache, so opening a
+ * project now costs its own fetch. Cheap dashboard beats a pre-warmed click.
  */
 
-import { useQueries } from "@tanstack/react-query"
-
-import { queryKeys } from "@/lib/api/query-client"
-import { PortalProjectsService } from "@/lib/services/portal-service"
 import {
   usePortalProjects,
   usePortalRevisions,
@@ -199,21 +199,9 @@ export function usePortalOverview(): PortalOverview {
 
   const deliverablesQ = usePortalAllDeliverables()
   const invoicesQ = usePortalAllInvoices()
-  // The list endpoint omits milestones; the detail endpoint embeds them. Fetching
-  // detail per project both feeds the upcoming-milestones view and warms the
-  // cache for when the client opens a project.
-  const detailQs = useQueries({
-    queries: projects.map((p) => ({
-      queryKey: queryKeys.portal.project(p.id),
-      queryFn: () => PortalProjectsService.getById(p.id),
-    })),
-  })
 
   const deliverables = deliverablesQ.data ?? []
   const invoices = invoicesQ.data ?? []
-  const detailProjects = detailQs
-    .map((q) => q.data)
-    .filter((p): p is Project => Boolean(p))
   const revisions = revisionsQ.data ?? []
 
   /* ------------------------------------------------------------- attention */
@@ -332,7 +320,7 @@ export function usePortalOverview(): PortalOverview {
     a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0
 
   const milestonesByProject: Record<string, UpcomingMilestone[]> = {}
-  for (const p of detailProjects) {
+  for (const p of projects) {
     const upcoming = (p.milestones ?? [])
       .filter((m) => m.status !== "COMPLETED" && m.dueDate)
       .map((m) => ({
@@ -379,10 +367,7 @@ export function usePortalOverview(): PortalOverview {
     isLoading: projectsQ.isLoading,
     isError: projectsQ.isError,
     detailsLoading:
-      revisionsQ.isLoading ||
-      deliverablesQ.isLoading ||
-      invoicesQ.isLoading ||
-      detailQs.some((q) => q.isLoading),
+      revisionsQ.isLoading || deliverablesQ.isLoading || invoicesQ.isLoading,
     projects,
     attention,
     activity: activity.slice(0, 7),

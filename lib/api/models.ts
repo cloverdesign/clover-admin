@@ -108,11 +108,14 @@ export interface Project {
   notes: string | null
   createdAt: string
   updatedAt: string
-  /** Relations the detail endpoint embeds. Optional because the list endpoint
-   * omits some of them; for a guaranteed read use the dedicated collection
-   * endpoints (`useProjectMilestones` / `useProjectUpdates`). */
+  /** Relations the API embeds. The portal list and detail reads both carry
+   * milestones, updates and invoices; portal detail adds deliverables and
+   * revision requests. Optional because the admin list read carries none — for
+   * a guaranteed admin read use the dedicated collection endpoints
+   * (`useProjectMilestones` / `useProjectUpdates` / `useProjectInvoices`). */
   milestones?: Milestone[]
   updates?: ProjectUpdatePost[]
+  invoices?: Invoice[]
 }
 
 export interface ProjectInput {

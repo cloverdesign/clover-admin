@@ -7,7 +7,7 @@
 
 import { portalClient } from "@/lib/api/portal-client"
 import { PortalEndpoints } from "@/lib/api/endpoints"
-import type { ApiEnvelope, ApiError } from "@/lib/api/types"
+import type { ApiEnvelope } from "@/lib/api/types"
 import type {
   Client,
   Project,
@@ -100,19 +100,10 @@ export class PortalProjectsService {
   }
 
   static async invoices(id: string): Promise<Invoice[]> {
-    try {
-      const res = await portalClient.get<ApiEnvelope<Invoice[]>>(
-        PortalEndpoints.projectInvoices(id)
-      )
-      return res.data.data
-    } catch (err) {
-      // The portal invoices route isn't live on the backend yet. Treat a 404 as
-      // "no invoices" so the dashboard billing and the project invoices section
-      // degrade quietly instead of erroring; it lights up once the API ships it.
-      // Real failures (auth, 5xx) still propagate.
-      if ((err as ApiError)?.status === 404) return []
-      throw err
-    }
+    const res = await portalClient.get<ApiEnvelope<Invoice[]>>(
+      PortalEndpoints.projectInvoices(id)
+    )
+    return res.data.data
   }
 
   static async submitRevision(

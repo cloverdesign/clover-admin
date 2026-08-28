@@ -90,8 +90,10 @@ function project(p: Partial<Project> & Pick<Project, "id" | "name">): Project {
   } as Project
 }
 
-/** List-endpoint shape — no embedded milestones. */
-export const PROJECTS: Project[] = [
+/** List-endpoint shape. The real portal list embeds milestones, updates and
+ * invoices (verified live 2026-08-28) — milestones are merged in below so the
+ * harness matches. */
+const PROJECTS_BASE: Project[] = [
   project({
     id: "p-1",
     name: "Atlas Foods rebrand",
@@ -129,12 +131,22 @@ export const PROJECTS: Project[] = [
   }),
 ]
 
-/** Detail-endpoint shape — milestones embedded. */
-export const PROJECT_DETAIL: Record<string, Project> = {
-  "p-1": { ...PROJECTS[0], milestones: P1_MILESTONES },
-  "p-2": { ...PROJECTS[1], milestones: P2_MILESTONES },
-  "p-3": { ...PROJECTS[2], milestones: P3_MILESTONES },
+const MILESTONES_BY_PROJECT: Record<string, Milestone[]> = {
+  "p-1": P1_MILESTONES,
+  "p-2": P2_MILESTONES,
+  "p-3": P3_MILESTONES,
 }
+
+export const PROJECTS: Project[] = PROJECTS_BASE.map((p) => ({
+  ...p,
+  milestones: MILESTONES_BY_PROJECT[p.id] ?? [],
+}))
+
+/** Detail read — same shape as the list here; the real one also embeds
+ * deliverables and revision requests, which the harness seeds separately. */
+export const PROJECT_DETAIL: Record<string, Project> = Object.fromEntries(
+  PROJECTS.map((p) => [p.id, p])
+)
 
 export const INVOICES: Record<string, Invoice[]> = {
   "p-1": [
