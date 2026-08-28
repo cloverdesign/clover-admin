@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A new push to a PR makes the in-flight run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Each step runs even if an earlier one failed, so a red build reports
+      # every problem at once instead of one per push.
+      - name: Typecheck
+        id: typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        id: lint
+        if: ${{ !cancelled() }}
+        run: pnpm lint --max-warnings=0
+
+      - name: Test
+        id: test
+        if: ${{ !cancelled() }}
+        run: pnpm test
+
+      - name: Build
+        id: build
+        if: ${{ !cancelled() }}
+        run: pnpm build

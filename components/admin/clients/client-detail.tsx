@@ -17,10 +17,9 @@ import {
   Loading03Icon,
 } from "@hugeicons/core-free-icons"
 
-import { cn } from "@/lib/utils"
 import { formatDate } from "@/lib/format"
 import { convert } from "@/lib/mock/currencies"
-import { formatMoney, CLIENT_STATUS_LABEL } from "@/lib/mock/clients"
+import { formatMoney } from "@/lib/mock/clients"
 import { useSiteCurrency } from "@/hooks/use-site-currency"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"

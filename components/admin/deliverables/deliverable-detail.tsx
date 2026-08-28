@@ -173,7 +173,7 @@ function DeliverableDetailInner({ deliverable, all }: { deliverable: Deliverable
           <AlertDialogHeader>
             <AlertDialogTitle>Delete “{deliverable.title}” v{deliverable.version}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the deliverable from the project and the client's portal. This can’t be undone.
+              This removes the deliverable from the project and the client’s portal. This can’t be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

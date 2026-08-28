@@ -2,6 +2,8 @@
 
 import * as React from "react"
 
+import { useHydrated } from "@/hooks/use-hydrated"
+
 const STORAGE_KEY = "clover-playground-overrides"
 
 export type OverrideState = {
@@ -14,6 +16,16 @@ export type OverrideState = {
 }
 
 const EMPTY: OverrideState = { tokens: {}, components: {}, note: "" }
+
+/** Read persisted overrides. Only safe once the client has taken over. */
+function loadStored(): OverrideState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    return raw ? { ...EMPTY, ...JSON.parse(raw) } : EMPTY
+  } catch {
+    return EMPTY
+  }
+}
 
 type OverrideContextValue = OverrideState & {
   setToken: (name: string, value: string) => void
@@ -35,18 +47,26 @@ export function useOverrides() {
 }
 
 export function OverrideProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = React.useState<OverrideState>(EMPTY)
   const applied = React.useRef<Set<string>>(new Set())
 
-  // Load any persisted overrides after mount (avoids SSR hydration mismatch).
-  React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (raw) setState({ ...EMPTY, ...JSON.parse(raw) })
-    } catch {
-      // ignore malformed storage
-    }
-  }, [])
+  // Storage can't be read during SSR or the hydration pass, so the baseline is
+  // EMPTY until the client takes over and then whatever was persisted. Edits
+  // layer on top; before the first edit, `state` is just the baseline. Deriving
+  // it this way rather than loading it in an effect keeps the initial paint
+  // matching the server without a second render pass.
+  const hydrated = useHydrated()
+  const persisted = React.useMemo(
+    () => (hydrated ? loadStored() : EMPTY),
+    [hydrated]
+  )
+  const [edits, setEdits] = React.useState<OverrideState | null>(null)
+  const state = edits ?? persisted
+
+  const update = React.useCallback(
+    (fn: (s: OverrideState) => OverrideState) =>
+      setEdits((prev) => fn(prev ?? persisted)),
+    [persisted]
+  )
 
   // Persist + apply token overrides to <html> inline style. Foundation
   // specimens pick these up automatically via their style MutationObserver.
@@ -84,15 +104,15 @@ export function OverrideProvider({ children }: { children: React.ReactNode }) {
       ...state,
       count,
       setToken: (name, v) =>
-        setState((s) => ({ ...s, tokens: { ...s.tokens, [name]: v } })),
+        update((s) => ({ ...s, tokens: { ...s.tokens, [name]: v } })),
       resetToken: (name) =>
-        setState((s) => {
+        update((s) => {
           const tokens = { ...s.tokens }
           delete tokens[name]
           return { ...s, tokens }
         }),
       setComponent: (component, key, v) =>
-        setState((s) => ({
+        update((s) => ({
           ...s,
           components: {
             ...s.components,
@@ -100,17 +120,17 @@ export function OverrideProvider({ children }: { children: React.ReactNode }) {
           },
         })),
       resetComponent: (component, key) =>
-        setState((s) => {
+        update((s) => {
           const knobs = { ...s.components[component] }
           delete knobs[key]
           const components = { ...s.components, [component]: knobs }
           if (Object.keys(knobs).length === 0) delete components[component]
           return { ...s, components }
         }),
-      setNote: (note) => setState((s) => ({ ...s, note })),
-      resetAll: () => setState((s) => ({ ...EMPTY, note: s.note })),
+      setNote: (note) => update((s) => ({ ...s, note })),
+      resetAll: () => update((s) => ({ ...EMPTY, note: s.note })),
     }
-  }, [state])
+  }, [state, update])
 
   return (
     <OverrideContext.Provider value={value}>

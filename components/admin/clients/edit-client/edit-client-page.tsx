@@ -101,7 +101,7 @@ function EditClientForm({
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Edit client</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Update the client's details. Changing the contact email changes
+              Update the client’s details. Changing the contact email changes
               their portal sign-in.
             </p>
             <div className="mt-8 flex items-center gap-3 rounded-xl border bg-card p-3">

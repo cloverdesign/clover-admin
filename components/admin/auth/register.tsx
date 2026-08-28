@@ -6,7 +6,6 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { HugeiconsIcon } from "@hugeicons/react"
 import { Mail01Icon } from "@hugeicons/core-free-icons"
 
 import { AuthShell } from "@/components/admin/auth/auth-shell"

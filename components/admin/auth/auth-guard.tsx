@@ -1,6 +1,8 @@
 "use client"
 
 import * as React from "react"
+
+import { useHydrated } from "@/hooks/use-hydrated"
 import { useRouter } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
@@ -27,16 +29,14 @@ import { AuthNotice } from "@/components/admin/auth/auth-notice"
  */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const [hasToken, setHasToken] = React.useState<boolean | null>(null)
+  // The token lives in localStorage, so it can't be read during SSR or the
+  // hydration pass — `null` means "not known yet", not "absent".
+  const hydrated = useHydrated()
+  const hasToken = hydrated ? Boolean(getToken()) : null
 
   React.useEffect(() => {
-    if (!getToken()) {
-      router.replace("/admin/login")
-      setHasToken(false)
-    } else {
-      setHasToken(true)
-    }
-  }, [router])
+    if (hydrated && !getToken()) router.replace("/admin/login")
+  }, [hydrated, router])
 
   const me = useMe()
 

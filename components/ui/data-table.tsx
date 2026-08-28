@@ -76,6 +76,10 @@ export function DataTable<TData, TValue>({
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([])
 
+  // @tanstack/react-table's useReactTable returns functions the React Compiler
+  // can't analyse, so it skips compiling this component. Nothing to fix at this
+  // call site — the constraint is the library's.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
