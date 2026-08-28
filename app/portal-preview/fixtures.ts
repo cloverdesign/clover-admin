@@ -44,6 +44,7 @@ function milestone(
     status,
     order,
     dueDate,
+    phase: null,
     completedAt: status === "COMPLETED" ? dueDate : null,
     createdAt: "2026-03-01T09:00:00.000Z",
     updatedAt: NOW,

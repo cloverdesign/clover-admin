@@ -153,6 +153,9 @@ export interface Milestone {
   status: MilestoneStatus
   order: number
   dueDate: string | null
+  /** Phase label this milestone belongs to. Written by the revision approve
+   * flow when it scaffolds a new phase; null on milestones added directly. */
+  phase: string | null
   completedAt: string | null
   createdAt: string
   updatedAt: string
