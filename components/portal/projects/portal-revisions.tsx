@@ -40,25 +40,42 @@ import type { RevisionRequest, RevisionStatus } from "@/lib/api/models"
  * through Requested → In review → Approved / Declined. Once approved, the studio
  * links the resulting project, which the client can jump straight to.
  */
-export function PortalRevisions({ projectId }: { projectId: string }) {
+export function PortalRevisions({
+  projectId,
+  bare,
+}: {
+  projectId: string
+  /** Drop the card and heading — the project page's Requests tab already names
+   * this section, and repeating the label inside it reads as a mistake. */
+  bare?: boolean
+}) {
   const { data, isLoading, isError } = usePortalRevisions()
 
   const requests = (data ?? [])
     .filter((r) => r.projectId === projectId)
     .sort((a, b) => byNewest(a.createdAt, b.createdAt))
 
+  const Wrapper = bare ? "div" : "section"
+
   return (
-    <section className="rounded-2xl border bg-card p-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <HugeiconsIcon icon={GitBranchIcon} className="size-4 text-muted-foreground" />
-          <h2 className="font-heading text-sm font-medium">Revision requests</h2>
-          {requests.length > 0 && (
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {requests.length}
-            </span>
-          )}
-        </div>
+    <Wrapper className={bare ? "flex flex-col gap-4" : "rounded-2xl border bg-card p-5"}>
+      <div
+        className={cn(
+          "flex items-center gap-3",
+          bare ? "justify-end" : "justify-between"
+        )}
+      >
+        {!bare && (
+          <div className="flex items-center gap-2">
+            <HugeiconsIcon icon={GitBranchIcon} className="size-4 text-muted-foreground" />
+            <h2 className="font-heading text-sm font-medium">Revision requests</h2>
+            {requests.length > 0 && (
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {requests.length}
+              </span>
+            )}
+          </div>
+        )}
         <NewRevisionDialog projectId={projectId} />
       </div>
 
@@ -75,13 +92,13 @@ export function PortalRevisions({ projectId }: { projectId: string }) {
           Need a change? Request a revision and your studio will take it from there.
         </p>
       ) : (
-        <ul className="mt-4 flex flex-col gap-3">
+        <ul className={cn("flex flex-col gap-3", !bare && "mt-4")}>
           {requests.map((request) => (
             <RevisionCard key={request.id} request={request} />
           ))}
         </ul>
       )}
-    </section>
+    </Wrapper>
   )
 }
 

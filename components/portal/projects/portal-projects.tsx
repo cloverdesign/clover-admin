@@ -1,10 +1,8 @@
 "use client"
 
-import Link from "next/link"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Loading03Icon,
-  ArrowLeft01Icon,
   Folder01Icon,
 } from "@hugeicons/core-free-icons"
 
@@ -56,22 +54,13 @@ export function PortalProjects() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <Link
-          href="/"
-          className="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-          Dashboard
-        </Link>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Your projects</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {projects.length === 0
-              ? "You don’t have any projects yet."
-              : summarize(topLevel.length, projects.length - topLevel.length)}
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Your projects</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {projects.length === 0
+            ? "You don’t have any projects yet."
+            : summarize(topLevel.length, projects.length - topLevel.length)}
+        </p>
       </div>
 
       {projects.length === 0 ? (
