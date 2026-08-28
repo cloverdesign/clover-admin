@@ -2,29 +2,41 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Calendar03Icon,
   Attachment01Icon,
   GitMergeIcon,
   Folder01Icon,
-  CheckmarkCircle02Icon,
   Cancel01Icon,
   ArrowRight01Icon,
   ArrowDown01Icon,
+  Add01Icon,
+  Delete02Icon,
   Loading03Icon,
 } from "@hugeicons/core-free-icons"
 
-import { formatDate } from "@/lib/format"
+import { formatDate, toApiDateTime } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogContent,
@@ -48,8 +60,9 @@ import { revisionTitle } from "@/components/admin/revisions/revisions-table"
 
 /**
  * Revision request detail — review, then decide (§1.2.5): approve as a new phase
- * on the project, approve as a new linked project, or decline. Real mutations;
- * status reflects the refetched record.
+ * (authored inline — phase name, milestones, optional new end date; backend-requests
+ * §7a), approve as a new linked project, or decline with a reason surfaced to the
+ * client (§7b). Real mutations; the resolved record drives the banner.
  */
 export function RevisionDetail({ id }: { id: string }) {
   const revisionQ = useRevision(id)
@@ -70,6 +83,9 @@ export function RevisionDetail({ id }: { id: string }) {
 function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
   const title = revisionTitle(revision.description)
   const [declineOpen, setDeclineOpen] = React.useState(false)
+  const [declineReason, setDeclineReason] = React.useState("")
+  const [phaseOpen, setPhaseOpen] = React.useState(false)
+  const [projectOpen, setProjectOpen] = React.useState(false)
 
   const projectQ = useProject(revision.projectId)
   const clientQ = useClient(revision.clientId)
@@ -85,24 +101,19 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
 
   const markInReview = () =>
     statusM.mutate({ id: revision.id, input: { status: "IN_REVIEW" } })
-  const decline = () => {
+
+  const decline = () =>
     statusM.mutate(
-      { id: revision.id, input: { status: "DECLINED" } },
+      { id: revision.id, input: { status: "DECLINED", decisionNote: declineReason.trim() || undefined } },
       { onSuccess: () => setDeclineOpen(false) }
     )
-  }
-  const approveAsPhase = () =>
-    approveM.mutate({
-      id: revision.id,
-      input: { type: "new_phase", phaseNote: `New phase from: ${title}` },
-    })
-  const approveAsProject = () =>
-    approveM.mutate({
-      id: revision.id,
-      input: { type: "new_project", projectName: title, projectDescription: revision.description },
-    })
 
-  const attachments = revision.attachments as { name?: string; size?: string }[]
+  const attachments = revision.attachments ?? []
+  // §7a: a phase approval links back to the same project; a project approval to a new one.
+  const resultsInProject =
+    Boolean(revision.resultingProjectId) &&
+    revision.resultingProjectId !== revision.projectId
+  const decisionNote = revision.decisionNote ?? revision.resultingPhaseNote
 
   return (
     <div className="mx-auto w-full max-w-3xl">
@@ -142,14 +153,14 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
                 }
               />
               <DropdownMenuContent align="end" className="w-64">
-                <DropdownMenuItem onClick={approveAsPhase}>
+                <DropdownMenuItem onClick={() => setPhaseOpen(true)}>
                   <HugeiconsIcon icon={GitMergeIcon} />
                   <div>
                     <div className="text-sm">As new phase</div>
                     <div className="text-xs text-muted-foreground">Extends {projectName}</div>
                   </div>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={approveAsProject}>
+                <DropdownMenuItem onClick={() => setProjectOpen(true)}>
                   <HugeiconsIcon icon={Folder01Icon} />
                   <div>
                     <div className="text-sm">As linked project</div>
@@ -163,38 +174,45 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
       </div>
 
       {/* Resolution banner */}
-      {status === "APPROVED" && revision.resultingProjectId && (
+      {status === "APPROVED" && resultsInProject && (
         <Link
           href={`/admin/projects/${revision.resultingProjectId}`}
           className="mt-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 transition-colors hover:border-foreground/20"
         >
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success">
-            <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-5" />
-          </span>
+          <ResolutionIcon icon={Folder01Icon} tone="success" />
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">Approved · linked project</div>
-            <div className="truncate text-xs text-muted-foreground">Opens the linked project</div>
+            <div className="truncate text-xs text-muted-foreground">
+              {decisionNote ?? "Opens the linked project"}
+            </div>
           </div>
           <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 text-muted-foreground" />
         </Link>
       )}
-      {status === "APPROVED" && revision.resultingPhaseNote && (
-        <div className="mt-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success">
-            <HugeiconsIcon icon={GitMergeIcon} className="size-5" />
-          </span>
+      {status === "APPROVED" && !resultsInProject && (
+        <Link
+          href={`/admin/projects/${revision.projectId}`}
+          className="mt-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3 transition-colors hover:border-foreground/20"
+        >
+          <ResolutionIcon icon={GitMergeIcon} tone="success" />
           <div className="min-w-0 flex-1">
             <div className="text-sm font-medium">Approved · new phase</div>
-            <div className="truncate text-xs text-muted-foreground">{revision.resultingPhaseNote}</div>
+            <div className="truncate text-xs text-muted-foreground">
+              {decisionNote ?? `Added to ${projectName}`}
+            </div>
           </div>
-        </div>
+          <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 text-muted-foreground" />
+        </Link>
       )}
       {status === "DECLINED" && (
-        <div className="mt-6 flex items-center gap-3 rounded-2xl border bg-card px-4 py-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <HugeiconsIcon icon={Cancel01Icon} className="size-5" />
-          </span>
-          <div className="text-sm text-muted-foreground">Declined on review — follow up outside the system.</div>
+        <div className="mt-6 flex items-start gap-3 rounded-2xl border bg-card px-4 py-3">
+          <ResolutionIcon icon={Cancel01Icon} tone="muted" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium">Declined</div>
+            <div className="text-xs text-muted-foreground">
+              {decisionNote ?? "No reason was recorded."}
+            </div>
+          </div>
         </div>
       )}
 
@@ -220,39 +238,298 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
             <SectionLabel>Attachments</SectionLabel>
             <div className="mt-2 flex flex-col divide-y divide-border rounded-xl border bg-card">
               {attachments.map((a, i) => (
-                <button
+                <a
                   key={i}
-                  type="button"
-                  onClick={() => toast.success(`Downloading ${a.name ?? "attachment"}`)}
-                  className="flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+                  href={a.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40"
                 >
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
                     <HugeiconsIcon icon={Attachment01Icon} className="size-4" />
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm">{a.name ?? `Attachment ${i + 1}`}</span>
-                  {a.size && <span className="shrink-0 text-xs text-muted-foreground">{a.size}</span>}
-                </button>
+                  <span className="min-w-0 flex-1 truncate text-sm">{a.name || a.url}</span>
+                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 shrink-0 text-muted-foreground/50" />
+                </a>
               ))}
             </div>
           </section>
         )}
       </div>
 
+      <ApprovePhaseDialog
+        open={phaseOpen}
+        onOpenChange={setPhaseOpen}
+        projectName={projectName}
+        busy={busy}
+        onApprove={(input) => approveM.mutate({ id: revision.id, input }, { onSuccess: () => setPhaseOpen(false) })}
+      />
+      <ApproveProjectDialog
+        open={projectOpen}
+        onOpenChange={setProjectOpen}
+        defaultName={title}
+        defaultDescription={revision.description}
+        busy={busy}
+        onApprove={(input) => approveM.mutate({ id: revision.id, input }, { onSuccess: () => setProjectOpen(false) })}
+      />
+
       <AlertDialog open={declineOpen} onOpenChange={setDeclineOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Decline this request?</AlertDialogTitle>
             <AlertDialogDescription>
-              The client will see it marked declined. You can follow up outside the system.
+              Let the client know why — they’ll see this reason on their request.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <Textarea
+            autoFocus
+            value={declineReason}
+            onChange={(e) => setDeclineReason(e.target.value)}
+            placeholder="Reason for declining (shown to the client)…"
+            rows={3}
+          />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={decline}>Decline</AlertDialogAction>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={busy || declineReason.trim().length === 0}
+              onClick={decline}
+            >
+              Decline
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+/* ------------------------------------------------------- approve: new phase */
+
+type MilestoneRow = { title: string; due: string }
+
+function ApprovePhaseDialog({
+  open,
+  onOpenChange,
+  projectName,
+  busy,
+  onApprove,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  projectName: string
+  busy: boolean
+  onApprove: (input: {
+    type: "new_phase"
+    phase: string
+    milestones: { title: string; dueDate?: string }[]
+    endDate?: string
+  }) => void
+}) {
+  const [phase, setPhase] = React.useState("")
+  const [rows, setRows] = React.useState<MilestoneRow[]>([{ title: "", due: "" }])
+  const [endDate, setEndDate] = React.useState("")
+
+  const namedRows = rows.filter((r) => r.title.trim())
+  const valid = phase.trim().length > 0 && namedRows.length > 0
+
+  const submit = () =>
+    onApprove({
+      type: "new_phase",
+      phase: phase.trim(),
+      milestones: namedRows.map((r) => ({
+        title: r.title.trim(),
+        dueDate: toApiDateTime(r.due),
+      })),
+      endDate: toApiDateTime(endDate),
+    })
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Approve as a new phase</DialogTitle>
+          <DialogDescription>
+            Adds a phase and its milestones to {projectName}, and can extend the target
+            finish. The client sees the new milestones on their timeline.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="phase-name">Phase name</Label>
+            <Input
+              id="phase-name"
+              autoFocus
+              value={phase}
+              onChange={(e) => setPhase(e.target.value)}
+              placeholder="e.g. Phase 2 — Rollout"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>Milestones</Label>
+            {rows.map((row, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  value={row.title}
+                  onChange={(e) =>
+                    setRows((prev) => prev.map((r, j) => (j === i ? { ...r, title: e.target.value } : r)))
+                  }
+                  placeholder="Milestone title"
+                  className="flex-1"
+                />
+                <Input
+                  type="date"
+                  value={row.due}
+                  onChange={(e) =>
+                    setRows((prev) => prev.map((r, j) => (j === i ? { ...r, due: e.target.value } : r)))
+                  }
+                  className="w-40"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Remove milestone"
+                  disabled={rows.length === 1}
+                  onClick={() => setRows((prev) => prev.filter((_, j) => j !== i))}
+                >
+                  <HugeiconsIcon icon={Delete02Icon} className="size-4" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-fit"
+              onClick={() => setRows((prev) => [...prev, { title: "", due: "" }])}
+            >
+              <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-4" />
+              Add milestone
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="phase-end">
+              New target finish <span className="text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              id="phase-end"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-48"
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+          <Button disabled={!valid || busy} onClick={submit}>
+            Approve phase
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/* ----------------------------------------------------- approve: new project */
+
+function ApproveProjectDialog({
+  open,
+  onOpenChange,
+  defaultName,
+  defaultDescription,
+  busy,
+  onApprove,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  defaultName: string
+  defaultDescription: string
+  busy: boolean
+  onApprove: (input: {
+    type: "new_project"
+    projectName: string
+    projectDescription: string
+  }) => void
+}) {
+  // Seeded from the request; this dialog is scoped to one revision, so the
+  // defaults are stable for its lifetime.
+  const [name, setName] = React.useState(defaultName)
+  const [description, setDescription] = React.useState(defaultDescription)
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Approve as a linked project</DialogTitle>
+          <DialogDescription>
+            Scaffolds a new project with its own brief, timeline and invoices, linked to
+            this client. It appears in their portal as a separate project.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="proj-name">Project name</Label>
+            <Input
+              id="proj-name"
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="New project name"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="proj-desc">Brief</Label>
+            <Textarea
+              id="proj-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <DialogClose render={<Button variant="ghost">Cancel</Button>} />
+          <Button
+            disabled={busy || name.trim().length === 0}
+            onClick={() =>
+              onApprove({
+                type: "new_project",
+                projectName: name.trim(),
+                projectDescription: description.trim(),
+              })
+            }
+          >
+            Create project
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ResolutionIcon({
+  icon,
+  tone,
+}: {
+  icon: typeof GitMergeIcon
+  tone: "success" | "muted"
+}) {
+  return (
+    <span
+      className={
+        tone === "success"
+          ? "flex size-9 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success"
+          : "flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
+      }
+    >
+      <HugeiconsIcon icon={icon} className="size-5" />
+    </span>
   )
 }
 

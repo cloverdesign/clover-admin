@@ -202,31 +202,53 @@ export interface InvoiceInput {
 
 export type RevisionStatus = "REQUESTED" | "IN_REVIEW" | "APPROVED" | "DECLINED"
 
+/** A client-attached reference on a revision request (docs/backend-requests §7c). */
+export interface RevisionAttachment {
+  url: string
+  name: string
+}
+
 export interface RevisionRequest {
   id: string
   projectId: string
   clientId: string
   description: string
   targetTimeframe: string | null
-  attachments: unknown[]
+  attachments: RevisionAttachment[]
   status: RevisionStatus
   resultingProjectId: string | null
+  /** @deprecated superseded by `decisionNote` (backend-requests §7b). */
   resultingPhaseNote: string | null
+  /** Admin's message on a terminal decision — decline reason or phase note (§7b). */
+  decisionNote: string | null
+  /** Set when promoted from a deliverable's "request changes" (§7d). */
+  deliverableId: string | null
   createdAt: string
   updatedAt: string
 }
 
 export interface RevisionStatusInput {
   status: RevisionStatus
-  resultingPhaseNote?: string
+  /** Reason/message surfaced to the client (§7b). */
+  decisionNote?: string
+}
+
+/** One milestone authored inline when approving as a new phase (§7a). */
+export interface RevisionPhaseMilestoneInput {
+  title: string
+  dueDate?: string
 }
 
 /** Approve → scaffold as a new phase on the same project, or a new project. */
 export interface RevisionApproveInput {
   type: "new_phase" | "new_project"
+  // new_project
   projectName?: string
   projectDescription?: string
-  phaseNote?: string
+  // new_phase — authored inline at approval (§7a)
+  phase?: string
+  milestones?: RevisionPhaseMilestoneInput[]
+  endDate?: string
 }
 
 /* --------------------------------------------------------------------- auth */
@@ -386,6 +408,8 @@ export interface PortalRevisionRequestInput {
   description: string
   targetTimeframe?: string
   attachments?: { url: string; name: string }[]
+  /** Set when raised from a deliverable's "request changes" (§7d). */
+  deliverableId?: string
 }
 
 /** `PUT /api/portal/me` — the client-editable subset of their profile. */
