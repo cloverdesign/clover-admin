@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Loading03Icon } from "@hugeicons/core-free-icons"
 
@@ -11,20 +12,37 @@ import {
   usePortalAllInvoices,
   usePortalProjects,
 } from "@/lib/queries/portal-queries"
+import { PortalPage, PortalFilterPill } from "@/components/portal/shell/portal-page"
 import { billingSummary } from "@/components/portal/home/use-portal-overview"
 import {
   InvoiceList,
   visibleInvoices,
 } from "@/components/portal/invoices/invoice-list"
+import type { Invoice } from "@/lib/api/models"
+
+type Slice = "all" | "open" | "paid"
+
+const SLICE_LABEL: Record<Slice, string> = {
+  all: "All",
+  open: "Open",
+  paid: "Paid",
+}
+
+function inSlice(invoice: Invoice, slice: Slice): boolean {
+  if (slice === "open") return invoice.status === "SENT" || invoice.status === "OVERDUE"
+  if (slice === "paid") return invoice.status === "PAID"
+  return true
+}
 
 /**
  * Everything billed, in one place — the page `GET /api/portal/invoices` made
- * possible. The summary band reuses the dashboard's `billingSummary`, so the
+ * possible. The hero summary reuses the dashboard's `billingSummary`, so the
  * headline here and the card there can't disagree.
  */
 export function PortalBilling() {
   const invoicesQ = usePortalAllInvoices()
   const projectsQ = usePortalProjects()
+  const [slice, setSlice] = React.useState<Slice>("all")
 
   const projects = projectsQ.data ?? []
   const projectName = (id: string) =>
@@ -49,28 +67,47 @@ export function PortalBilling() {
   }
 
   const invoices = invoicesQ.data ?? []
-  const shown = visibleInvoices(invoices)
   const billing = billingSummary(invoices)
+  const shown = visibleInvoices(invoices).filter((i) => inSlice(i, slice))
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Invoices</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {shown.length === 0
-            ? "Invoices from your studio collect here."
-            : `${shown.length} invoice${shown.length === 1 ? "" : "s"} issued`}
-        </p>
-      </div>
-
-      {billing && <SummaryBand billing={billing} />}
-
-      <InvoiceList invoices={invoices} projectName={projectName} />
-    </div>
+    <PortalPage
+      title="Invoices"
+      subtitle="Every invoice your studio has issued."
+      summary={billing && <BillingSummary billing={billing} />}
+      toolbar={
+        <>
+          {(Object.keys(SLICE_LABEL) as Slice[]).map((key) => (
+            <PortalFilterPill
+              key={key}
+              active={slice === key}
+              onClick={() => setSlice(key)}
+            >
+              {SLICE_LABEL[key]}
+            </PortalFilterPill>
+          ))}
+        </>
+      }
+      meta={`${shown.length} invoice${shown.length === 1 ? "" : "s"}`}
+    >
+      <InvoiceList
+        invoices={shown}
+        projectName={projectName}
+        emptyMessage={
+          slice === "open"
+            ? "Nothing outstanding. You’re all paid up."
+            : slice === "paid"
+              ? "No paid invoices yet."
+              : "Invoices appear here once your studio issues one."
+        }
+      />
+    </PortalPage>
   )
 }
 
-function SummaryBand({
+/** Paid vs outstanding, in the client's primary currency, with the next date
+ * that matters. Lives in the hero: it describes the page, not the filter. */
+function BillingSummary({
   billing,
 }: {
   billing: NonNullable<ReturnType<typeof billingSummary>>

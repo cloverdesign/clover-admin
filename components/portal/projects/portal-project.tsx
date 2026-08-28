@@ -16,11 +16,13 @@ import {
   usePortalRevisions,
 } from "@/lib/queries/portal-queries"
 import { ProjectStatusBadge } from "@/components/portal/parts"
+import { PortalPage } from "@/components/portal/shell/portal-page"
 import { PortalMilestones } from "@/components/portal/projects/portal-milestones"
 import { PortalRevisions } from "@/components/portal/projects/portal-revisions"
 import { DeliverableList } from "@/components/portal/deliverables/deliverable-list"
 import { InvoiceList, visibleInvoices } from "@/components/portal/invoices/invoice-list"
 import { SegmentedProgress } from "@/components/ui/segmented-progress"
+import type { Project } from "@/lib/api/models"
 
 /**
  * Client project view. The brief, phase and timeline lead; files, invoices and
@@ -66,55 +68,35 @@ export function PortalProject({ id }: { id: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>
-          <ProjectStatusBadge status={project.status} />
-        </div>
-        <div className="flex flex-col gap-2">
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono text-2xl font-semibold tracking-tight tabular-nums">
-              {Math.round(project.progress)}%
-            </span>
-            <span className="text-sm text-muted-foreground">
-              {project.phase || "In progress"}
-            </span>
-          </div>
-          <SegmentedProgress value={project.progress} className="h-10 max-w-md" />
-        </div>
-      </div>
-
-      <ProjectTabs
-        projectId={project.id}
-        overview={
-          <div className="flex flex-col gap-4">
-            {project.description && (
-              <section className="rounded-2xl border bg-card p-5">
-                <h2 className="font-heading text-sm font-medium">Brief</h2>
-                <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
-                  {project.description}
-                </p>
-              </section>
-            )}
-
+    <ProjectTabs
+      project={project}
+      overview={
+        <>
+          {project.description && (
             <section className="rounded-2xl border bg-card p-5">
-              <h2 className="font-heading text-sm font-medium">Details</h2>
-              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-                {details.map((d) => (
-                  <div key={d.label} className="min-w-0">
-                    <dt className="text-xs text-muted-foreground">{d.label}</dt>
-                    <dd className="mt-0.5 truncate text-sm">{d.value}</dd>
-                  </div>
-                ))}
-              </dl>
+              <h2 className="font-heading text-sm font-medium">Brief</h2>
+              <p className="mt-2 text-sm whitespace-pre-wrap text-muted-foreground">
+                {project.description}
+              </p>
             </section>
+          )}
 
-            <PortalMilestones milestones={project.milestones ?? []} />
-          </div>
-        }
-      />
-    </div>
+          <section className="rounded-2xl border bg-card p-5">
+            <h2 className="font-heading text-sm font-medium">Details</h2>
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+              {details.map((d) => (
+                <div key={d.label} className="min-w-0">
+                  <dt className="text-xs text-muted-foreground">{d.label}</dt>
+                  <dd className="mt-0.5 truncate text-sm">{d.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <PortalMilestones milestones={project.milestones ?? []} />
+        </>
+      }
+    />
   )
 }
 
@@ -122,12 +104,13 @@ const TAB_KEYS = ["overview", "files", "invoices", "requests"] as const
 type TabKey = (typeof TAB_KEYS)[number]
 
 function ProjectTabs({
-  projectId,
+  project,
   overview,
 }: {
-  projectId: string
+  project: Project
   overview: React.ReactNode
 }) {
+  const projectId = project.id
   const [tab, setTab] = React.useState<TabKey>("overview")
 
   const deliverablesQ = usePortalProjectDeliverables(projectId)
@@ -153,47 +136,70 @@ function ProjectTabs({
   }
 
   return (
-    <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)}>
-      <TabsList className="max-w-full overflow-x-auto">
-        {TAB_KEYS.map((key) => (
-          <TabsTrigger key={key} value={key}>
-            {labels[key]}
-            {counts[key] ? (
-              <span className="ml-1.5 text-xs tabular-nums opacity-60">
-                {counts[key]}
+    <Tabs
+      value={tab}
+      onValueChange={(v) => setTab(v as TabKey)}
+      className="gap-0"
+    >
+      <PortalPage
+        title={project.name}
+        subtitle={project.phase || "In progress"}
+        summary={
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="font-mono text-2xl font-semibold tracking-tight tabular-nums">
+                {Math.round(project.progress)}%
               </span>
-            ) : null}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+              <ProjectStatusBadge status={project.status} />
+            </div>
+            <SegmentedProgress value={project.progress} className="h-10 max-w-md" />
+          </div>
+        }
+        toolbar={
+          <TabsList>
+            {TAB_KEYS.map((key) => (
+              <TabsTrigger key={key} value={key}>
+                {labels[key]}
+                {counts[key] ? (
+                  <span className="ml-1.5 text-xs tabular-nums opacity-60">
+                    {counts[key]}
+                  </span>
+                ) : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        }
+      >
+        <TabsContent value="overview" className="flex flex-col gap-4">
+          {overview}
+        </TabsContent>
 
-      <TabsContent value="overview">{overview}</TabsContent>
+        <TabsContent value="files">
+          {deliverablesQ.isLoading ? (
+            <TabLoading />
+          ) : (
+            <DeliverableList
+              deliverables={deliverables}
+              emptyMessage="Nothing shipped on this project yet."
+            />
+          )}
+        </TabsContent>
 
-      <TabsContent value="files">
-        {deliverablesQ.isLoading ? (
-          <TabLoading />
-        ) : (
-          <DeliverableList
-            deliverables={deliverables}
-            emptyMessage="Nothing shipped on this project yet."
-          />
-        )}
-      </TabsContent>
+        <TabsContent value="invoices">
+          {invoicesQ.isLoading ? (
+            <TabLoading />
+          ) : (
+            <InvoiceList
+              invoices={invoices}
+              emptyMessage="No invoices on this project yet."
+            />
+          )}
+        </TabsContent>
 
-      <TabsContent value="invoices">
-        {invoicesQ.isLoading ? (
-          <TabLoading />
-        ) : (
-          <InvoiceList
-            invoices={invoices}
-            emptyMessage="No invoices on this project yet."
-          />
-        )}
-      </TabsContent>
-
-      <TabsContent value="requests">
-        <PortalRevisions projectId={projectId} bare />
-      </TabsContent>
+        <TabsContent value="requests">
+          <PortalRevisions projectId={projectId} bare />
+        </TabsContent>
+      </PortalPage>
     </Tabs>
   )
 }

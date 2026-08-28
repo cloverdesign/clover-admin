@@ -71,8 +71,11 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           <HeaderNav />
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          <div className="mx-auto w-full max-w-5xl">{children}</div>
+        {/* Vertical padding lives on the inner column, not here: a sticky
+            toolbar pins to the scroll port's padding box, so top padding on
+            `main` would leave a band above it where content scrolls in view. */}
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6">
+          <div className="mx-auto w-full max-w-5xl py-4 sm:py-6">{children}</div>
         </main>
       </div>
     </div>
@@ -204,20 +207,25 @@ function HeaderNav() {
           <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5" />
         </Link>
       )}
-      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5">
+      {/* Small and grey on purpose: the page's own hero carries the title, and
+          two prominent copies of it read as a mistake. */}
+      <nav
+        aria-label="Breadcrumb"
+        className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
+      >
         {deeper ? (
           <>
             <Link
               href={base.href}
-              className="hidden truncate text-base font-medium tracking-tight text-muted-foreground transition-colors hover:text-foreground sm:block"
+              className="hidden truncate transition-colors hover:text-foreground sm:block"
             >
               {base.label}
             </Link>
             <HugeiconsIcon
               icon={ArrowRight01Icon}
-              className="hidden size-4 shrink-0 text-muted-foreground/50 sm:block"
+              className="hidden size-3.5 shrink-0 text-muted-foreground/50 sm:block"
             />
-            <span className="truncate text-base font-semibold tracking-tight">
+            <span className="truncate text-foreground">
               {projectId ? (
                 <ProjectCrumb id={projectId} fallback={segmentLabel(pathname)} />
               ) : (
@@ -226,9 +234,7 @@ function HeaderNav() {
             </span>
           </>
         ) : (
-          <span className="truncate text-base font-semibold tracking-tight">
-            {base.label}
-          </span>
+          <span className="truncate">{base.label}</span>
         )}
       </nav>
     </div>

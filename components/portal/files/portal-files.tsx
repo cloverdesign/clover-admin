@@ -4,12 +4,12 @@ import * as React from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Loading03Icon } from "@hugeicons/core-free-icons"
 
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   usePortalAllDeliverables,
   usePortalProjects,
 } from "@/lib/queries/portal-queries"
+import { PortalPage, PortalFilterPill } from "@/components/portal/shell/portal-page"
 import { DeliverableList } from "@/components/portal/deliverables/deliverable-list"
 
 /**
@@ -51,39 +51,35 @@ export function PortalFiles() {
   const shown = projectFilter
     ? all.filter((d) => d.projectId === projectFilter)
     : all
-  const readyCount = all.filter((d) => d.status === "READY").length
+  const shownCount = shown.filter((d) => d.status === "READY").length
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Files</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {readyCount === 0
-            ? "Finished work from your studio collects here."
-            : `${readyCount} file${readyCount === 1 ? "" : "s"} across your projects`}
-        </p>
-      </div>
-
-      {withFiles.length > 1 && (
-        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-          <FilterPill
-            active={projectFilter === null}
-            onClick={() => setProjectFilter(null)}
-          >
-            All
-          </FilterPill>
-          {withFiles.map((p) => (
-            <FilterPill
-              key={p.id}
-              active={projectFilter === p.id}
-              onClick={() => setProjectFilter(p.id)}
+    <PortalPage
+      title="Files"
+      subtitle="Everything your studio has shipped, newest first."
+      toolbar={
+        withFiles.length > 1 ? (
+          <>
+            <PortalFilterPill
+              active={projectFilter === null}
+              onClick={() => setProjectFilter(null)}
             >
-              {p.name}
-            </FilterPill>
-          ))}
-        </div>
-      )}
-
+              All
+            </PortalFilterPill>
+            {withFiles.map((p) => (
+              <PortalFilterPill
+                key={p.id}
+                active={projectFilter === p.id}
+                onClick={() => setProjectFilter(p.id)}
+              >
+                {p.name}
+              </PortalFilterPill>
+            ))}
+          </>
+        ) : null
+      }
+      meta={`${shownCount} file${shownCount === 1 ? "" : "s"}`}
+    >
       <DeliverableList
         deliverables={shown}
         projectName={projectFilter ? undefined : projectName}
@@ -93,32 +89,6 @@ export function PortalFiles() {
             : "Finished work shows up here as your studio ships it."
         }
       />
-    </div>
-  )
-}
-
-function FilterPill({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "shrink-0 rounded-full px-3 py-1.5 text-sm whitespace-nowrap transition-colors",
-        active
-          ? "bg-secondary font-medium text-secondary-foreground"
-          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-      )}
-    >
-      {children}
-    </button>
+    </PortalPage>
   )
 }
