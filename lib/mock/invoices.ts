@@ -48,7 +48,7 @@ function inv(
 export const INVOICES: Invoice[] = [
   inv({
     id: "inv-atlas-site-1", invoiceNumber: "INV-2024-014",
-    clientId: "c-atlas", client: "Atlas Foods",
+    clientId: "c-atlas", client: "Contoso Foods",
     projectId: "p-atlas-1", projectName: "Site build",
     status: "OVERDUE", currency: "USD",
     issuedDate: "2024-06-12", dueDate: "2024-07-12",
@@ -59,7 +59,7 @@ export const INVOICES: Invoice[] = [
   }),
   inv({
     id: "inv-atlas-site-2", invoiceNumber: "INV-2024-021",
-    clientId: "c-atlas", client: "Atlas Foods",
+    clientId: "c-atlas", client: "Contoso Foods",
     projectId: "p-atlas-1", projectName: "Site build",
     status: "DRAFT", currency: "USD",
     issuedDate: "2024-08-01", dueDate: "2024-08-31",
@@ -67,7 +67,7 @@ export const INVOICES: Invoice[] = [
   }),
   inv({
     id: "inv-atlas-brand", invoiceNumber: "INV-2024-006",
-    clientId: "c-atlas", client: "Atlas Foods",
+    clientId: "c-atlas", client: "Contoso Foods",
     projectId: "p-atlas-2", projectName: "Brand system",
     status: "PAID", currency: "USD",
     issuedDate: "2024-03-20", dueDate: "2024-04-19", paidDate: "2024-04-10",
@@ -86,7 +86,7 @@ export const INVOICES: Invoice[] = [
   }),
   inv({
     id: "inv-kite-1", invoiceNumber: "INV-2024-004",
-    clientId: "c-kite", client: "Kite",
+    clientId: "c-kite", client: "Litware",
     projectId: "p-kite-1", projectName: "Identity",
     status: "PAID", currency: "GBP",
     issuedDate: "2024-02-28", dueDate: "2024-03-29", paidDate: "2024-03-12",
@@ -94,7 +94,7 @@ export const INVOICES: Invoice[] = [
   }),
   inv({
     id: "inv-muse-1", invoiceNumber: "INV-2024-019",
-    clientId: "c-muse", client: "Muse",
+    clientId: "c-muse", client: "Relecloud",
     projectId: "p-muse-1", projectName: "Campaign",
     status: "SENT", currency: "USD",
     issuedDate: "2024-07-15", dueDate: "2024-08-14",
@@ -102,7 +102,7 @@ export const INVOICES: Invoice[] = [
   }),
   inv({
     id: "inv-verde-1", invoiceNumber: "INV-2025-003",
-    clientId: "c-verde", client: "Verde Studio",
+    clientId: "c-verde", client: "Wide World Studio",
     projectId: "p-verde-1", projectName: "Rebrand",
     status: "DRAFT", currency: "EUR",
     issuedDate: "2025-06-24", dueDate: "2025-07-24",
@@ -110,7 +110,7 @@ export const INVOICES: Invoice[] = [
   }),
   inv({
     id: "inv-orch-1", invoiceNumber: "INV-2024-010",
-    clientId: "c-orchard", client: "Orchard",
+    clientId: "c-orchard", client: "VanArsdel",
     projectId: "p-orch-1", projectName: "Packaging",
     status: "PAID", currency: "USD",
     issuedDate: "2024-05-20", dueDate: "2024-06-19", paidDate: "2024-06-05",
@@ -118,7 +118,7 @@ export const INVOICES: Invoice[] = [
   }),
   inv({
     id: "inv-lumen-1", invoiceNumber: "INV-2024-013",
-    clientId: "c-lumen", client: "Lumen",
+    clientId: "c-lumen", client: "Proseware",
     projectId: "p-lumen-1", projectName: "Web app",
     status: "OVERDUE", currency: "EUR",
     issuedDate: "2024-06-05", dueDate: "2024-07-05",
@@ -126,7 +126,7 @@ export const INVOICES: Invoice[] = [
   }),
   inv({
     id: "inv-lumen-2", invoiceNumber: "INV-2024-020",
-    clientId: "c-lumen", client: "Lumen",
+    clientId: "c-lumen", client: "Proseware",
     projectId: "p-lumen-1", projectName: "Web app",
     status: "SENT", currency: "EUR",
     issuedDate: "2024-07-20", dueDate: "2024-08-19",
@@ -134,7 +134,7 @@ export const INVOICES: Invoice[] = [
   }),
   inv({
     id: "inv-fable-1", invoiceNumber: "INV-2024-008",
-    clientId: "c-fable", client: "Fable",
+    clientId: "c-fable", client: "Fabrikam",
     projectId: "p-fable-1", projectName: "Motion reel",
     status: "PAID", currency: "USD",
     issuedDate: "2024-07-20", dueDate: "2024-08-19", paidDate: "2024-08-01",
@@ -142,7 +142,7 @@ export const INVOICES: Invoice[] = [
   }),
   inv({
     id: "inv-harbor-1", invoiceNumber: "INV-2023-021",
-    clientId: "c-harbor", client: "Harbor & Co",
+    clientId: "c-harbor", client: "Woodgrove & Co",
     projectId: "p-harbor-1", projectName: "Website",
     status: "PAID", currency: "USD",
     issuedDate: "2023-12-12", dueDate: "2024-01-11", paidDate: "2024-01-03",

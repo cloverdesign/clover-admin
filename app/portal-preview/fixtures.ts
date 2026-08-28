@@ -19,9 +19,9 @@ const NOW = "2026-08-24T10:00:00.000Z"
 export const CLIENT: Client = {
   id: "cl-1",
   name: "Dana Okafor",
-  email: "dana@atlasfoods.com",
+  email: "dana@example.com",
   phone: "+234 802 555 0134",
-  company: "Atlas Foods",
+  company: "Contoso Foods",
   status: "ACTIVE",
   notes: null,
   createdAt: "2026-02-11T09:00:00.000Z",
@@ -97,7 +97,7 @@ function project(p: Partial<Project> & Pick<Project, "id" | "name">): Project {
 const PROJECTS_BASE: Project[] = [
   project({
     id: "p-1",
-    name: "Atlas Foods rebrand",
+    name: "Contoso Foods rebrand",
     type: "Brand identity",
     phase: "Design",
     description:

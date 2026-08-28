@@ -26,7 +26,7 @@ export function InputsSection() {
         <div className="grid max-w-md gap-4">
           <div className="grid gap-2">
             <Label htmlFor="pg-email">Contact email</Label>
-            <Input id="pg-email" type="email" placeholder="client@acme.com" />
+            <Input id="pg-email" type="email" placeholder="client@example.com" />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="pg-brief">Project brief</Label>
