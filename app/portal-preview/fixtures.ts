@@ -271,6 +271,8 @@ export const REVISIONS: RevisionRequest[] = [
     status: "APPROVED",
     resultingProjectId: "p-3",
     resultingPhaseNote: null,
+    decisionNote: "Spinning this up as its own project so it doesn't hold up the rebrand.",
+    deliverableId: null,
     createdAt: "2026-08-04T08:20:00.000Z",
     updatedAt: "2026-08-09T12:00:00.000Z",
   },
@@ -287,5 +289,7 @@ export const REVISIONS: RevisionRequest[] = [
     updatedAt: "2026-08-22T15:10:00.000Z",
     resultingProjectId: null,
     resultingPhaseNote: null,
+    decisionNote: null,
+    deliverableId: "d-4",
   },
 ]

@@ -271,6 +271,9 @@ export interface RevisionApproveInput {
   phase?: string
   milestones?: RevisionPhaseMilestoneInput[]
   endDate?: string
+  /** Shown to the client alongside the approval, and included in the email the
+   * API sends them. Same field the decline path uses. */
+  decisionNote?: string
 }
 
 /* --------------------------------------------------------------------- auth */

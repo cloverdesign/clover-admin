@@ -8,8 +8,8 @@
  * over a private QueryClient whose cache is pre-seeded with fixtures under the
  * `portal` query keys — no network, no session, same components.
  *
- * `?view=home|projects|project|login` picks the screen. Delete this directory
- * once the portal design work lands.
+ * `?view=home|projects|project|requests|login` picks the screen. Delete this
+ * directory once the portal design work lands.
  */
 
 import * as React from "react"
@@ -21,6 +21,7 @@ import { PortalShell } from "@/components/portal/portal-shell"
 import { PortalHome } from "@/components/portal/home/portal-home"
 import { PortalProjects } from "@/components/portal/projects/portal-projects"
 import { PortalProject } from "@/components/portal/projects/portal-project"
+import { PortalRequests } from "@/components/portal/requests/portal-requests"
 import { PortalLogin } from "@/components/portal/auth/portal-login"
 import {
   CLIENT,
@@ -72,6 +73,8 @@ export default function PortalPreviewPage() {
       <PortalProjects />
     ) : view === "project" ? (
       <PortalProject id={id} />
+    ) : view === "requests" ? (
+      <PortalRequests />
     ) : (
       <PortalHome />
     )
