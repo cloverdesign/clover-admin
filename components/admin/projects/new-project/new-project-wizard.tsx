@@ -480,7 +480,7 @@ function ClientStep({
               id="nc-company"
               value={nc.company}
               onChange={(e) => setC("company", e.target.value)}
-              placeholder="Atlas Foods"
+              placeholder="Contoso Foods"
             />
           </Field>
           <Field label="Contact name" htmlFor="nc-name">
@@ -502,7 +502,7 @@ function ClientStep({
                 type="email"
                 value={nc.email}
                 onChange={(e) => setC("email", e.target.value)}
-                placeholder="dana@atlasfoods.com"
+                placeholder="dana@example.com"
               />
             </Field>
             <Field label="Phone" htmlFor="nc-phone">

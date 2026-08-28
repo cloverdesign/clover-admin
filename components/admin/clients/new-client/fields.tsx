@@ -109,13 +109,13 @@ export function ClientDetailsFields({ draft }: { draft: NewClientDraft }) {
   return (
     <div className="space-y-4">
       <Field label="Company" htmlFor="company">
-        <Input id="company" value={client.company} onChange={(e) => setC("company", e.target.value)} placeholder="Atlas Foods" />
+        <Input id="company" value={client.company} onChange={(e) => setC("company", e.target.value)} placeholder="Contoso Foods" />
       </Field>
       <Field label="Contact name" htmlFor="contact">
         <Input id="contact" value={client.name} onChange={(e) => setC("name", e.target.value)} placeholder="Dana Okafor" />
       </Field>
       <Field label="Contact email" htmlFor="email" hint="Used as the client's portal sign-in.">
-        <Input id="email" type="email" value={client.email} onChange={(e) => setC("email", e.target.value)} placeholder="dana@atlasfoods.com" />
+        <Input id="email" type="email" value={client.email} onChange={(e) => setC("email", e.target.value)} placeholder="dana@example.com" />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Phone" htmlFor="phone">

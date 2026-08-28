@@ -101,7 +101,7 @@ function dv(
 }
 
 export const DELIVERABLES: Deliverable[] = [
-  // Atlas — homepage design, superseded v1 (changes requested) → live v2.
+  // Contoso — homepage design, superseded v1 (changes requested) → live v2.
   dv({
     id: "d-atlas-home-1",
     projectId: "p-atlas-1", milestoneId: "m-1",
@@ -126,7 +126,7 @@ export const DELIVERABLES: Deliverable[] = [
     version: 1, status: "READY", uploadedAt: "2024-05-02",
     source: { fileName: "atlas-design-system.pdf", fileSizeBytes: 4_820_000 },
   }),
-  // Muse — launch hero set, changes requested (mirrors the TikTok revision).
+  // Relecloud — launch hero set, changes requested (mirrors the TikTok revision).
   dv({
     id: "d-muse-hero-1",
     projectId: "p-muse-1", milestoneId: "m-0",
@@ -144,7 +144,7 @@ export const DELIVERABLES: Deliverable[] = [
     version: 1, status: "READY", uploadedAt: "2024-03-18",
     source: { externalLink: "https://figma.com/file/northwind-moodboards" },
   }),
-  // Fable — storyboard + animatic.
+  // Fabrikam — storyboard + animatic.
   dv({
     id: "d-fable-storyboard-1",
     projectId: "p-fable-1", milestoneId: "m-0",
@@ -161,7 +161,7 @@ export const DELIVERABLES: Deliverable[] = [
     version: 1, status: "READY", uploadedAt: "2024-08-26",
     source: { fileName: "fable-animatic-v1.mp4", fileSizeBytes: 74_600_000 },
   }),
-  // Orchard — packaging dielines.
+  // VanArsdel — packaging dielines.
   dv({
     id: "d-orch-dielines-1",
     projectId: "p-orch-1", milestoneId: "m-0",
@@ -170,7 +170,7 @@ export const DELIVERABLES: Deliverable[] = [
     version: 1, status: "READY", uploadedAt: "2024-06-02",
     source: { fileName: "orchard-dielines.pdf", fileSizeBytes: 2_100_000 },
   }),
-  // Harbor — final site, approved.
+  // Woodgrove — final site, approved.
   dv({
     id: "d-harbor-site-1",
     projectId: "p-harbor-1", milestoneId: "m-3",

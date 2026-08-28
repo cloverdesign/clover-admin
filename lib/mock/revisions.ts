@@ -46,7 +46,7 @@ export function revisionTitle(r: RevisionRequest): string {
 export const REVISIONS: RevisionRequest[] = [
   {
     id: "rev-atlas-blog",
-    clientId: "c-atlas", client: "Atlas Foods",
+    clientId: "c-atlas", client: "Contoso Foods",
     projectId: "p-atlas-1", projectName: "Site build",
     description:
       "We'd like a blog area for recipes and press. Listing page, article template, and a way for our team to publish from the CMS. Reference layouts attached.",
@@ -62,7 +62,7 @@ export const REVISIONS: RevisionRequest[] = [
   },
   {
     id: "rev-muse-tiktok",
-    clientId: "c-muse", client: "Muse",
+    clientId: "c-muse", client: "Relecloud",
     projectId: "p-muse-1", projectName: "Campaign",
     description:
       "Loving the launch creative — can we adapt the hero set for 9:16 TikTok and add three short cutdowns?",
@@ -75,7 +75,7 @@ export const REVISIONS: RevisionRequest[] = [
   },
   {
     id: "rev-kite-logos",
-    clientId: "c-kite", client: "Kite",
+    clientId: "c-kite", client: "Litware",
     projectId: "p-kite-1", projectName: "Identity",
     description:
       "Could we get a stacked lockup and a monochrome variant for stamps? Attaching where we'd use them.",
@@ -88,7 +88,7 @@ export const REVISIONS: RevisionRequest[] = [
   },
   {
     id: "rev-lumen-mobile",
-    clientId: "c-lumen", client: "Lumen",
+    clientId: "c-lumen", client: "Proseware",
     projectId: "p-lumen-1", projectName: "Web app",
     description:
       "After the web beta we want a native mobile app for the dashboard. Same feature set, offline support.",
@@ -114,7 +114,7 @@ export const REVISIONS: RevisionRequest[] = [
   },
   {
     id: "rev-harbor-seo",
-    clientId: "c-harbor", client: "Harbor & Co",
+    clientId: "c-harbor", client: "Woodgrove & Co",
     projectId: "p-harbor-1", projectName: "Website",
     description:
       "Would you take on a monthly SEO retainer now the site is live? Audits, content, reporting.",
