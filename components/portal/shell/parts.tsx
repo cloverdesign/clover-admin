@@ -11,15 +11,8 @@ import {
 import { cn } from "@/lib/utils"
 import { useHydrated } from "@/hooks/use-hydrated"
 
-/** Up to two initials from a company name — the sidebar's identity mark. */
-export function companyInitials(company: string): string {
-  const words = company.trim().split(/\s+/).filter(Boolean)
-  if (words.length === 0) return "?"
-  if (words.length === 1) return words[0].slice(0, 2).toUpperCase()
-  return (words[0][0] + words[words.length - 1][0]).toUpperCase()
-}
-
-/** Who you're signed in as — sits at the top of the sidebar, above the nav. */
+/** Who you're signed in as — sits beside the Clover mark at the top of the
+ * sidebar. No monogram of its own: the mark is already the row's graphic. */
 export function ClientChip({
   company,
   name,
@@ -30,17 +23,12 @@ export function ClientChip({
   className?: string
 }) {
   return (
-    <div className={cn("flex min-w-0 items-center gap-2.5", className)}>
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted font-mono text-xs font-semibold text-muted-foreground">
-        {companyInitials(company)}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-medium">{company}</span>
-        {name && (
-          <span className="block truncate text-xs text-muted-foreground">{name}</span>
-        )}
-      </span>
-    </div>
+    <span className={cn("min-w-0", className)}>
+      <span className="block truncate text-sm font-medium">{company}</span>
+      {name && (
+        <span className="block truncate text-xs text-muted-foreground">{name}</span>
+      )}
+    </span>
   )
 }
 

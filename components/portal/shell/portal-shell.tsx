@@ -28,24 +28,20 @@ import {
 } from "@/components/ui/sheet"
 
 /**
- * Client-facing chrome: a slim identity rail, a grouped navigation sidebar, and
- * a content canvas — the same floating-panel frame the admin shell uses, at the
- * portal's smaller scale.
+ * Client-facing chrome: a grouped navigation sidebar and a content canvas — the
+ * same floating-panel frame the admin shell uses, at the portal's smaller scale.
+ * Below `md` the sidebar folds into a drawer.
  *
- * The rail carries identity and account (mark, sign out); the sidebar carries
- * navigation only. Below `md` both fold into one drawer. This replaced a top bar
- * with three links: client-wide deliverable and invoice reads gave Files and
- * Invoices pages of their own, and five destinations in two groups no longer fit
- * a header.
+ * This replaced a top bar with three links: client-wide deliverable and invoice
+ * reads gave Files and Invoices pages of their own, and five destinations in two
+ * groups no longer fit a header.
  */
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = React.useState(false)
 
   return (
     <div className="flex h-dvh gap-2 overflow-hidden bg-sidebar p-2 sm:gap-3 sm:p-3">
-      <IdentityRail className="hidden md:flex" />
-
-      <aside className="hidden w-56 shrink-0 flex-col rounded-2xl bg-card p-3 ring-1 ring-foreground/10 md:flex">
+      <aside className="hidden w-60 shrink-0 flex-col rounded-2xl bg-card p-3 ring-1 ring-foreground/10 md:flex">
         <SidebarBody />
       </aside>
 
@@ -57,7 +53,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         >
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SheetDescription className="sr-only">Client portal navigation</SheetDescription>
-          <SidebarBody onNavigate={() => setNavOpen(false)} showAccount />
+          <SidebarBody onNavigate={() => setNavOpen(false)} />
         </SheetContent>
       </Sheet>
 
@@ -78,33 +74,6 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           <div className="mx-auto w-full max-w-5xl">{children}</div>
         </main>
-      </div>
-    </div>
-  )
-}
-
-/* ------------------------------------------------------------------- rail */
-
-/** Identity and account: the mark up top, sign out at the foot. Navigation
- * deliberately isn't here — duplicating the sidebar's items as unlabelled glyphs
- * would give every destination two hit targets and one of them no name. */
-function IdentityRail({ className }: { className?: string }) {
-  return (
-    <div
-      className={cn(
-        "w-14 shrink-0 flex-col items-center rounded-2xl bg-card py-3 ring-1 ring-foreground/10",
-        className
-      )}
-    >
-      <Link
-        href="/"
-        aria-label="Home"
-        className="flex size-9 items-center justify-center rounded-xl transition-colors hover:bg-muted"
-      >
-        <CloverMark className="size-6" />
-      </Link>
-      <div className="mt-auto">
-        <SignOutButton />
       </div>
     </div>
   )
@@ -134,30 +103,29 @@ function SignOutButton({ onSignOut }: { onSignOut?: () => void }) {
 /* ---------------------------------------------------------------- sidebar */
 
 /**
- * Grouped nav. Shared by the desktop sidebar and the mobile drawer; `onNavigate`
- * lets the drawer close itself on tap, and `showAccount` folds in the rail's
- * contents for the drawer, where there is no rail.
+ * Mark, identity, grouped nav, then theme and sign out. Shared by the desktop
+ * sidebar and the mobile drawer; `onNavigate` lets the drawer close itself when
+ * a link is tapped.
  */
-function SidebarBody({
-  onNavigate,
-  showAccount,
-}: {
-  onNavigate?: () => void
-  showAccount?: boolean
-}) {
+function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const { data: client } = usePortalMe()
 
   return (
     <>
-      <div className="flex items-center gap-2 px-1 py-1.5">
-        {showAccount && <CloverMark className="size-6 shrink-0" />}
+      <Link
+        href="/"
+        onClick={onNavigate}
+        aria-label="Home"
+        className="flex items-center gap-2.5 rounded-xl px-1 py-1.5 transition-colors hover:bg-muted/60"
+      >
+        <CloverMark className="size-6 shrink-0" />
         {client ? (
           <ClientChip company={client.company} name={client.name} className="min-w-0 flex-1" />
         ) : (
           <span className="text-sm font-semibold tracking-tight">Clover</span>
         )}
-      </div>
+      </Link>
 
       <nav className="mt-3 flex-1 space-y-5 overflow-y-auto">
         {PORTAL_NAV.map((section, i) => (
@@ -193,7 +161,7 @@ function SidebarBody({
 
       <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
         <ThemeSwitcher className="min-w-0 flex-1" />
-        {showAccount && <SignOutButton onSignOut={onNavigate} />}
+        <SignOutButton onSignOut={onNavigate} />
       </div>
     </>
   )
