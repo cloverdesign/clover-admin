@@ -40,6 +40,16 @@ function seeded(): QueryClient {
   qc.setQueryData(queryKeys.portal.me, CLIENT)
   qc.setQueryData(queryKeys.portal.projects, PROJECTS)
   qc.setQueryData(queryKeys.portal.revisions, REVISIONS)
+  // Client-wide reads the dashboard uses, plus the per-project keys the project
+  // view still reads.
+  qc.setQueryData(
+    queryKeys.portal.invoices,
+    PROJECTS.flatMap((p) => INVOICES[p.id] ?? []).filter((i) => i.status !== "DRAFT")
+  )
+  qc.setQueryData(
+    queryKeys.portal.deliverables,
+    PROJECTS.flatMap((p) => DELIVERABLES[p.id] ?? []).filter((d) => d.status === "READY")
+  )
   for (const p of PROJECTS) {
     qc.setQueryData(queryKeys.portal.project(p.id), PROJECT_DETAIL[p.id])
     qc.setQueryData(queryKeys.portal.projectInvoices(p.id), INVOICES[p.id] ?? [])

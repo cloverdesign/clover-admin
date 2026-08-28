@@ -1,19 +1,28 @@
 "use client"
 
 /**
- * Cross-project aggregation for the client dashboard. Fans the existing
- * per-project portal reads (deliverables, invoices) out over every project the
- * client has with `useQueries`, then folds them — with the client-wide revision
- * list — into three derived views: what needs the client's action, a headline
- * of where the engagement stands, and a recent-activity stream. No new endpoint;
- * the fan-out reuses the same cache keys the project view already populates.
+ * Cross-project aggregation for the client dashboard. Reads the client-wide
+ * invoice, deliverable and revision lists and folds them into three derived
+ * views: what needs the client's action, a headline of where the engagement
+ * stands, and a recent-activity stream.
+ *
+ * Invoices and deliverables each used to be a `useQueries` fan-out, one request
+ * per project; the backend added single client-wide endpoints for exactly this,
+ * so painting the dashboard is now a flat handful of requests rather than 2+3N.
+ * The remaining fan-out is project detail, which carries the milestones the
+ * list endpoint omits and warms the cache for the project view.
  */
 
 import { useQueries } from "@tanstack/react-query"
 
 import { queryKeys } from "@/lib/api/query-client"
 import { PortalProjectsService } from "@/lib/services/portal-service"
-import { usePortalProjects, usePortalRevisions } from "@/lib/queries/portal-queries"
+import {
+  usePortalProjects,
+  usePortalRevisions,
+  usePortalAllInvoices,
+  usePortalAllDeliverables,
+} from "@/lib/queries/portal-queries"
 import type { Project, Invoice } from "@/lib/api/models"
 
 export type AttentionTone = "danger" | "warning" | "brand"
@@ -188,18 +197,8 @@ export function usePortalOverview(): PortalOverview {
   const projectName = (id: string) =>
     projects.find((p) => p.id === id)?.name ?? "your project"
 
-  const deliverableQs = useQueries({
-    queries: projects.map((p) => ({
-      queryKey: queryKeys.portal.projectDeliverables(p.id),
-      queryFn: () => PortalProjectsService.deliverables(p.id),
-    })),
-  })
-  const invoiceQs = useQueries({
-    queries: projects.map((p) => ({
-      queryKey: queryKeys.portal.projectInvoices(p.id),
-      queryFn: () => PortalProjectsService.invoices(p.id),
-    })),
-  })
+  const deliverablesQ = usePortalAllDeliverables()
+  const invoicesQ = usePortalAllInvoices()
   // The list endpoint omits milestones; the detail endpoint embeds them. Fetching
   // detail per project both feeds the upcoming-milestones view and warms the
   // cache for when the client opens a project.
@@ -210,8 +209,8 @@ export function usePortalOverview(): PortalOverview {
     })),
   })
 
-  const deliverables = deliverableQs.flatMap((q) => q.data ?? [])
-  const invoices = invoiceQs.flatMap((q) => q.data ?? [])
+  const deliverables = deliverablesQ.data ?? []
+  const invoices = invoicesQ.data ?? []
   const detailProjects = detailQs
     .map((q) => q.data)
     .filter((p): p is Project => Boolean(p))
@@ -381,8 +380,8 @@ export function usePortalOverview(): PortalOverview {
     isError: projectsQ.isError,
     detailsLoading:
       revisionsQ.isLoading ||
-      deliverableQs.some((q) => q.isLoading) ||
-      invoiceQs.some((q) => q.isLoading) ||
+      deliverablesQ.isLoading ||
+      invoicesQ.isLoading ||
       detailQs.some((q) => q.isLoading),
     projects,
     attention,

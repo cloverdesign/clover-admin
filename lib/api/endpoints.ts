@@ -120,6 +120,9 @@ export const PortalEndpoints = {
   me: "/api/portal/me",
   projects: "/api/portal/projects",
   project: (id: string) => `/api/portal/projects/${id}`,
+  /** Client-wide reads — collapse the dashboard's per-project fan-out. */
+  invoices: "/api/portal/invoices",
+  deliverables: "/api/portal/deliverables",
   projectDeliverables: (id: string) => `/api/portal/projects/${id}/deliverables`,
   projectInvoices: (id: string) => `/api/portal/projects/${id}/invoices`,
   projectRevisions: (id: string) => `/api/portal/projects/${id}/revision-requests`,

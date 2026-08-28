@@ -6,6 +6,20 @@
 
 export type DeliverableStatus = "READY" | "SUPERSEDED"
 
+export type DeliverableReviewStatusValue = "APPROVED" | "CHANGES_REQUESTED"
+
+/** The client's verdict on one deliverable version. Returned embedded on portal
+ * deliverable reads only — admin reads never populate it, which is why the
+ * dashboard still has no pending-reviews panel. */
+export interface DeliverableReview {
+  id: string
+  deliverableId: string
+  status: DeliverableReviewStatusValue
+  comment: string | null
+  reviewedAt: string
+  createdAt: string
+}
+
 /** Clover CMS API `Deliverable`. Note: no denormalized project/client name,
  * file size, or embedded review — the admin API doesn't return those. */
 export interface Deliverable {
@@ -18,6 +32,8 @@ export interface Deliverable {
   fileUrl: string | null
   externalLink: string | null
   status: DeliverableStatus
+  /** Present on portal reads only — see `DeliverableReview`. */
+  review?: DeliverableReview | null
   uploadedAt: string
   createdAt: string
   updatedAt: string

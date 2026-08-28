@@ -71,6 +71,27 @@ export class PortalProjectsService {
     return res.data.data
   }
 
+  /**
+   * Every issued invoice across the client's projects, in one request. The
+   * dashboard used to fan `invoices(id)` out over each project; this is the
+   * endpoint the backend added for exactly that.
+   */
+  static async allInvoices(): Promise<Invoice[]> {
+    const res = await portalClient.get<ApiEnvelope<Invoice[]>>(
+      PortalEndpoints.invoices
+    )
+    return res.data.data
+  }
+
+  /** Every READY deliverable across the client's projects, with `review`
+   * embedded — the counterpart to `allInvoices`. */
+  static async allDeliverables(): Promise<Deliverable[]> {
+    const res = await portalClient.get<ApiEnvelope<Deliverable[]>>(
+      PortalEndpoints.deliverables
+    )
+    return res.data.data
+  }
+
   static async deliverables(id: string): Promise<Deliverable[]> {
     const res = await portalClient.get<ApiEnvelope<Deliverable[]>>(
       PortalEndpoints.projectDeliverables(id)
