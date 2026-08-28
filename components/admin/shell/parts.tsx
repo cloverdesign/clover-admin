@@ -1,6 +1,8 @@
 "use client"
 
 import * as React from "react"
+
+import { useHydrated } from "@/hooks/use-hydrated"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
@@ -104,9 +106,9 @@ export function SearchIconButton({ className }: { className?: string }) {
 
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme()
-  const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => setMounted(true), [])
-  const isDark = mounted && resolvedTheme === "dark"
+  // next-themes resolves the theme client-side only; gate on hydration so the
+  // server and first client render agree.
+  const isDark = useHydrated() && resolvedTheme === "dark"
 
   return (
     <IconButton

@@ -99,7 +99,7 @@ function EditProjectForm({ project, router }: { project: Project; router: Return
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Edit project</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Update the project's details. Phase and status also change from the project page.
+              Update the project’s details. Phase and status also change from the project page.
             </p>
             <div className="mt-8 flex items-center gap-3 rounded-xl border bg-card p-3">
               <Monogram company={clientQ.data?.company ?? project.name} className="size-10" />

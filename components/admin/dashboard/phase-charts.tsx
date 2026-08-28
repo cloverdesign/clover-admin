@@ -2,6 +2,8 @@
 
 import * as React from "react"
 
+import { useMediaQuery } from "@/hooks/use-media-query"
+
 import { cn } from "@/lib/utils"
 import type { ActiveProject, Phase } from "@/lib/mock/dashboard"
 import { PHASE_COLOR, PHASE_ORDER } from "@/lib/phase-colors"
@@ -16,17 +18,15 @@ function phaseData(projects: ActiveProject[]): Datum[] {
   })).filter((d) => d.count > 0)
 }
 
-/** Count from 0 to `target` on mount (eased). Honors reduced-motion. */
+/** Count from 0 to `target` on mount (eased). Honors reduced-motion, where it
+ * returns the target outright rather than animating to it — derived during
+ * render, so the reduced-motion path never sets state at all. */
 function useCountUp(target: number, duration = 800) {
+  const reduce = useMediaQuery("(prefers-reduced-motion: reduce)")
   const [value, setValue] = React.useState(0)
+
   React.useEffect(() => {
-    const reduce = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)"
-    ).matches
-    if (reduce) {
-      setValue(target)
-      return
-    }
+    if (reduce) return
     let raf = 0
     const start = performance.now()
     const step = (now: number) => {
@@ -37,8 +37,9 @@ function useCountUp(target: number, duration = 800) {
     }
     raf = requestAnimationFrame(step)
     return () => cancelAnimationFrame(raf)
-  }, [target, duration])
-  return value
+  }, [target, duration, reduce])
+
+  return reduce ? target : value
 }
 
 function PhaseLegend({

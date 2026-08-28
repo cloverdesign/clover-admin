@@ -1,6 +1,8 @@
 "use client"
 
 import * as React from "react"
+
+import { useHydrated } from "@/hooks/use-hydrated"
 import { useRouter } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Loading03Icon } from "@hugeicons/core-free-icons"
@@ -18,16 +20,14 @@ import { usePortalMe } from "@/lib/queries/portal-queries"
  */
 export function PortalGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const [hasToken, setHasToken] = React.useState<boolean | null>(null)
+  // The token lives in localStorage, so it can't be read during SSR or the
+  // hydration pass — `null` means "not known yet", not "absent".
+  const hydrated = useHydrated()
+  const hasToken = hydrated ? Boolean(getPortalToken()) : null
 
   React.useEffect(() => {
-    if (!getPortalToken()) {
-      router.replace("/login")
-      setHasToken(false)
-    } else {
-      setHasToken(true)
-    }
-  }, [router])
+    if (hydrated && !getPortalToken()) router.replace("/login")
+  }, [hydrated, router])
 
   const me = usePortalMe()
 
