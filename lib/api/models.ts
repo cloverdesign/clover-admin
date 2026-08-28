@@ -92,8 +92,9 @@ export interface Project {
   notes: string | null
   createdAt: string
   updatedAt: string
-  /** Relations the detail endpoint may embed. The API has no GET for these, so
-   * they're optional — present if the backend includes them, else undefined. */
+  /** Relations the detail endpoint embeds. Optional because the list endpoint
+   * omits some of them; for a guaranteed read use the dedicated collection
+   * endpoints (`useProjectMilestones` / `useProjectUpdates`). */
   milestones?: Milestone[]
   updates?: ProjectUpdatePost[]
 }
@@ -429,10 +430,12 @@ export interface ClientProfileInput {
  * Notifications — server-generated alerts for things needing an admin's
  * attention. The backend derives these from domain signals (overdue invoices,
  * incoming revision requests, deliverables awaiting review, milestones coming
- * due) and returns them newest-first from `GET /api/notifications`.
+ * due) and returns them newest-first from `GET /api/notifications`, capped at
+ * the 50 most recent.
  *
- * Read/seen state is tracked per-device on the client (localStorage), so there
- * is intentionally no `read` field on the wire — see use-notification-reads.
+ * Read state is the server's, per admin (`read`), flipped via
+ * `PATCH /api/notifications/{id}/read` and `POST /api/notifications/read-all`.
+ * There is no unread-count endpoint — count unread rows client-side.
  */
 export type NotificationType =
   | "INVOICE_OVERDUE"
@@ -447,8 +450,9 @@ export interface Notification {
   title: string
   /** One-line context, e.g. "Acme Co · $4,200 · 3 days late". */
   body: string | null
-  /** In-app deep link the notification navigates to when clicked. */
-  href: string
+  /** In-app deep link the notification navigates to when clicked. Nullable —
+   * a notification without one is still shown, just not clickable. */
+  href: string | null
   /** Optional linkage to the originating entity (for grouping / icons). */
   entityType:
     | "invoice"
@@ -458,5 +462,8 @@ export interface Notification {
     | "project"
     | null
   entityId: string | null
+  /** Whether the calling admin has read this one. Server-held, so it follows
+   * the admin across devices. */
+  read: boolean
   createdAt: string
 }

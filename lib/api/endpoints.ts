@@ -48,12 +48,14 @@ export const ProjectEndpoints = {
   update: (id: string) => `/api/projects/${id}`,
   remove: (id: string) => `/api/projects/${id}`,
   // milestones
+  milestones: (id: string) => `/api/projects/${id}/milestones`,
   createMilestone: (id: string) => `/api/projects/${id}/milestones`,
   updateMilestone: (id: string, milestoneId: string) =>
     `/api/projects/${id}/milestones/${milestoneId}`,
   removeMilestone: (id: string, milestoneId: string) =>
     `/api/projects/${id}/milestones/${milestoneId}`,
   // updates
+  updates: (id: string) => `/api/projects/${id}/updates`,
   createUpdate: (id: string) => `/api/projects/${id}/updates`,
   removeUpdate: (id: string, updateId: string) =>
     `/api/projects/${id}/updates/${updateId}`,
@@ -100,11 +102,14 @@ export const MediaEndpoints = {
 }
 
 /**
- * Admin notifications — server-generated attention feed. Read/seen state is
- * tracked client-side (localStorage), so only the list read is needed here.
+ * Admin notifications — server-generated attention feed, scoped to the calling
+ * admin. Read state lives on the server (`Notification.read`); there is no
+ * unread-count endpoint, so the badge counts unread rows client-side.
  */
 export const NotificationEndpoints = {
   list: "/api/notifications",
+  readAll: "/api/notifications/read-all",
+  read: (id: string) => `/api/notifications/${id}/read`,
 }
 
 /** Client-facing portal (passwordless OTP session; client-scoped reads). */

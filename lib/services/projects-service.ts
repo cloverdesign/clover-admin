@@ -51,6 +51,13 @@ export class ProjectsService {
 
   /* --------------------------------------------------------- milestones */
 
+  static async milestones(projectId: string): Promise<Milestone[]> {
+    const res = await apiClient.get<ApiEnvelope<Milestone[]>>(
+      ProjectEndpoints.milestones(projectId)
+    )
+    return res.data.data
+  }
+
   static async createMilestone(
     projectId: string,
     input: MilestoneInput
@@ -84,6 +91,13 @@ export class ProjectsService {
   }
 
   /* ------------------------------------------------------ project updates */
+
+  static async updates(projectId: string): Promise<ProjectUpdatePost[]> {
+    const res = await apiClient.get<ApiEnvelope<ProjectUpdatePost[]>>(
+      ProjectEndpoints.updates(projectId)
+    )
+    return res.data.data
+  }
 
   static async createUpdate(
     projectId: string,
