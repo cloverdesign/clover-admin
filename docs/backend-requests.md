@@ -133,10 +133,41 @@ what made C1 read as "the endpoint 404s" for a while, and it is why this doc
 previously claimed `GET /api/portal/projects/{id}/invoices` didn't exist. It
 always did.
 
-**Ask:**
-1. Add `http://clients.localhost:3000` to the allowlist.
-2. Reject a disallowed origin with **403** and the CORS headers still attached,
-   so the browser surfaces an actionable error.
+**Ask 1 — the allowlist.** Three origins are allowed today. Tested 2026-08-28:
+
+| Origin | Preflight | |
+|---|---|---|
+| `http://localhost:3000` | 204 | local admin, and portal at `/portal/*` |
+| `https://admin.cloverdesign.xyz` | 204 | admin production |
+| `https://clients.cloverdesign.xyz` | 204 | portal production |
+| `http://clients.localhost:3000` | **500** | **local portal — add this** |
+| `http://localhost:3001` | **500** | Next's port fallback |
+| `http://clients.localhost:3001` | **500** | same, portal |
+| `http://127.0.0.1:3000` | **500** | distinct origin from `localhost` |
+
+Minimum to unblock local portal work:
+
+```
+http://clients.localhost:3000
+```
+
+Preferably, rather than enumerating ports: **allow any `localhost`,
+`*.localhost` or `127.0.0.1` origin on any port.** Next auto-increments the dev
+port whenever 3000 is taken, so 3001 comes up constantly, and `127.0.0.1` is a
+separate origin from `localhost` despite being the same machine.
+
+The risk of allowing loopback origins is low here specifically: auth is a Bearer
+token read from `localStorage`, and a page on another origin cannot read it.
+This would not hold if auth ever moves to cookies — revisit it then.
+
+No other origins are needed. Vercel preview deployments are not in use (testing
+happens against `main`), and the marketing site does not call the API from the
+browser yet — when it does, `https://cloverdesign.xyz` and
+`https://www.cloverdesign.xyz` will need adding, but only if it fetches
+client-side rather than at build time.
+
+**Ask 2 — reject with 403, not 500,** and keep the CORS headers attached, so the
+browser surfaces an actionable error instead of an opaque network failure.
 
 Repro:
 
