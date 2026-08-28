@@ -6,6 +6,20 @@
 
 export type DeliverableStatus = "READY" | "SUPERSEDED"
 
+export type DeliverableReviewStatusValue = "APPROVED" | "CHANGES_REQUESTED"
+
+/** The client's verdict on one deliverable version. Returned embedded on portal
+ * deliverable reads only — admin reads never populate it, which is why the
+ * dashboard still has no pending-reviews panel. */
+export interface DeliverableReview {
+  id: string
+  deliverableId: string
+  status: DeliverableReviewStatusValue
+  comment: string | null
+  reviewedAt: string
+  createdAt: string
+}
+
 /** Clover CMS API `Deliverable`. Note: no denormalized project/client name,
  * file size, or embedded review — the admin API doesn't return those. */
 export interface Deliverable {
@@ -18,6 +32,8 @@ export interface Deliverable {
   fileUrl: string | null
   externalLink: string | null
   status: DeliverableStatus
+  /** Present on portal reads only — see `DeliverableReview`. */
+  review?: DeliverableReview | null
   uploadedAt: string
   createdAt: string
   updatedAt: string
@@ -92,10 +108,14 @@ export interface Project {
   notes: string | null
   createdAt: string
   updatedAt: string
-  /** Relations the detail endpoint may embed. The API has no GET for these, so
-   * they're optional — present if the backend includes them, else undefined. */
+  /** Relations the API embeds. The portal list and detail reads both carry
+   * milestones, updates and invoices; portal detail adds deliverables and
+   * revision requests. Optional because the admin list read carries none — for
+   * a guaranteed admin read use the dedicated collection endpoints
+   * (`useProjectMilestones` / `useProjectUpdates` / `useProjectInvoices`). */
   milestones?: Milestone[]
   updates?: ProjectUpdatePost[]
+  invoices?: Invoice[]
 }
 
 export interface ProjectInput {
@@ -133,6 +153,9 @@ export interface Milestone {
   status: MilestoneStatus
   order: number
   dueDate: string | null
+  /** Phase label this milestone belongs to. Written by the revision approve
+   * flow when it scaffolds a new phase; null on milestones added directly. */
+  phase: string | null
   completedAt: string | null
   createdAt: string
   updatedAt: string
@@ -167,9 +190,13 @@ export interface ProjectUpdatePostInput {
 
 export type InvoiceStatus = "DRAFT" | "SENT" | "PAID" | "OVERDUE"
 
+/** A billed line. The API models every line as quantity x unit price, so the
+ * line's money value is `quantity * unitPrice` — there is no `amount` field.
+ * Use `lineTotal()` from lib/mock/invoices rather than recomputing it. */
 export interface InvoiceLineItem {
   description: string
-  amount: number
+  quantity: number
+  unitPrice: number
 }
 
 export interface Invoice {
@@ -194,7 +221,8 @@ export interface InvoiceInput {
   currency: string
   description?: string
   lineItems: InvoiceLineItem[]
-  dueDate?: string
+  /** Required by the API — POSTing without it 400s with a bare "Required". */
+  dueDate: string
   issuedDate?: string
 }
 
@@ -249,6 +277,9 @@ export interface RevisionApproveInput {
   phase?: string
   milestones?: RevisionPhaseMilestoneInput[]
   endDate?: string
+  /** Shown to the client alongside the approval, and included in the email the
+   * API sends them. Same field the decline path uses. */
+  decisionNote?: string
 }
 
 /* --------------------------------------------------------------------- auth */
@@ -424,10 +455,12 @@ export interface ClientProfileInput {
  * Notifications — server-generated alerts for things needing an admin's
  * attention. The backend derives these from domain signals (overdue invoices,
  * incoming revision requests, deliverables awaiting review, milestones coming
- * due) and returns them newest-first from `GET /api/notifications`.
+ * due) and returns them newest-first from `GET /api/notifications`, capped at
+ * the 50 most recent.
  *
- * Read/seen state is tracked per-device on the client (localStorage), so there
- * is intentionally no `read` field on the wire — see use-notification-reads.
+ * Read state is the server's, per admin (`read`), flipped via
+ * `PATCH /api/notifications/{id}/read` and `POST /api/notifications/read-all`.
+ * There is no unread-count endpoint — count unread rows client-side.
  */
 export type NotificationType =
   | "INVOICE_OVERDUE"
@@ -442,8 +475,9 @@ export interface Notification {
   title: string
   /** One-line context, e.g. "Acme Co · $4,200 · 3 days late". */
   body: string | null
-  /** In-app deep link the notification navigates to when clicked. */
-  href: string
+  /** In-app deep link the notification navigates to when clicked. Nullable —
+   * a notification without one is still shown, just not clickable. */
+  href: string | null
   /** Optional linkage to the originating entity (for grouping / icons). */
   entityType:
     | "invoice"
@@ -453,5 +487,8 @@ export interface Notification {
     | "project"
     | null
   entityId: string | null
+  /** Whether the calling admin has read this one. Server-held, so it follows
+   * the admin across devices. */
+  read: boolean
   createdAt: string
 }

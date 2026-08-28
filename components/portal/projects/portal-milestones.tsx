@@ -80,7 +80,7 @@ export function PortalMilestones({ milestones }: { milestones: Milestone[] }) {
                   <span
                     className={cn(
                       "text-sm font-medium",
-                      done && "text-muted-foreground line-through"
+                      done && "text-muted-foreground"
                     )}
                   >
                     {milestone.title}

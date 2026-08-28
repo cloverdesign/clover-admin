@@ -207,5 +207,11 @@ export function formatFull(amount: number, code: string): string {
   return `${symbol}${amount.toLocaleString("en-US")}`
 }
 
+/** Money value of one billed line. The API stores quantity and unit price
+ * separately and has no `amount` per line, so the total is always derived. */
+export function lineTotal(li: { quantity: number; unitPrice: number }): number {
+  return li.quantity * li.unitPrice
+}
+
 /** Re-export the compact formatter for convenience. */
 export { formatMoney }

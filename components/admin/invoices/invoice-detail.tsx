@@ -3,7 +3,6 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Download04Icon,
@@ -38,7 +37,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog"
-import { INVOICE_STATUS_LABEL, INVOICE_STATUS_VARIANT, formatFull } from "@/lib/mock/invoices"
+import { INVOICE_STATUS_LABEL, INVOICE_STATUS_VARIANT, formatFull, lineTotal } from "@/lib/mock/invoices"
 import {
   useInvoice,
   useSendInvoice,
@@ -110,7 +109,25 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
               Mark paid
             </Button>
           )}
-          <Button variant="outline" className="gap-1.5" onClick={() => toast.success(`Downloading ${invoice.invoiceNumber}.pdf`)}>
+          {/* The PDF is generated server-side on issue (§1.2.3), so a draft that
+              hasn't been rendered yet has no `pdfUrl` — show the action disabled
+              rather than handing over a link that goes nowhere. */}
+          <Button
+            variant="outline"
+            className="gap-1.5"
+            disabled={!invoice.pdfUrl}
+            title={invoice.pdfUrl ? undefined : "No PDF generated for this invoice yet"}
+            render={
+              invoice.pdfUrl ? (
+                <a
+                  href={invoice.pdfUrl}
+                  download={`${invoice.invoiceNumber}.pdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                />
+              ) : undefined
+            }
+          >
             <HugeiconsIcon icon={Download04Icon} data-icon="inline-start" className="size-4" />
             PDF
           </Button>
@@ -150,15 +167,19 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
 
         {/* Line items */}
         <div className="mt-8">
-          <div className="grid grid-cols-[1fr_auto] gap-4 border-b border-border pb-2 text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+          <div className="grid grid-cols-[1fr_3rem_auto_auto] gap-4 border-b border-border pb-2 text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
             <span>Description</span>
+            <span className="text-right">Qty</span>
+            <span className="text-right">Unit price</span>
             <span className="text-right">Amount</span>
           </div>
           <div className="divide-y divide-border">
             {(invoice.lineItems ?? []).map((li, i) => (
-              <div key={i} className="grid grid-cols-[1fr_auto] gap-4 py-3 text-sm">
+              <div key={i} className="grid grid-cols-[1fr_3rem_auto_auto] gap-4 py-3 text-sm">
                 <span>{li.description}</span>
-                <span className="text-right font-mono tabular-nums">{formatFull(li.amount, invoice.currency)}</span>
+                <span className="text-right font-mono tabular-nums text-muted-foreground">{li.quantity}</span>
+                <span className="text-right font-mono tabular-nums text-muted-foreground">{formatFull(li.unitPrice, invoice.currency)}</span>
+                <span className="text-right font-mono tabular-nums">{formatFull(lineTotal(li), invoice.currency)}</span>
               </div>
             ))}
           </div>
@@ -176,7 +197,7 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {invoice.invoiceNumber}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the invoice from the project and the client's portal. This can’t be undone.
+              This removes the invoice from the project and the client’s portal. This can’t be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -106,6 +106,25 @@ export function usePortalProject(id: string) {
   })
 }
 
+/** Client-wide invoices — one request for the whole dashboard. The per-project
+ * hook below still backs the project view. */
+export function usePortalAllInvoices() {
+  return useQuery({
+    queryKey: queryKeys.portal.invoices,
+    queryFn: () => PortalProjectsService.allInvoices(),
+    meta: { errorMessage: "Couldn’t load invoices." },
+  })
+}
+
+/** Client-wide deliverables — the counterpart to `usePortalAllInvoices`. */
+export function usePortalAllDeliverables() {
+  return useQuery({
+    queryKey: queryKeys.portal.deliverables,
+    queryFn: () => PortalProjectsService.allDeliverables(),
+    meta: { errorMessage: "Couldn’t load deliverables." },
+  })
+}
+
 export function usePortalProjectDeliverables(id: string) {
   return useQuery({
     queryKey: queryKeys.portal.projectDeliverables(id),

@@ -11,7 +11,10 @@ import { usePortalMe, usePortalLogout } from "@/lib/queries/portal-queries"
 /**
  * Client-facing chrome: a slim top bar with the Clover mark, the signed-in
  * client's company, and sign out — over a centered content column. Deliberately
- * not the admin sidebar; the portal is a small, focused surface.
+ * not the admin sidebar; the portal is a small, focused surface. The nav stays
+ * visible on phones so Projects and Requests are always one tap away — the
+ * company name and the wordmark are what drop instead, since three nav items
+ * plus both of those overflow a 375px header.
  */
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -27,13 +30,13 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="sticky top-0 z-20 border-b border-border bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-16 w-full max-w-4xl items-center gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 w-full max-w-4xl items-center gap-2 px-4 sm:gap-3 sm:px-6">
           <Link href="/" className="flex items-center gap-2.5" aria-label="Home">
             <CloverMark className="size-6" />
-            <span className="text-sm font-semibold tracking-tight">Clover</span>
+            <span className="hidden text-sm font-semibold tracking-tight sm:inline">Clover</span>
           </Link>
 
-          <nav className="ml-3 hidden items-center gap-1 sm:flex">
+          <nav className="ml-1 flex items-center gap-1 sm:ml-3">
             <NavLink href="/" active={pathname === "/"}>
               Dashboard
             </NavLink>
@@ -91,8 +94,8 @@ function NavLink({
       aria-current={active ? "page" : undefined}
       className={
         active
-          ? "rounded-full bg-muted px-3 py-1.5 text-sm font-medium text-foreground"
-          : "rounded-full px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          ? "rounded-full bg-muted px-2.5 py-1.5 text-sm font-medium text-foreground sm:px-3"
+          : "rounded-full px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground sm:px-3"
       }
     >
       {children}

@@ -87,6 +87,8 @@ export const queryKeys = {
   projects: {
     all: ["projects"] as const,
     byId: (id: string) => ["projects", id] as const,
+    milestones: (id: string) => ["projects", id, "milestones"] as const,
+    updates: (id: string) => ["projects", id, "updates"] as const,
     invoices: (id: string) => ["projects", id, "invoices"] as const,
   },
   invoices: {
@@ -117,6 +119,8 @@ export const queryKeys = {
     me: ["portal", "me"] as const,
     projects: ["portal", "projects"] as const,
     project: (id: string) => ["portal", "projects", id] as const,
+    invoices: ["portal", "invoices"] as const,
+    deliverables: ["portal", "deliverables"] as const,
     projectDeliverables: (id: string) =>
       ["portal", "projects", id, "deliverables"] as const,
     projectInvoices: (id: string) =>

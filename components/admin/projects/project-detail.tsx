@@ -2,12 +2,9 @@
 
 /**
  * Project detail — stacked, document-style view with collapsible sections. Wired
- * to the API: project + relations via useProject, phase via useUpdateProject,
- * milestones via the milestone mutations, invoices/deliverables via their
- * project-scoped queries, linked revisions composed from the projects list.
- *
- * Note: the API has no GET for milestones/updates, so they're read defensively
- * from the (optionally embedded) project detail — mutations still fire.
+ * to the API: project via useProject, phase via useUpdateProject, milestones via
+ * their own read endpoint plus the milestone mutations, invoices/deliverables via
+ * their project-scoped queries, linked revisions composed from the projects list.
  */
 
 import * as React from "react"
@@ -73,6 +70,7 @@ import { PROJECT_STATUS_LABEL } from "@/lib/mock/projects"
 import { INVOICE_STATUS_LABEL, INVOICE_STATUS_VARIANT, formatFull } from "@/lib/mock/invoices"
 import {
   useProject,
+  useProjectMilestones,
   useUpdateProject,
   useDeleteProject,
   useCreateMilestone,
@@ -110,7 +108,8 @@ export function ProjectDetail({ id }: { id: string }) {
 function ProjectDetailInner({ project }: { project: Project }) {
   const revisionsQ = useProjects()
   const revisions = (revisionsQ.data ?? []).filter((p) => p.parentProjectId === project.id)
-  const milestones = project.milestones ?? []
+  // Shares a cache key with the editor below, so this is one request, not two.
+  const milestones = useProjectMilestones(project.id).data ?? []
   const completed = milestones.filter((m) => m.status === "COMPLETED").length
   const editHref = `/admin/projects/${project.id}/edit`
 
@@ -465,7 +464,7 @@ const MS_STATUS_META: Record<
 
 function MilestonesEditor({ project }: { project: Project }) {
   const projectId = project.id
-  const milestones = project.milestones ?? []
+  const milestones = useProjectMilestones(projectId).data ?? []
   const create = useCreateMilestone()
   const update = useUpdateMilestone()
   const remove = useDeleteMilestone()
@@ -477,8 +476,8 @@ function MilestonesEditor({ project }: { project: Project }) {
   const progress = milestones.length === 0 ? 0 : Math.round((completed / milestones.length) * 100)
 
   // Derive the durable project.progress from milestone completion and persist it,
-  // so the top progress bar (which reads project.progress) stays in sync and the
-  // value survives even though milestones themselves have no read endpoint.
+  // so the top progress bar (which reads project.progress) stays in sync. Called
+  // with the post-mutation list, since the refetch hasn't landed yet.
   const syncFrom = (list: Milestone[]) => {
     if (list.length === 0) return
     const done = list.filter((m) => m.status === "COMPLETED").length

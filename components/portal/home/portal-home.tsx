@@ -33,6 +33,7 @@ import {
   type ActivityEvent,
   type ActivityKind,
   type OverviewStats,
+  type UpcomingMilestone,
 } from "@/components/portal/home/use-portal-overview"
 import {
   BillingSnapshot,
@@ -62,6 +63,8 @@ export function PortalHome() {
     stats,
     billing,
     milestones,
+    milestonesByProject,
+    recentInvoices,
     recentDeliverables,
   } = overview
 
@@ -116,10 +119,13 @@ export function PortalHome() {
         <EmptyState />
       ) : (
         <>
-          <div className="anim-rise grid gap-4 lg:grid-cols-12" style={rise(1)}>
+          <div className="anim-rise grid items-start gap-4 lg:grid-cols-12" style={rise(1)}>
             {spotlight && (
               <div className="lg:col-span-7">
-                <Spotlight project={spotlight} />
+                <Spotlight
+                  project={spotlight}
+                  milestones={milestonesByProject[spotlight.id] ?? []}
+                />
               </div>
             )}
             <div className={spotlight ? "lg:col-span-5" : "lg:col-span-12"}>
@@ -137,12 +143,12 @@ export function PortalHome() {
           {(billing || milestones.length > 0) && (
             <div
               className={cn(
-                "anim-rise grid gap-4",
+                "anim-rise grid items-start gap-4",
                 billing && milestones.length > 0 && "lg:grid-cols-2"
               )}
               style={rise(3)}
             >
-              {billing && <BillingSnapshot billing={billing} />}
+              {billing && <BillingSnapshot billing={billing} invoices={recentInvoices} />}
               {milestones.length > 0 && <UpcomingMilestones milestones={milestones} />}
             </div>
           )}
@@ -160,7 +166,9 @@ export function PortalHome() {
                 title="Your projects"
                 action={<AllProjectsLink />}
               />
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div
+                className={cn("grid gap-4", rest.length > 1 && "sm:grid-cols-2")}
+              >
                 {rest.map((p) => (
                   <div key={p.id} className="flex flex-col gap-2">
                     <ProjectCard project={p} />
@@ -175,10 +183,18 @@ export function PortalHome() {
             </section>
           )}
 
-          {spotlight && childrenOf(spotlight.id).length > 0 && rest.length === 0 && (
+          {spotlight && childrenOf(spotlight.id).length > 0 && (
             <section className="anim-rise flex flex-col gap-4" style={rise(5)}>
-              <SectionHeader icon={GitBranchIcon} title="Revisions" />
-              <div className="grid gap-4 sm:grid-cols-2">
+              <SectionHeader
+                icon={GitBranchIcon}
+                title={`Revisions of ${spotlight.name}`}
+              />
+              <div
+                className={cn(
+                  "grid gap-4",
+                  childrenOf(spotlight.id).length > 1 && "sm:grid-cols-2"
+                )}
+              >
                 {childrenOf(spotlight.id).map((child) => (
                   <ProjectCard key={child.id} project={child} isRevision />
                 ))}
@@ -263,11 +279,27 @@ function Greeting({
 
 /* --------------------------------------------------------------- spotlight */
 
-function Spotlight({ project }: { project: Project }) {
+/** How many of the focused project's next milestones the spotlight lists. */
+const SPOTLIGHT_MILESTONES = 3
+
+/**
+ * The focused project. Between the headline and the dates it lists what's
+ * actually next on the project — the card is the tallest thing in its row, and
+ * "in focus" should mean more than a name and a percentage.
+ */
+function Spotlight({
+  project,
+  milestones,
+}: {
+  project: Project
+  milestones: UpcomingMilestone[]
+}) {
+  const next = milestones.slice(0, SPOTLIGHT_MILESTONES)
+
   return (
     <Link
       href={`/projects/${project.id}`}
-      className="group flex h-full flex-col justify-between gap-6 rounded-2xl border bg-card p-6 transition-colors hover:border-foreground/20"
+      className="group flex flex-col gap-5 rounded-2xl border bg-card p-6 transition-colors hover:border-foreground/20"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
@@ -291,6 +323,40 @@ function Spotlight({ project }: { project: Project }) {
             <span className="text-xs text-muted-foreground">%</span>
           </span>
         </ProgressRing>
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <p className="text-xs font-medium text-muted-foreground">Up next</p>
+        {next.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            No dated milestones yet.
+          </p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-2">
+            {next.map((milestone) => (
+              <li key={milestone.id} className="flex items-center gap-2.5">
+                <span
+                  aria-hidden
+                  className={cn(
+                    "size-1.5 shrink-0 rounded-full",
+                    milestone.overdue ? "bg-destructive" : "bg-muted-foreground/40"
+                  )}
+                />
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {milestone.title}
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 text-xs tabular-nums",
+                    milestone.overdue ? "text-destructive" : "text-muted-foreground"
+                  )}
+                >
+                  {formatDate(milestone.dueDate, "compact")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="flex items-end justify-between gap-4">
@@ -333,6 +399,10 @@ const ATTENTION_STYLE: Record<
   },
 }
 
+/** The action queue is a queue, not an inbox — past four rows it stops reading as
+ * "here's what to do" and starts padding the row it shares with the spotlight. */
+const ATTENTION_LIMIT = 4
+
 function AttentionPanel({
   items,
   loading,
@@ -340,8 +410,11 @@ function AttentionPanel({
   items: AttentionItem[]
   loading: boolean
 }) {
+  const shown = items.slice(0, ATTENTION_LIMIT)
+  const overflow = items.length - shown.length
+
   return (
-    <div className="flex h-full flex-col rounded-2xl border bg-card p-5">
+    <div className="flex flex-col rounded-2xl border bg-card p-5">
       <div className="flex items-center gap-2">
         <h2 className="font-heading text-sm font-medium">Needs your attention</h2>
         {items.length > 0 && (
@@ -367,13 +440,13 @@ function AttentionPanel({
         </div>
       ) : (
         <ul className="mt-3 flex flex-col gap-1">
-          {items.map((item) => {
+          {shown.map((item) => {
             const style = ATTENTION_STYLE[item.tone]
             return (
               <li key={item.id}>
                 <Link
                   href={item.href}
-                  className="group flex items-center gap-3 rounded-xl p-2 transition-colors hover:bg-muted/60"
+                  className="group flex items-start gap-3 rounded-xl p-2 transition-colors hover:bg-muted/60"
                 >
                   <span
                     className={cn(
@@ -384,21 +457,35 @@ function AttentionPanel({
                     <HugeiconsIcon icon={style.icon} className="size-4.5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
+                    <span className="line-clamp-2 text-sm font-medium">
                       {item.title}
                     </span>
-                    <span className="block truncate text-xs text-muted-foreground">
+                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">
                       {item.detail}
                     </span>
                   </span>
                   <HugeiconsIcon
                     icon={ArrowRight01Icon}
-                    className="size-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground"
+                    className="mt-2 size-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground"
                   />
                 </Link>
               </li>
             )
           })}
+          {overflow > 0 && (
+            <li>
+              <Link
+                href="/projects"
+                className="group flex items-center gap-1 px-2 py-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {overflow} more across your projects
+                <HugeiconsIcon
+                  icon={ArrowRight01Icon}
+                  className="size-3.5 transition-transform group-hover:translate-x-0.5"
+                />
+              </Link>
+            </li>
+          )}
         </ul>
       )}
     </div>

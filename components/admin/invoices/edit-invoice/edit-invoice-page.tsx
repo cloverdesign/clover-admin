@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CURRENCIES } from "@/lib/mock/currencies"
-import { formatFull, INVOICE_STATUS_LABEL, INVOICE_STATUS_VARIANT } from "@/lib/mock/invoices"
+import { formatFull, lineTotal, INVOICE_STATUS_LABEL, INVOICE_STATUS_VARIANT } from "@/lib/mock/invoices"
 import { toApiDateTime } from "@/lib/format"
 import { useInvoice, useUpdateInvoice } from "@/lib/queries/invoices-queries"
 import type { Invoice } from "@/lib/api/models"
@@ -25,7 +25,10 @@ import { Monogram } from "@/components/admin/clients/atoms"
 import { Field } from "@/components/admin/clients/new-client/fields"
 import { EditorialFrame } from "@/components/admin/clients/new-client/editorial-parts"
 
-type Line = { description: string; amount: string }
+/** Form-local line, kept as strings so the inputs stay controlled while empty. */
+type Line = { description: string; quantity: string; unitPrice: string }
+
+const EMPTY_LINE: Line = { description: "", quantity: "1", unitPrice: "" }
 
 /** Edit Invoice — editorial split, pre-filled from the API (PUT /api/invoices/{id}).
  * Status stays on the detail's lifecycle actions; this edits the contents. */
@@ -60,21 +63,33 @@ function EditInvoiceForm({ invoice, router }: { invoice: Invoice; router: Return
   const [issued, setIssued] = React.useState((invoice.issuedDate ?? "").slice(0, 10))
   const [lines, setLines] = React.useState<Line[]>(
     invoice.lineItems.length
-      ? invoice.lineItems.map((l) => ({ description: l.description, amount: String(l.amount) }))
-      : [{ description: "", amount: "" }]
+      ? invoice.lineItems.map((l) => ({
+          description: l.description,
+          quantity: String(l.quantity),
+          unitPrice: String(l.unitPrice),
+        }))
+      : [{ ...EMPTY_LINE }]
   )
 
   const setLine = (i: number, patch: Partial<Line>) =>
     setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)))
-  const addLine = () => setLines((prev) => [...prev, { description: "", amount: "" }])
+  const addLine = () => setLines((prev) => [...prev, { ...EMPTY_LINE }])
   const removeLine = (i: number) =>
     setLines((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)))
 
+  // Every line needs description + quantity + unitPrice or the API rejects the
+  // whole payload with a bare "Required"; `dueDate` is required too.
   const lineItems = lines
-    .filter((l) => l.description.trim() && Number(l.amount) > 0)
-    .map((l) => ({ description: l.description.trim(), amount: Number(l.amount) }))
-  const total = lineItems.reduce((s, l) => s + l.amount, 0)
-  const valid = lineItems.length > 0
+    .filter(
+      (l) => l.description.trim() && Number(l.quantity) > 0 && Number(l.unitPrice) > 0
+    )
+    .map((l) => ({
+      description: l.description.trim(),
+      quantity: Number(l.quantity),
+      unitPrice: Number(l.unitPrice),
+    }))
+  const total = lineItems.reduce((s, l) => s + lineTotal(l), 0)
+  const valid = lineItems.length > 0 && Boolean(due)
 
   const save = () => {
     update.mutate(
@@ -84,7 +99,7 @@ function EditInvoiceForm({ invoice, router }: { invoice: Invoice; router: Return
           amount: total,
           currency,
           lineItems,
-          dueDate: toApiDateTime(due),
+          dueDate: toApiDateTime(due) as string,
           issuedDate: toApiDateTime(issued),
           description: invoice.description ?? undefined,
         },
@@ -118,10 +133,23 @@ function EditInvoiceForm({ invoice, router }: { invoice: Invoice; router: Return
           <div className="space-y-4">
             <div className="space-y-2">
               <div className="text-sm font-medium">Line items</div>
-              {lines.map((line, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Input value={line.description} onChange={(e) => setLine(i, { description: e.target.value })} placeholder="Description" className="flex-1" />
-                  <Input value={line.amount} onChange={(e) => setLine(i, { amount: e.target.value })} type="number" inputMode="numeric" placeholder="0" className="w-28" />
+              <div className="grid grid-cols-[1fr_4.5rem_7rem_5.5rem_2.25rem] items-center gap-2 text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+                <span>Description</span>
+                <span>Qty</span>
+                <span>Unit price</span>
+                <span className="text-right">Total</span>
+                <span className="sr-only">Remove</span>
+              </div>
+              {lines.map((line, i) => {
+                const rowTotal = Number(line.quantity) * Number(line.unitPrice)
+                return (
+                <div key={i} className="grid grid-cols-[1fr_4.5rem_7rem_5.5rem_2.25rem] items-center gap-2">
+                  <Input value={line.description} onChange={(e) => setLine(i, { description: e.target.value })} placeholder="Description" />
+                  <Input value={line.quantity} onChange={(e) => setLine(i, { quantity: e.target.value })} type="number" inputMode="numeric" min="1" step="1" aria-label={`Quantity for line ${i + 1}`} />
+                  <Input value={line.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} type="number" inputMode="decimal" min="0" placeholder="0" aria-label={`Unit price for line ${i + 1}`} />
+                  <span className="truncate text-right font-mono text-sm tabular-nums text-muted-foreground">
+                    {Number.isFinite(rowTotal) && rowTotal > 0 ? formatFull(rowTotal, currency) : "—"}
+                  </span>
                   <button
                     type="button"
                     aria-label="Remove line"
@@ -132,7 +160,8 @@ function EditInvoiceForm({ invoice, router }: { invoice: Invoice; router: Return
                     <HugeiconsIcon icon={Delete02Icon} className="size-4" />
                   </button>
                 </div>
-              ))}
+                )
+              })}
               <Button variant="outline" size="sm" className="gap-1.5" onClick={addLine}>
                 <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-3.5" />
                 Add line item
@@ -153,8 +182,8 @@ function EditInvoiceForm({ invoice, router }: { invoice: Invoice; router: Return
               <Field label="Issued" htmlFor="issued">
                 <Input id="issued" type="date" value={issued} onChange={(e) => setIssued(e.target.value)} />
               </Field>
-              <Field label="Due" htmlFor="due">
-                <Input id="due" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+              <Field label="Due *" htmlFor="due">
+                <Input id="due" type="date" required value={due} onChange={(e) => setDue(e.target.value)} />
               </Field>
             </div>
 

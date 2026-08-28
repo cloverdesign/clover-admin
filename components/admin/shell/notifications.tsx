@@ -19,9 +19,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { EmptyState } from "@/components/ui/empty-state"
-import { useNotifications } from "@/lib/queries/notifications-queries"
-import { useNotificationReads } from "@/hooks/use-notification-reads"
-import type { NotificationType } from "@/lib/api/models"
+import {
+  useNotifications,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+} from "@/lib/queries/notifications-queries"
+import type { Notification, NotificationType } from "@/lib/api/models"
 
 const TYPE_ICON: Record<NotificationType, typeof Invoice01Icon> = {
   INVOICE_OVERDUE: Invoice01Icon,
@@ -45,13 +48,14 @@ function ago(iso: string): string {
   return `${Math.round(days / 30)}mo ago`
 }
 
-/** Header bell — opens the notifications feed and carries the unread count. */
+/** Header bell — opens the notifications feed and carries the unread count.
+ * Read state is the server's (`Notification.read`), so it follows the admin
+ * across devices rather than living in this browser. */
 export function NotificationBell() {
   const [open, setOpen] = React.useState(false)
-  const { notifications } = useNotifications()
-  const { readIds, markRead, markAllRead } = useNotificationReads()
-
-  const unreadCount = notifications.filter((n) => !readIds.has(n.id)).length
+  const { notifications, unreadCount } = useNotifications()
+  const markRead = useMarkNotificationRead()
+  const markAllRead = useMarkAllNotificationsRead()
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -85,7 +89,7 @@ export function NotificationBell() {
           {unreadCount > 0 && (
             <button
               type="button"
-              onClick={() => markAllRead(notifications.map((n) => n.id))}
+              onClick={() => markAllRead.mutate()}
               className="text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               Mark all read
@@ -103,59 +107,66 @@ export function NotificationBell() {
         ) : (
           <div className="max-h-96 overflow-y-auto">
             {notifications.map((n) => {
-              const isUnread = !readIds.has(n.id)
-              return (
-                <Link
-                  key={n.id}
-                  href={n.href}
-                  onClick={() => {
-                    markRead(n.id)
-                    setOpen(false)
-                  }}
-                  className={cn(
-                    "flex gap-3 border-b border-border/60 px-4 py-3 transition-colors last:border-b-0 hover:bg-muted/50",
-                    isUnread && "bg-muted/30"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
-                      isUnread
-                        ? "bg-primary/10 text-primary"
-                        : "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    <HugeiconsIcon icon={TYPE_ICON[n.type]} className="size-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "truncate text-sm",
-                          isUnread ? "font-medium" : "text-foreground/80"
-                        )}
-                      >
-                        {n.title}
-                      </span>
-                      {isUnread && (
-                        <span className="size-1.5 shrink-0 rounded-full bg-primary" />
-                      )}
-                    </div>
-                    {n.body && (
-                      <p className="truncate text-xs text-muted-foreground">
-                        {n.body}
-                      </p>
-                    )}
-                    <p className="mt-0.5 text-[11px] text-muted-foreground/70">
-                      {ago(n.createdAt)}
-                    </p>
-                  </div>
+              const onActivate = () => {
+                if (!n.read) markRead.mutate({ id: n.id })
+                setOpen(false)
+              }
+              const body = <NotificationRow notification={n} />
+              const className = cn(
+                "flex w-full gap-3 border-b border-border/60 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted/50",
+                !n.read && "bg-muted/30"
+              )
+              // Not every notification carries a deep link; one without an href
+              // is still worth showing and still marks itself read on click.
+              return n.href ? (
+                <Link key={n.id} href={n.href} onClick={onActivate} className={className}>
+                  {body}
                 </Link>
+              ) : (
+                <button key={n.id} type="button" onClick={onActivate} className={className}>
+                  {body}
+                </button>
               )
             })}
           </div>
         )}
       </PopoverContent>
     </Popover>
+  )
+}
+
+/** The inside of one feed row — shared by the linked and unlinked variants. */
+function NotificationRow({ notification }: { notification: Notification }) {
+  const unread = !notification.read
+  return (
+    <>
+      <span
+        className={cn(
+          "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
+          unread ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+        )}
+      >
+        <HugeiconsIcon icon={TYPE_ICON[notification.type]} className="size-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "truncate text-sm",
+              unread ? "font-medium" : "text-foreground/80"
+            )}
+          >
+            {notification.title}
+          </span>
+          {unread && <span className="size-1.5 shrink-0 rounded-full bg-primary" />}
+        </div>
+        {notification.body && (
+          <p className="truncate text-xs text-muted-foreground">{notification.body}</p>
+        )}
+        <p className="mt-0.5 text-[11px] text-muted-foreground/70">
+          {ago(notification.createdAt)}
+        </p>
+      </div>
+    </>
   )
 }

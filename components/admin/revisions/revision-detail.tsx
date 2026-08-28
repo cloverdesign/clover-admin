@@ -324,11 +324,13 @@ function ApprovePhaseDialog({
     phase: string
     milestones: { title: string; dueDate?: string }[]
     endDate?: string
+    decisionNote?: string
   }) => void
 }) {
   const [phase, setPhase] = React.useState("")
   const [rows, setRows] = React.useState<MilestoneRow[]>([{ title: "", due: "" }])
   const [endDate, setEndDate] = React.useState("")
+  const [note, setNote] = React.useState("")
 
   const namedRows = rows.filter((r) => r.title.trim())
   const valid = phase.trim().length > 0 && namedRows.length > 0
@@ -342,6 +344,7 @@ function ApprovePhaseDialog({
         dueDate: toApiDateTime(r.due),
       })),
       endDate: toApiDateTime(endDate),
+      decisionNote: note.trim() || undefined,
     })
 
   return (
@@ -421,6 +424,8 @@ function ApprovePhaseDialog({
               className="w-48"
             />
           </div>
+
+          <ClientNoteField id="phase-note" value={note} onChange={setNote} />
         </div>
 
         <DialogFooter>
@@ -453,12 +458,14 @@ function ApproveProjectDialog({
     type: "new_project"
     projectName: string
     projectDescription: string
+    decisionNote?: string
   }) => void
 }) {
   // Seeded from the request; this dialog is scoped to one revision, so the
   // defaults are stable for its lifetime.
   const [name, setName] = React.useState(defaultName)
   const [description, setDescription] = React.useState(defaultDescription)
+  const [note, setNote] = React.useState("")
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -491,6 +498,8 @@ function ApproveProjectDialog({
               rows={4}
             />
           </div>
+
+          <ClientNoteField id="proj-note" value={note} onChange={setNote} />
         </div>
 
         <DialogFooter>
@@ -502,6 +511,7 @@ function ApproveProjectDialog({
                 type: "new_project",
                 projectName: name.trim(),
                 projectDescription: description.trim(),
+                decisionNote: note.trim() || undefined,
               })
             }
           >
@@ -537,6 +547,33 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="text-[11px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
       {children}
+    </div>
+  )
+}
+
+/** Optional message to the client on an approval. The API includes it in the
+ * approval email and the portal shows it on the request. */
+function ClientNoteField({
+  id,
+  value,
+  onChange,
+}: {
+  id: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>
+        Note to the client <span className="text-muted-foreground">(optional)</span>
+      </Label>
+      <Textarea
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Anything they should know about how you're handling this."
+        rows={2}
+      />
     </div>
   )
 }

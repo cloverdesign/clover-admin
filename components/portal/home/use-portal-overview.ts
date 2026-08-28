@@ -1,19 +1,28 @@
 "use client"
 
 /**
- * Cross-project aggregation for the client dashboard. Fans the existing
- * per-project portal reads (deliverables, invoices) out over every project the
- * client has with `useQueries`, then folds them — with the client-wide revision
- * list — into three derived views: what needs the client's action, a headline
- * of where the engagement stands, and a recent-activity stream. No new endpoint;
- * the fan-out reuses the same cache keys the project view already populates.
+ * Cross-project aggregation for the client dashboard. Reads the client-wide
+ * invoice, deliverable and revision lists and folds them into three derived
+ * views: what needs the client's action, a headline of where the engagement
+ * stands, and a recent-activity stream.
+ *
+ * This was three `useQueries` fan-outs — invoices, deliverables and detail, one
+ * request per project each, so 2+3N to paint. The backend added client-wide
+ * invoice and deliverable reads, and the projects LIST turns out to embed
+ * milestones (verified against a live session on 2026-08-28; the old comment
+ * here claiming otherwise was stale). So it is now four requests flat, however
+ * many projects the client has.
+ *
+ * Trade-off: the detail fan-out also warmed the per-project cache, so opening a
+ * project now costs its own fetch. Cheap dashboard beats a pre-warmed click.
  */
 
-import { useQueries } from "@tanstack/react-query"
-
-import { queryKeys } from "@/lib/api/query-client"
-import { PortalProjectsService } from "@/lib/services/portal-service"
-import { usePortalProjects, usePortalRevisions } from "@/lib/queries/portal-queries"
+import {
+  usePortalProjects,
+  usePortalRevisions,
+  usePortalAllInvoices,
+  usePortalAllDeliverables,
+} from "@/lib/queries/portal-queries"
 import type { Project, Invoice } from "@/lib/api/models"
 
 export type AttentionTone = "danger" | "warning" | "brand"
@@ -95,6 +104,11 @@ export type PortalOverview = {
   stats: OverviewStats
   billing: BillingSummary
   milestones: UpcomingMilestone[]
+  /** The same upcoming milestones grouped by project, uncapped — the dashboard's
+   * spotlight shows the focused project's own next steps. */
+  milestonesByProject: Record<string, UpcomingMilestone[]>
+  /** Issued invoices (drafts stay internal to the studio), newest first. */
+  recentInvoices: Invoice[]
   recentDeliverables: RecentDeliverable[]
 }
 
@@ -183,33 +197,11 @@ export function usePortalOverview(): PortalOverview {
   const projectName = (id: string) =>
     projects.find((p) => p.id === id)?.name ?? "your project"
 
-  const deliverableQs = useQueries({
-    queries: projects.map((p) => ({
-      queryKey: queryKeys.portal.projectDeliverables(p.id),
-      queryFn: () => PortalProjectsService.deliverables(p.id),
-    })),
-  })
-  const invoiceQs = useQueries({
-    queries: projects.map((p) => ({
-      queryKey: queryKeys.portal.projectInvoices(p.id),
-      queryFn: () => PortalProjectsService.invoices(p.id),
-    })),
-  })
-  // The list endpoint omits milestones; the detail endpoint embeds them. Fetching
-  // detail per project both feeds the upcoming-milestones view and warms the
-  // cache for when the client opens a project.
-  const detailQs = useQueries({
-    queries: projects.map((p) => ({
-      queryKey: queryKeys.portal.project(p.id),
-      queryFn: () => PortalProjectsService.getById(p.id),
-    })),
-  })
+  const deliverablesQ = usePortalAllDeliverables()
+  const invoicesQ = usePortalAllInvoices()
 
-  const deliverables = deliverableQs.flatMap((q) => q.data ?? [])
-  const invoices = invoiceQs.flatMap((q) => q.data ?? [])
-  const detailProjects = detailQs
-    .map((q) => q.data)
-    .filter((p): p is Project => Boolean(p))
+  const deliverables = deliverablesQ.data ?? []
+  const invoices = invoicesQ.data ?? []
   const revisions = revisionsQ.data ?? []
 
   /* ------------------------------------------------------------- attention */
@@ -324,21 +316,37 @@ export function usePortalOverview(): PortalOverview {
 
   /* -------------------------------------------------------------- milestones */
   const nowIso = new Date().toISOString()
-  const milestones: UpcomingMilestone[] = detailProjects
-    .flatMap((p) =>
-      (p.milestones ?? [])
-        .filter((m) => m.status !== "COMPLETED" && m.dueDate)
-        .map((m) => ({
-          id: m.id,
-          title: m.title,
-          dueDate: m.dueDate as string,
-          projectId: p.id,
-          projectName: p.name,
-          overdue: (m.dueDate as string) < nowIso,
-        }))
-    )
-    .sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0))
+  const byDueDate = (a: UpcomingMilestone, b: UpcomingMilestone) =>
+    a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0
+
+  const milestonesByProject: Record<string, UpcomingMilestone[]> = {}
+  for (const p of projects) {
+    const upcoming = (p.milestones ?? [])
+      .filter((m) => m.status !== "COMPLETED" && m.dueDate)
+      .map((m) => ({
+        id: m.id,
+        title: m.title,
+        dueDate: m.dueDate as string,
+        projectId: p.id,
+        projectName: p.name,
+        overdue: (m.dueDate as string) < nowIso,
+      }))
+      .sort(byDueDate)
+    if (upcoming.length > 0) milestonesByProject[p.id] = upcoming
+  }
+  const milestones: UpcomingMilestone[] = Object.values(milestonesByProject)
+    .flat()
+    .sort(byDueDate)
     .slice(0, 5)
+
+  /* -------------------------------------------------------------- invoices */
+  const recentInvoices = invoices
+    .filter((i) => i.status !== "DRAFT")
+    .sort((a, b) => {
+      const da = a.issuedDate ?? a.createdAt
+      const db = b.issuedDate ?? b.createdAt
+      return da < db ? 1 : da > db ? -1 : 0
+    })
 
   /* ----------------------------------------------------------- recent work */
   const recentDeliverables: RecentDeliverable[] = deliverables
@@ -359,16 +367,15 @@ export function usePortalOverview(): PortalOverview {
     isLoading: projectsQ.isLoading,
     isError: projectsQ.isError,
     detailsLoading:
-      revisionsQ.isLoading ||
-      deliverableQs.some((q) => q.isLoading) ||
-      invoiceQs.some((q) => q.isLoading) ||
-      detailQs.some((q) => q.isLoading),
+      revisionsQ.isLoading || deliverablesQ.isLoading || invoicesQ.isLoading,
     projects,
     attention,
     activity: activity.slice(0, 7),
     stats,
     billing: billingSummary(invoices),
     milestones,
+    milestonesByProject,
+    recentInvoices,
     recentDeliverables,
   }
 }

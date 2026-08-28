@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Clover CMS API",
-    "version": "2.0.0",
-    "description": "REST API for the Clover agency platform.\n\n**Two authentication schemes are in use:**\n- **AdminBearer** — JWT issued by `POST /api/auth/login`. Pass in the `Authorization: Bearer <token>` header on all admin routes.\n- **ClientBearer** — opaque session token issued by `POST /api/portal/verify-otp`. Pass in the `Authorization: Bearer <token>` header on all portal routes. Sessions last 30 days.",
+    "version": "3.0.0",
+    "description": "REST API for the Clover agency platform.\n\n**Authentication schemes:**\n\n**AdminBearer** — JWT obtained after a two-step login:\n1. `POST /api/auth/login` — validates password, emails a 6-digit OTP\n2. `POST /api/auth/verify-otp` — validates OTP, returns a 7-day JWT\n\nNew admin accounts must also verify their email before they can sign in (`POST /api/auth/register` → link in email → `GET /api/auth/verify-email?token=...`).\n\n**ClientBearer** — opaque 30-day session token issued by `POST /api/portal/verify-otp`. Stored in the database; logging out invalidates it immediately.\n\nPass either token in the `Authorization: Bearer <token>` header.",
     "contact": {
       "name": "Patrick Oguamanam",
       "email": "kachioguamanam@gmail.com"
@@ -23,6 +23,10 @@
     {
       "name": "Admin Auth",
       "description": "Admin login and session (JWT)"
+    },
+    {
+      "name": "Admin Management",
+      "description": "Admin user management — super admin only"
     },
     {
       "name": "Pages",
@@ -65,6 +69,10 @@
       "description": "Client revision request queue — admin only"
     },
     {
+      "name": "Notifications",
+      "description": "Server-generated attention feed for the admin header bell — admin only"
+    },
+    {
       "name": "Portal Auth",
       "description": "Client portal — passwordless OTP authentication"
     },
@@ -79,7 +87,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Admin JWT — obtained from `POST /api/auth/login`. Valid for 7 days."
+        "description": "Admin JWT — obtained after 2-step login (`POST /api/auth/login` → `POST /api/auth/verify-otp`). Valid for 7 days. The JWT encodes the admin's role (`ADMIN` or `SUPER_ADMIN`). Super-admin-only endpoints return 403 for regular admins."
       },
       "ClientBearer": {
         "type": "http",
@@ -114,6 +122,21 @@
           "email": {
             "type": "string",
             "format": "email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "SUPER_ADMIN",
+              "ADMIN"
+            ]
+          },
+          "emailVerified": {
+            "type": "boolean",
+            "description": "Must be true before the admin can sign in"
+          },
+          "approved": {
+            "type": "boolean",
+            "description": "Must be true (set by super admin) before the admin can sign in"
           },
           "createdAt": {
             "type": "string",
@@ -424,6 +447,12 @@
             "format": "date-time",
             "nullable": true
           },
+          "phase": {
+            "type": "string",
+            "nullable": true,
+            "example": "Design",
+            "description": "Free-text phase label — mirrors Project.phase, used to group milestones on a timeline"
+          },
           "completedAt": {
             "type": "string",
             "format": "date-time",
@@ -584,6 +613,15 @@
               "SUPERSEDED"
             ]
           },
+          "review": {
+            "nullable": true,
+            "description": "The client's latest review of this version — only populated on client portal reads (GET /api/portal/projects/{id}/deliverables and GET /api/portal/deliverables)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DeliverableReview"
+              }
+            ]
+          },
           "uploadedAt": {
             "type": "string",
             "format": "date-time"
@@ -661,6 +699,11 @@
               }
             }
           },
+          "deliverableId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Set when this request was raised from a deliverable \"request changes\" review — a deliberate promotion, not automatic"
+          },
           "status": {
             "type": "string",
             "enum": [
@@ -672,17 +715,80 @@
           },
           "resultingProjectId": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "description": "Set on approval — the new project for `new_project`, or the parent project itself for `new_phase` (symmetric across both approval types)"
+          },
+          "decisionNote": {
+            "type": "string",
+            "nullable": true,
+            "description": "Reason shown to the client for the terminal decision — e.g. a decline reason, or a note attached to an approval"
           },
           "resultingPhaseNote": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "deprecated": true,
+            "description": "Deprecated — prefer `decisionNote`. No longer written on new approvals."
           },
           "createdAt": {
             "type": "string",
             "format": "date-time"
           },
           "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "INVOICE_OVERDUE",
+              "REVISION_REQUESTED",
+              "DELIVERABLE_REVIEW",
+              "MILESTONE_DUE"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "example": "Invoice overdue"
+          },
+          "body": {
+            "type": "string",
+            "nullable": true,
+            "example": "Acme Co · $4,200 · 3 days late"
+          },
+          "href": {
+            "type": "string",
+            "nullable": true,
+            "description": "In-app deep link the bell navigates to on click",
+            "example": "/admin/invoices/inv_123"
+          },
+          "entityType": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "invoice",
+              "revision",
+              "deliverable",
+              "milestone",
+              "project"
+            ]
+          },
+          "entityId": {
+            "type": "string",
+            "nullable": true
+          },
+          "read": {
+            "type": "boolean",
+            "description": "Whether the calling admin has read this notification"
+          },
+          "createdAt": {
             "type": "string",
             "format": "date-time"
           }
@@ -731,7 +837,8 @@
         "tags": [
           "Admin Auth"
         ],
-        "summary": "Register an admin account",
+        "summary": "Step 1 of registration — create account and send verification email",
+        "description": "Creates an unverified admin account and sends a 24-hour verification link to the provided email. The admin cannot sign in until the email is verified.",
         "requestBody": {
           "required": true,
           "content": {
@@ -777,7 +884,13 @@
                       "type": "string"
                     },
                     "data": {
-                      "$ref": "#/components/schemas/Admin"
+                      "type": "object",
+                      "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "Account created. Please check your email to verify your account."
+                        }
+                      }
                     }
                   }
                 }
@@ -797,12 +910,143 @@
         }
       }
     },
+    "/api/auth/verify-email": {
+      "get": {
+        "tags": [
+          "Admin Auth"
+        ],
+        "summary": "Step 2 of registration — verify email via link",
+        "description": "Called when the admin clicks the link in their verification email. Returns a JWT on success so the admin is immediately signed in.",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "64-char hex token from the verification email"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
+                          "type": "string",
+                          "description": "7-day admin JWT"
+                        },
+                        "admin": {
+                          "$ref": "#/components/schemas/Admin"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired verification link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin Auth"
+        ],
+        "summary": "Step 2 of registration — verify email via body (programmatic clients)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
+                          "type": "string",
+                          "description": "7-day admin JWT"
+                        },
+                        "admin": {
+                          "$ref": "#/components/schemas/Admin"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired verification link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/login": {
       "post": {
         "tags": [
           "Admin Auth"
         ],
-        "summary": "Admin login — returns JWT",
+        "summary": "Step 1 of login — validate password and send OTP",
+        "description": "Validates the admin password. If correct, a 6-digit OTP is emailed (valid for 10 minutes). Submit the OTP to `POST /api/auth/verify-otp` to receive a JWT. The admin must have verified their email before they can sign in.",
         "requestBody": {
           "required": true,
           "content": {
@@ -844,6 +1088,81 @@
                     "data": {
                       "type": "object",
                       "properties": {
+                        "message": {
+                          "type": "string",
+                          "example": "A verification code has been sent to your email"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials or email not verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/verify-otp": {
+      "post": {
+        "tags": [
+          "Admin Auth"
+        ],
+        "summary": "Step 2 of login — validate OTP and receive JWT",
+        "description": "Validates the 6-digit OTP that was emailed during `POST /api/auth/login`. Returns a 7-day JWT on success. The OTP is single-use.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "otp"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "otp": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 6,
+                    "example": "382914"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
                         "token": {
                           "type": "string",
                           "description": "7-day admin JWT"
@@ -859,7 +1178,7 @@
             }
           },
           "401": {
-            "description": "Invalid credentials",
+            "description": "Invalid or expired OTP",
             "content": {
               "application/json": {
                 "schema": {
@@ -907,6 +1226,416 @@
           },
           "401": {
             "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admins": {
+      "get": {
+        "tags": [
+          "Admin Management"
+        ],
+        "summary": "List all admin accounts",
+        "description": "Returns all admin accounts regardless of status. Super admin only.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Admin"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Super admin access required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admins/{id}": {
+      "get": {
+        "tags": [
+          "Admin Management"
+        ],
+        "summary": "Get a single admin account",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Admin"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Admin not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Admin Management"
+        ],
+        "summary": "Delete an admin account",
+        "description": "Cannot delete your own account or another super admin.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cannot delete your own account or a super admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Admin not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admins/{id}/approve": {
+      "post": {
+        "tags": [
+          "Admin Management"
+        ],
+        "summary": "Approve a pending admin account",
+        "description": "Sets `approved: true`, allowing the admin to sign in. The admin is notified by email. Cannot approve your own account.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Admin"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cannot approve your own account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Admin not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Admin is already approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admins/{id}/revoke": {
+      "post": {
+        "tags": [
+          "Admin Management"
+        ],
+        "summary": "Revoke an admin's access",
+        "description": "Sets `approved: false`, preventing the admin from signing in. Cannot revoke your own account or a super admin.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Admin"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cannot revoke your own account or a super admin",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Admin not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admins/{id}/role": {
+      "put": {
+        "tags": [
+          "Admin Management"
+        ],
+        "summary": "Change an admin's role",
+        "description": "Promote to SUPER_ADMIN or demote to ADMIN. Cannot change your own role.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "role"
+                ],
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "SUPER_ADMIN",
+                      "ADMIN"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Admin"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cannot change your own role",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Admin not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -2216,8 +2945,8 @@
         "tags": [
           "Clients"
         ],
-        "summary": "Send a portal welcome email to the client",
-        "description": "Marks the client as ACTIVE and emails them the portal URL. The client then authenticates using their email via the OTP flow.",
+        "summary": "Send a portal invite email to the client",
+        "description": "Marks the client as ACTIVE and sends a branded invite email with the portal URL. The client then signs in via the passwordless OTP flow.",
         "security": [
           {
             "AdminBearer": []
@@ -2329,6 +3058,7 @@
           "Projects"
         ],
         "summary": "Create a project for a client",
+        "description": "Creates the project and emails the client a project welcome notification with a portal link.",
         "security": [
           {
             "AdminBearer": []
@@ -2514,6 +3244,7 @@
           "Projects"
         ],
         "summary": "Update a project",
+        "description": "If the `status` field changes, the client is automatically notified by email.",
         "security": [
           {
             "AdminBearer": []
@@ -2684,6 +3415,64 @@
       }
     },
     "/api/projects/{id}/milestones": {
+      "get": {
+        "tags": [
+          "Milestones"
+        ],
+        "summary": "List milestones for a project, ordered ascending",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Milestone"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "Milestones"
@@ -2737,6 +3526,10 @@
                   "dueDate": {
                     "type": "string",
                     "format": "date-time"
+                  },
+                  "phase": {
+                    "type": "string",
+                    "example": "Design"
                   }
                 }
               }
@@ -2784,7 +3577,8 @@
         "tags": [
           "Milestones"
         ],
-        "summary": "Update a milestone. Setting status to COMPLETED auto-records completedAt.",
+        "summary": "Update a milestone",
+        "description": "Setting `status` to `COMPLETED` auto-records `completedAt` and emails the client a milestone completion notification.",
         "security": [
           {
             "AdminBearer": []
@@ -2835,6 +3629,9 @@
                   "dueDate": {
                     "type": "string",
                     "format": "date-time"
+                  },
+                  "phase": {
+                    "type": "string"
                   }
                 }
               }
@@ -2941,12 +3738,70 @@
       }
     },
     "/api/projects/{id}/updates": {
+      "get": {
+        "tags": [
+          "Project Updates"
+        ],
+        "summary": "List all updates for a project (internal and visible), newest first",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProjectUpdate"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "Project Updates"
         ],
         "summary": "Post a project update",
-        "description": "Set `isVisible: true` to show the update to the client in the portal. `isVisible: false` keeps it internal.",
+        "description": "Set `isVisible: true` to show the update in the client portal — the client is also notified by email. `isVisible: false` keeps it internal (no email sent).",
         "security": [
           {
             "AdminBearer": []
@@ -4100,6 +4955,7 @@
           "Revision Requests"
         ],
         "summary": "Update status (IN_REVIEW or DECLINED) — notifies client by email",
+        "description": "To approve with substance (scaffolding a new project or phase), use `POST /api/revision-requests/{id}/approve` instead. `decisionNote` is included in the client-facing status update email — use it to explain a decline.",
         "security": [
           {
             "AdminBearer": []
@@ -4133,9 +4989,9 @@
                       "DECLINED"
                     ]
                   },
-                  "resultingPhaseNote": {
+                  "decisionNote": {
                     "type": "string",
-                    "description": "Optional note if approving as a new phase"
+                    "description": "Reason shown to the client — e.g. why the request was declined"
                   }
                 }
               }
@@ -4184,7 +5040,7 @@
           "Revision Requests"
         ],
         "summary": "Approve a revision request",
-        "description": "Two approval modes:\n- `new_project` — scaffolds a new Project linked to the original via `parentProjectId`. Requires `projectName`.\n- `new_phase` — notes the revision as a new phase on the existing project. Requires `phaseNote`.\n\nClient is notified by email in both cases.",
+        "description": "Two approval modes:\n- `new_project` — scaffolds a new Project linked to the original via `parentProjectId`. Requires `projectName`.\n- `new_phase` — the admin authors the phase inline: creates the given `milestones` on the *existing* project (tagged with `phase`, appended after the current max order), sets `Project.phase` to `phase`, and — if `endDate` is given and later than the current one — extends `Project.endDate`. `resultingProjectId` is set to the parent project itself, symmetric with `new_project`. Requires `phase` and at least one entry in `milestones`.\n\nClient is notified by email in both cases, including `decisionNote` if provided.",
         "security": [
           {
             "AdminBearer": []
@@ -4219,14 +5075,54 @@
                   },
                   "projectName": {
                     "type": "string",
-                    "description": "Required when type is new_project"
+                    "description": "Used when type is new_project"
                   },
                   "projectDescription": {
                     "type": "string"
                   },
-                  "phaseNote": {
+                  "phase": {
                     "type": "string",
-                    "description": "Required when type is new_phase"
+                    "example": "Phase 2 — Rollout",
+                    "description": "Required when type is new_phase — phase label written to the new milestones and to Project.phase"
+                  },
+                  "milestones": {
+                    "type": "array",
+                    "description": "Required when type is new_phase — at least one entry",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "title"
+                      ],
+                      "properties": {
+                        "title": {
+                          "type": "string",
+                          "example": "Rollout kickoff"
+                        },
+                        "dueDate": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    },
+                    "example": [
+                      {
+                        "title": "Rollout kickoff",
+                        "dueDate": "2026-10-01T00:00:00.000Z"
+                      },
+                      {
+                        "title": "Go-live",
+                        "dueDate": "2026-11-15T00:00:00.000Z"
+                      }
+                    ]
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Optional, new_phase only — extends the project's target finish. Ignored if earlier than the current endDate."
+                  },
+                  "decisionNote": {
+                    "type": "string",
+                    "description": "Note shown to the client alongside the approval"
                   }
                 }
               }
@@ -4256,6 +5152,16 @@
               }
             }
           },
+          "400": {
+            "description": "phase is required for new_phase approvals / At least one milestone is required for new_phase approvals",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "404": {
             "description": "Revision request not found",
             "content": {
@@ -4268,6 +5174,187 @@
           },
           "409": {
             "description": "Already approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "List the calling admin's notifications, newest first",
+        "description": "Capped at the 50 most recent. `INVOICE_OVERDUE` and `MILESTONE_DUE` are derived lazily on each call from current invoice/milestone state (there is no background scheduler); `REVISION_REQUESTED` and `DELIVERABLE_REVIEW` are created at the moment those events happen, for every approved admin. Intended to be polled roughly every 60s. There is no separate unread-count endpoint — derive it client-side from `data.filter(n => !n.read).length`.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Notification"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/{id}/read": {
+      "patch": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mark one notification read (or unread)",
+        "description": "404s if the notification does not belong to the calling admin.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "read": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Pass false to mark unread again"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Notification"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Notification not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/read-all": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mark all of the calling admin's notifications read",
+        "description": "Powers the dropdown's \"Mark all read\" action.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "updated": {
+                          "type": "integer",
+                          "example": 4,
+                          "description": "Number of notifications flipped from unread to read"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
@@ -4694,6 +5781,7 @@
           "Portal"
         ],
         "summary": "List ready deliverables on a project",
+        "description": "Each deliverable includes the client's own latest `review` on that version, so the portal can show \"You approved this\" / \"Changes requested\" durably instead of resetting on reload.",
         "security": [
           {
             "ClientBearer": []
@@ -4753,14 +5841,13 @@
         "tags": [
           "Portal"
         ],
-        "summary": "List issued invoices on a project",
-        "description": "Invoices the signed-in client can see for the project — issued only; DRAFT invoices stay internal to the studio. Mirrors the admin `GET /api/projects/{id}/invoices`, scoped to the authenticated portal client. Not yet implemented on the backend: the frontend already calls this route and treats a 404 as an empty list, so billing and the invoices section light up automatically once it ships.",
+        "summary": "List a project's issued invoices",
+        "description": "Excludes DRAFT invoices — drafts stay internal to the studio. Sorted by issuedDate desc.",
         "security": [
           {
             "ClientBearer": []
           }
         ],
-        "x-status": "planned",
         "parameters": [
           {
             "name": "id",
@@ -4799,6 +5886,108 @@
           },
           "404": {
             "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portal/deliverables": {
+      "get": {
+        "tags": [
+          "Portal"
+        ],
+        "summary": "List READY deliverables across all of the client's projects",
+        "description": "Collapses the per-project deliverable fan-out into a single request for the dashboard. Same item shape as the per-project read, including the embedded `review`.",
+        "security": [
+          {
+            "ClientBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Deliverable"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portal/invoices": {
+      "get": {
+        "tags": [
+          "Portal"
+        ],
+        "summary": "List issued invoices across all of the client's projects",
+        "description": "Collapses the per-project invoice fan-out into a single request for the dashboard billing snapshot. Excludes DRAFT invoices.",
+        "security": [
+          {
+            "ClientBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Invoice"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
@@ -4910,7 +6099,7 @@
           "Portal"
         ],
         "summary": "Submit a revision request on a project",
-        "description": "Client describes what they need. Admin is notified by email and the request enters the revision queue.",
+        "description": "Client describes what they need. Admin is notified by email and an in-app notification, and the client gets a \"received\" acknowledgement email; the request enters the revision queue. Pass `deliverableId` to promote a deliverable \"request changes\" review into a linked revision request — this is a deliberate, opt-in action taken by the client, not automatic.",
         "security": [
           {
             "ClientBearer": []
@@ -4957,6 +6146,10 @@
                         }
                       }
                     }
+                  },
+                  "deliverableId": {
+                    "type": "string",
+                    "description": "Optional — links this request to the deliverable it was raised from. Must belong to the same project."
                   }
                 }
               }
@@ -4987,7 +6180,7 @@
             }
           },
           "404": {
-            "description": "Project not found",
+            "description": "Project not found / Deliverable not found",
             "content": {
               "application/json": {
                 "schema": {
