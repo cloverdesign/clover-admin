@@ -138,8 +138,9 @@ function outstandingBalance(invoices: Invoice[]): OverviewStats["outstanding"] {
 }
 
 /** Paid vs outstanding in the client's primary (most-used) currency, plus the
- * single most-pressing unpaid invoice across every currency. */
-function billingSummary(invoices: Invoice[]): BillingSummary {
+ * single most-pressing unpaid invoice across every currency. Shared with the
+ * Invoices page so its summary band and the dashboard card can't drift. */
+export function billingSummary(invoices: Invoice[]): BillingSummary {
   const visible = invoices.filter((i) => i.status !== "DRAFT")
   if (visible.length === 0) return null
 

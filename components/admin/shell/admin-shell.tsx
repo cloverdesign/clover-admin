@@ -22,6 +22,8 @@ import {
   NewButton,
   UserChip,
 } from "@/components/admin/shell/parts"
+import { Separator } from "@/components/ui/separator"
+import { SidebarToggle } from "@/components/ui/sidebar-toggle"
 import { NotificationBell } from "@/components/admin/shell/notifications"
 import {
   Sheet,
@@ -38,6 +40,7 @@ import { useDeliverable } from "@/lib/queries/deliverables-queries"
 import { usePage } from "@/lib/queries/cms-queries"
 import { useMe } from "@/lib/queries/auth-queries"
 import { useNavBadges } from "@/hooks/use-nav-badges"
+import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed"
 import { useRates } from "@/lib/queries/rates-queries"
 import { revisionTitle } from "@/components/admin/revisions/revisions-table"
 import { clearToken } from "@/lib/api/auth-storage"
@@ -53,9 +56,13 @@ function isActive(href: string, pathname: string) {
 function SidebarBody({
   onNavigate,
   showCurrency,
+  collapsed,
+  onToggleCollapsed,
 }: {
   onNavigate?: () => void
   showCurrency?: boolean
+  collapsed?: boolean
+  onToggleCollapsed?: () => void
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -77,16 +84,34 @@ function SidebarBody({
 
   return (
     <>
-      <div className="flex h-12 items-center px-2">
-        <Brand />
+      <div
+        className={cn(
+          "flex items-center px-2",
+          collapsed ? "flex-col gap-2 px-0 py-1" : "h-12"
+        )}
+      >
+        <Brand collapsed={collapsed} />
+        {onToggleCollapsed && (
+          <SidebarToggle
+            collapsed={Boolean(collapsed)}
+            onToggle={onToggleCollapsed}
+            className={collapsed ? undefined : "ml-auto"}
+          />
+        )}
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto py-3">
-        {sections.map((section) => (
+        {sections.map((section, index) => (
           <div key={section.label} className="space-y-1">
-            <div className="px-2 pb-1 font-mono text-[10px] tracking-widest text-muted-foreground/70 uppercase">
-              {section.label}
-            </div>
+            {/* Collapsed, the uppercase headings are gone and the groups would
+                read as one undifferentiated column of glyphs — a rule keeps the
+                grouping the labels were carrying. */}
+            {collapsed && index > 0 && <Separator className="my-2" />}
+            {!collapsed && (
+              <div className="px-2 pb-1 font-mono text-[10px] tracking-widest text-muted-foreground/70 uppercase">
+                {section.label}
+              </div>
+            )}
             {section.items.map((item) => {
               const current = isActive(item.href, pathname)
               return (
@@ -95,27 +120,36 @@ function SidebarBody({
                   href={item.href}
                   onClick={onNavigate}
                   aria-current={current ? "page" : undefined}
+                  title={collapsed ? item.label : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-full px-3 py-2 text-sm transition-colors",
+                    "relative flex items-center gap-3 rounded-full text-sm transition-colors",
+                    collapsed ? "justify-center px-0 py-2" : "px-3 py-2",
                     current
                       ? "bg-secondary font-medium text-secondary-foreground"
                       : "text-foreground/80 hover:bg-muted/60 hover:text-foreground"
                   )}
                 >
                   <HugeiconsIcon icon={item.icon} className="size-4.5 shrink-0" />
-                  <span className="flex-1 truncate">{item.label}</span>
-                  {badges[item.key] > 0 && (
-                    <span
-                      className={cn(
-                        "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-medium tabular-nums",
-                        current
-                          ? "bg-background text-foreground"
-                          : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      {badges[item.key]}
-                    </span>
-                  )}
+                  {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                  {badges[item.key] > 0 &&
+                    (collapsed ? (
+                      // No room for the count — a dot still says "something here".
+                      <span
+                        aria-label={`${badges[item.key]} pending`}
+                        className="absolute top-1.5 right-2.5 size-1.5 rounded-full bg-primary"
+                      />
+                    ) : (
+                      <span
+                        className={cn(
+                          "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-medium tabular-nums",
+                          current
+                            ? "bg-background text-foreground"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {badges[item.key]}
+                      </span>
+                    ))}
                 </Link>
               )
             })}
@@ -123,7 +157,7 @@ function SidebarBody({
         ))}
       </nav>
 
-      {showCurrency && (
+      {showCurrency && !collapsed && (
         <div className="mb-3 space-y-2 border-t border-border pt-3">
           <div className="px-2 font-mono text-[10px] tracking-widest text-muted-foreground/70 uppercase">
             Currency
@@ -132,8 +166,13 @@ function SidebarBody({
         </div>
       )}
 
-      <div className="flex items-center gap-2 rounded-full bg-muted/50 p-1.5 pl-2">
-        <UserChip className="flex-1" />
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-full bg-muted/50 p-1.5",
+          collapsed ? "flex-col rounded-2xl" : "pl-2"
+        )}
+      >
+        <UserChip compact={collapsed} className={collapsed ? undefined : "flex-1"} />
         <button
           type="button"
           aria-label="Sign out"
@@ -285,6 +324,7 @@ function HeaderNav() {
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = React.useState(false)
+  const [collapsed, setCollapsed] = useSidebarCollapsed("admin")
   // Hydrate live FX rates once for the whole admin app (feeds every convert()).
   useRates()
 
@@ -292,8 +332,16 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <CommandPaletteProvider>
     <div className="flex h-dvh gap-3 overflow-hidden bg-sidebar p-2 sm:p-3">
       {/* Desktop rail */}
-      <aside className="hidden w-64 shrink-0 flex-col rounded-2xl bg-card p-3 ring-1 ring-foreground/10 md:flex">
-        <SidebarBody />
+      <aside
+        className={cn(
+          "hidden shrink-0 flex-col rounded-2xl bg-card p-3 ring-1 ring-foreground/10 transition-[width] duration-200 md:flex",
+          collapsed ? "w-16" : "w-64"
+        )}
+      >
+        <SidebarBody
+          collapsed={collapsed}
+          onToggleCollapsed={() => setCollapsed(!collapsed)}
+        />
       </aside>
 
       {/* Mobile drawer */}
