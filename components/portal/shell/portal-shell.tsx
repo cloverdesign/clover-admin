@@ -27,6 +27,7 @@ import {
   ProfileCard,
   ThemeSwitcher,
 } from "@/components/portal/shell/parts"
+import { Separator } from "@/components/ui/separator"
 import { SidebarToggle } from "@/components/ui/sidebar-toggle"
 import {
   Sheet,
@@ -147,6 +148,10 @@ function SidebarBody({
       >
         {PORTAL_NAV.map((section, i) => (
           <div key={section.label ?? `lead-${i}`} className="space-y-1">
+            {/* Collapsed, the uppercase headings are gone and the groups would
+                read as one undifferentiated column of glyphs — a rule keeps the
+                grouping the labels were carrying. */}
+            {collapsed && i > 0 && <Separator className="my-2" />}
             {section.label && !collapsed && (
               <div className="px-2 pb-1 font-mono text-[10px] tracking-widest text-muted-foreground/70 uppercase">
                 {section.label}

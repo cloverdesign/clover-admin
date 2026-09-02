@@ -22,6 +22,7 @@ import {
   NewButton,
   UserChip,
 } from "@/components/admin/shell/parts"
+import { Separator } from "@/components/ui/separator"
 import { SidebarToggle } from "@/components/ui/sidebar-toggle"
 import { NotificationBell } from "@/components/admin/shell/notifications"
 import {
@@ -100,8 +101,12 @@ function SidebarBody({
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto py-3">
-        {sections.map((section) => (
+        {sections.map((section, index) => (
           <div key={section.label} className="space-y-1">
+            {/* Collapsed, the uppercase headings are gone and the groups would
+                read as one undifferentiated column of glyphs — a rule keeps the
+                grouping the labels were carrying. */}
+            {collapsed && index > 0 && <Separator className="my-2" />}
             {!collapsed && (
               <div className="px-2 pb-1 font-mono text-[10px] tracking-widest text-muted-foreground/70 uppercase">
                 {section.label}
