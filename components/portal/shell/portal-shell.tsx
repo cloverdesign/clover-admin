@@ -5,21 +5,29 @@ import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  Logout01Icon,
   Menu01Icon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
 } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
-import { CloverMark } from "@/components/admin/auth/clover-mark"
-import { usePortalMe, usePortalLogout, usePortalProject } from "@/lib/queries/portal-queries"
+import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed"
+import {
+  usePortalMe,
+  usePortalLogout,
+  usePortalProject,
+} from "@/lib/queries/portal-queries"
 import {
   PORTAL_NAV,
   PORTAL_NAV_ITEMS,
   isPortalNavActive,
 } from "@/components/portal/shell/nav-data"
-import { ClientChip, ThemeSwitcher } from "@/components/portal/shell/parts"
+import {
+  PortalBrand,
+  ProfileCard,
+  ThemeSwitcher,
+} from "@/components/portal/shell/parts"
+import { SidebarToggle } from "@/components/ui/sidebar-toggle"
 import {
   Sheet,
   SheetContent,
@@ -28,23 +36,34 @@ import {
 } from "@/components/ui/sheet"
 
 /**
- * Client-facing chrome: a grouped navigation sidebar and a content canvas — the
- * same floating-panel frame the admin shell uses, at the portal's smaller scale.
- * Below `md` the sidebar folds into a drawer.
+ * Client-facing chrome: a collapsible navigation sidebar and a content canvas —
+ * the same floating-panel frame the admin shell uses, at the portal's smaller
+ * scale. Below `md` the sidebar folds into a drawer.
  *
- * This replaced a top bar with three links: client-wide deliverable and invoice
- * reads gave Files and Invoices pages of their own, and five destinations in two
- * groups no longer fit a header.
+ * The sidebar reads top to bottom as product, then places, then you: the Clover
+ * mark and "Client portal" at the head, the nav in the middle, and the client's
+ * own identity in a profile card at the foot beside the way out.
  */
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = React.useState(false)
+  const [collapsed, setCollapsed] = useSidebarCollapsed("portal")
 
   return (
     <div className="flex h-dvh gap-2 overflow-hidden bg-sidebar p-2 sm:gap-3 sm:p-3">
-      <aside className="hidden w-60 shrink-0 flex-col rounded-2xl bg-card p-3 ring-1 ring-foreground/10 md:flex">
-        <SidebarBody />
+      <aside
+        className={cn(
+          "hidden shrink-0 flex-col rounded-2xl bg-card p-3 ring-1 ring-foreground/10 transition-[width] duration-200 md:flex",
+          collapsed ? "w-16" : "w-60"
+        )}
+      >
+        <SidebarBody
+          collapsed={collapsed}
+          onToggleCollapsed={() => setCollapsed(!collapsed)}
+        />
       </aside>
 
+      {/* The drawer is never collapsed — it's summoned deliberately, and an icon
+          rail inside an overlay would be a worse version of the full nav. */}
       <Sheet open={navOpen} onOpenChange={setNavOpen}>
         <SheetContent
           side="left"
@@ -71,9 +90,8 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
           <HeaderNav />
         </header>
 
-        {/* Vertical padding lives on the inner column, not here: a sticky
-            toolbar pins to the scroll port's padding box, so top padding on
-            `main` would leave a band above it where content scrolls in view. */}
+        {/* Vertical padding lives on the inner column, not here, so a sticky
+            child pins flush to the canvas top rather than below a gap. */}
         <main className="flex-1 overflow-y-auto px-4 sm:px-6">
           <div className="mx-auto w-full max-w-5xl py-4 sm:py-6">{children}</div>
         </main>
@@ -82,58 +100,54 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
   )
 }
 
-function SignOutButton({ onSignOut }: { onSignOut?: () => void }) {
+/* ---------------------------------------------------------------- sidebar */
+
+function SidebarBody({
+  collapsed,
+  onToggleCollapsed,
+  onNavigate,
+}: {
+  collapsed?: boolean
+  onToggleCollapsed?: () => void
+  onNavigate?: () => void
+}) {
+  const pathname = usePathname()
   const router = useRouter()
+  const { data: client } = usePortalMe()
   const logout = usePortalLogout()
 
   const signOut = () => {
-    onSignOut?.()
+    onNavigate?.()
     logout.mutate(undefined, { onSettled: () => router.replace("/login") })
   }
 
   return (
-    <button
-      type="button"
-      aria-label="Sign out"
-      onClick={signOut}
-      className="flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-    >
-      <HugeiconsIcon icon={Logout01Icon} className="size-5" />
-    </button>
-  )
-}
-
-/* ---------------------------------------------------------------- sidebar */
-
-/**
- * Mark, identity, grouped nav, then theme and sign out. Shared by the desktop
- * sidebar and the mobile drawer; `onNavigate` lets the drawer close itself when
- * a link is tapped.
- */
-function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = usePathname()
-  const { data: client } = usePortalMe()
-
-  return (
     <>
-      <Link
-        href="/"
-        onClick={onNavigate}
-        aria-label="Home"
-        className="flex items-center gap-2.5 rounded-xl px-1 py-1.5 transition-colors hover:bg-muted/60"
-      >
-        <CloverMark className="size-6 shrink-0" />
-        {client ? (
-          <ClientChip company={client.company} name={client.name} className="min-w-0 flex-1" />
-        ) : (
-          <span className="text-sm font-semibold tracking-tight">Clover</span>
+      <div
+        className={cn(
+          "flex items-center gap-1",
+          collapsed && "flex-col gap-2"
         )}
-      </Link>
+      >
+        <PortalBrand collapsed={collapsed} />
+        {onToggleCollapsed && (
+          <SidebarToggle
+            collapsed={Boolean(collapsed)}
+            onToggle={onToggleCollapsed}
+            className={collapsed ? undefined : "ml-auto"}
+          />
+        )}
+      </div>
 
-      <nav className="mt-3 flex-1 space-y-5 overflow-y-auto">
+      <nav
+        className={cn(
+          "mt-3 flex-1 space-y-5 overflow-y-auto",
+          collapsed && "space-y-2"
+        )}
+      >
         {PORTAL_NAV.map((section, i) => (
           <div key={section.label ?? `lead-${i}`} className="space-y-1">
-            {section.label && (
+            {section.label && !collapsed && (
               <div className="px-2 pb-1 font-mono text-[10px] tracking-widest text-muted-foreground/70 uppercase">
                 {section.label}
               </div>
@@ -146,15 +160,17 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
                   href={item.href}
                   onClick={onNavigate}
                   aria-current={current ? "page" : undefined}
+                  title={collapsed ? item.label : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-full px-3 py-2 text-sm transition-colors",
+                    "flex items-center gap-3 rounded-full text-sm transition-colors",
+                    collapsed ? "justify-center px-0 py-2" : "px-3 py-2",
                     current
                       ? "bg-secondary font-medium text-secondary-foreground"
                       : "text-foreground/80 hover:bg-muted/60 hover:text-foreground"
                   )}
                 >
                   <HugeiconsIcon icon={item.icon} className="size-4.5 shrink-0" />
-                  <span className="truncate">{item.label}</span>
+                  {!collapsed && <span className="truncate">{item.label}</span>}
                 </Link>
               )
             })}
@@ -162,9 +178,21 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
 
-      <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
-        <ThemeSwitcher className="min-w-0 flex-1" />
-        <SignOutButton onSignOut={onNavigate} />
+      <div
+        className={cn(
+          "mt-3 space-y-2 border-t border-border pt-3",
+          collapsed && "flex flex-col items-center space-y-2"
+        )}
+      >
+        <ThemeSwitcher collapsed={collapsed} className={collapsed ? undefined : "w-full"} />
+        {client && (
+          <ProfileCard
+            company={client.company}
+            name={client.name}
+            collapsed={collapsed}
+            onSignOut={signOut}
+          />
+        )}
       </div>
     </>
   )
@@ -207,7 +235,7 @@ function HeaderNav() {
           <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5" />
         </Link>
       )}
-      {/* Small and grey on purpose: the page's own hero carries the title, and
+      {/* Small and grey on purpose: the page's own header carries the title, and
           two prominent copies of it read as a mistake. */}
       <nav
         aria-label="Breadcrumb"

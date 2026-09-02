@@ -26,14 +26,30 @@ import type { AdminRole } from "@/lib/api/models"
 /** Small shared atoms every shell variant composes — deliberately NOT a shared
  * layout. Each variant is free to arrange these however it likes. */
 
-export function Brand({ className }: { className?: string }) {
+export function Brand({
+  collapsed,
+  className,
+}: {
+  collapsed?: boolean
+  className?: string
+}) {
   return (
-    <div className={cn("flex items-center gap-2.5", className)}>
-      <CloverMark className="size-7" />
-      <span className="text-sm font-semibold tracking-tight">Clover</span>
-      <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
-        Admin
-      </span>
+    <div
+      className={cn(
+        "flex items-center gap-2.5",
+        collapsed && "justify-center",
+        className
+      )}
+    >
+      <CloverMark className="size-7 shrink-0" />
+      {!collapsed && (
+        <>
+          <span className="text-sm font-semibold tracking-tight">Clover</span>
+          <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
+            Admin
+          </span>
+        </>
+      )}
     </div>
   )
 }
