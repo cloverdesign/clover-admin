@@ -119,7 +119,7 @@ export function PortalHome() {
         <EmptyState />
       ) : (
         <>
-          <div className="anim-rise grid items-start gap-4 lg:grid-cols-12" style={rise(1)}>
+          <div className="anim-rise grid gap-4 lg:grid-cols-12" style={rise(1)}>
             {spotlight && (
               <div className="lg:col-span-7">
                 <Spotlight
@@ -299,7 +299,7 @@ function Spotlight({
   return (
     <Link
       href={`/projects/${project.id}`}
-      className="group flex flex-col gap-5 rounded-2xl border bg-card p-6 transition-colors hover:border-foreground/20"
+      className="group flex h-full flex-col gap-5 rounded-2xl border bg-card p-6 transition-colors hover:border-foreground/20"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
@@ -359,7 +359,7 @@ function Spotlight({
         )}
       </div>
 
-      <div className="flex items-end justify-between gap-4">
+      <div className="mt-auto flex items-end justify-between gap-4">
         <dl className="flex gap-6">
           <div>
             <dt className="text-xs text-muted-foreground">Started</dt>
@@ -414,7 +414,7 @@ function AttentionPanel({
   const overflow = items.length - shown.length
 
   return (
-    <div className="flex flex-col rounded-2xl border bg-card p-5">
+    <div className="flex h-full flex-col rounded-2xl border bg-card p-5">
       <div className="flex items-center gap-2">
         <h2 className="font-heading text-sm font-medium">Needs your attention</h2>
         {items.length > 0 && (
