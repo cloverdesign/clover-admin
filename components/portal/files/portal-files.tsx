@@ -5,12 +5,19 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Loading03Icon } from "@hugeicons/core-free-icons"
 
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsContent } from "@/components/ui/tabs"
 import {
   usePortalAllDeliverables,
   usePortalProjects,
 } from "@/lib/queries/portal-queries"
-import { PortalPage, PortalFilterPill } from "@/components/portal/shell/portal-page"
+import {
+  PortalPage,
+  PortalTab,
+  PortalTableFooter,
+} from "@/components/portal/shell/portal-page"
 import { DeliverableList } from "@/components/portal/deliverables/deliverable-list"
+
+const ALL = "all"
 
 /**
  * Every file the studio has shipped, across the whole engagement — the page that
@@ -21,7 +28,7 @@ import { DeliverableList } from "@/components/portal/deliverables/deliverable-li
 export function PortalFiles() {
   const deliverablesQ = usePortalAllDeliverables()
   const projectsQ = usePortalProjects()
-  const [projectFilter, setProjectFilter] = React.useState<string | null>(null)
+  const [tab, setTab] = React.useState(ALL)
 
   const projects = projectsQ.data ?? []
   const projectName = (id: string) =>
@@ -46,49 +53,78 @@ export function PortalFiles() {
   }
 
   const all = deliverablesQ.data ?? []
-  // Only offer the filter for projects that actually shipped something.
+  const ready = (list: typeof all) => list.filter((d) => d.status === "READY")
+  // Only tab by project once more than one has shipped something.
   const withFiles = projects.filter((p) => all.some((d) => d.projectId === p.id))
-  const shown = projectFilter
-    ? all.filter((d) => d.projectId === projectFilter)
-    : all
-  const shownCount = shown.filter((d) => d.status === "READY").length
+  const tabbed = withFiles.length > 1
+
+  const forTab = (key: string) =>
+    key === ALL ? all : all.filter((d) => d.projectId === key)
+  const shown = forTab(tab)
 
   return (
-    <PortalPage
-      title="Files"
-      subtitle="Everything your studio has shipped, newest first."
-      toolbar={
-        withFiles.length > 1 ? (
+    <Tabs value={tab} onValueChange={(v) => v && setTab(v)} className="gap-0">
+      <PortalPage
+        title="Files"
+        count={ready(all).length}
+        tabs={
+          tabbed ? (
+            <TabsList variant="line">
+              <PortalTab value={ALL} count={ready(all).length}>
+                All
+              </PortalTab>
+              {withFiles.map((p) => (
+                <PortalTab
+                  key={p.id}
+                  value={p.id}
+                  count={ready(forTab(p.id)).length}
+                >
+                  {p.name}
+                </PortalTab>
+              ))}
+            </TabsList>
+          ) : null
+        }
+      >
+        {tabbed ? (
           <>
-            <PortalFilterPill
-              active={projectFilter === null}
-              onClick={() => setProjectFilter(null)}
-            >
-              All
-            </PortalFilterPill>
+            <TabsContent value={ALL}>
+              <FilesTable deliverables={all} projectName={projectName} />
+            </TabsContent>
             {withFiles.map((p) => (
-              <PortalFilterPill
-                key={p.id}
-                active={projectFilter === p.id}
-                onClick={() => setProjectFilter(p.id)}
-              >
-                {p.name}
-              </PortalFilterPill>
+              <TabsContent key={p.id} value={p.id}>
+                <FilesTable deliverables={forTab(p.id)} />
+              </TabsContent>
             ))}
           </>
-        ) : null
-      }
-      meta={`${shownCount} file${shownCount === 1 ? "" : "s"}`}
-    >
+        ) : (
+          <FilesTable deliverables={shown} />
+        )}
+      </PortalPage>
+    </Tabs>
+  )
+}
+
+function FilesTable({
+  deliverables,
+  projectName,
+}: {
+  deliverables: React.ComponentProps<typeof DeliverableList>["deliverables"]
+  projectName?: (projectId: string) => string
+}) {
+  const count = deliverables.filter((d) => d.status === "READY").length
+  return (
+    <>
       <DeliverableList
-        deliverables={shown}
-        projectName={projectFilter ? undefined : projectName}
-        emptyMessage={
-          projectFilter
-            ? "Nothing shipped on this project yet."
-            : "Finished work shows up here as your studio ships it."
-        }
+        deliverables={deliverables}
+        projectName={projectName}
+        emptyMessage="Finished work shows up here as your studio ships it."
       />
-    </PortalPage>
+      {count > 0 && (
+        <PortalTableFooter>
+          {count} file{count === 1 ? "" : "s"}
+        </PortalTableFooter>
+      )}
+    </>
   )
 }

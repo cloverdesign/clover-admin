@@ -183,7 +183,7 @@ const REVISION_VARIANT: Record<
   DECLINED: "destructive",
 }
 
-function RevisionStatusBadge({ status }: { status: RevisionStatus }) {
+export function RevisionStatusBadge({ status }: { status: RevisionStatus }) {
   return <Badge variant={REVISION_VARIANT[status]}>{REVISION_LABEL[status]}</Badge>
 }
 

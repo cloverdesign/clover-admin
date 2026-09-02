@@ -11,12 +11,14 @@ import {
   File01Icon,
   CheckmarkCircle02Icon,
   PencilEdit02Icon,
-  ArrowRight01Icon,
 } from "@hugeicons/core-free-icons"
 
-import { cn } from "@/lib/utils"
+import type { ColumnDef } from "@tanstack/react-table"
+
 import { formatDate, byNewest } from "@/lib/format"
 import { Badge } from "@/components/ui/badge"
+import { DataTable, DataTableSortHeader } from "@/components/ui/data-table"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -73,20 +75,20 @@ function fileIcon(d: Deliverable) {
   return looksLikeImage(d.fileUrl) ? Image01Icon : File01Icon
 }
 
-/* ------------------------------------------------------------------- list */
+/* ------------------------------------------------------------------ table */
 
 /**
- * Deliverables as rows that open a review panel, rather than cards that carry
- * their own controls. Reviewing is the portal's highest-value action and it now
- * happens in one place, whether the client arrives from a project or from Files.
+ * Deliverables as a sortable table whose rows open a review panel. Reviewing is
+ * the portal's highest-value action and it happens in one place, whether the
+ * client arrives from a project or from Files.
  */
 export function DeliverableList({
   deliverables,
   projectName,
-  emptyMessage = "Nothing here yet. Finished work shows up as your studio ships it.",
+  emptyMessage = "Finished work shows up here as your studio ships it.",
 }: {
   deliverables: Deliverable[]
-  /** Renders the project under each title — omit on a single-project view. */
+  /** Adds a Project column — omit on a single-project view. */
   projectName?: (projectId: string) => string
   emptyMessage?: string
 }) {
@@ -94,34 +96,94 @@ export function DeliverableList({
   const [openId, setOpenId] = React.useState<string | null>(null)
   const active = groups.find((g) => g.current.id === openId) ?? null
 
+  const columns = React.useMemo<ColumnDef<DeliverableGroup>[]>(() => {
+    const cols: ColumnDef<DeliverableGroup>[] = [
+      {
+        id: "title",
+        accessorFn: (g) => g.current.title,
+        header: ({ column }) => <DataTableSortHeader column={column} title="Name" />,
+        cell: ({ row }) => (
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+              <HugeiconsIcon icon={fileIcon(row.original.current)} className="size-3.5" />
+            </span>
+            <span className="truncate font-medium">{row.original.current.title}</span>
+          </div>
+        ),
+      },
+    ]
+
+    if (projectName) {
+      cols.push({
+        id: "project",
+        accessorFn: (g) => projectName(g.current.projectId),
+        header: ({ column }) => <DataTableSortHeader column={column} title="Project" />,
+        cell: ({ getValue }) => (
+          <span className="truncate text-muted-foreground">{getValue<string>()}</span>
+        ),
+      })
+    }
+
+    cols.push(
+      {
+        id: "version",
+        accessorFn: (g) => g.current.version,
+        header: ({ column }) => <DataTableSortHeader column={column} title="Version" />,
+        cell: ({ row }) => (
+          <span className="text-muted-foreground tabular-nums">
+            v{row.original.current.version}
+            {row.original.older.length > 0 && (
+              <span className="ml-1 text-xs opacity-60">
+                +{row.original.older.length}
+              </span>
+            )}
+          </span>
+        ),
+      },
+      {
+        id: "uploadedAt",
+        accessorFn: (g) => g.current.uploadedAt,
+        header: ({ column }) => <DataTableSortHeader column={column} title="Shared" />,
+        cell: ({ getValue }) => (
+          <span className="whitespace-nowrap text-muted-foreground">
+            {formatDate(getValue<string>())}
+          </span>
+        ),
+      },
+      {
+        id: "review",
+        accessorFn: (g) => g.current.review?.status ?? "PENDING",
+        header: ({ column }) => <DataTableSortHeader column={column} title="Review" />,
+        cell: ({ row }) => (
+          <ReviewBadge status={row.original.current.review?.status ?? null} />
+        ),
+      }
+    )
+
+    return cols
+  }, [projectName])
+
   if (groups.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed py-16 text-center">
-        <HugeiconsIcon icon={DeliveryBox01Icon} className="size-6 text-muted-foreground/60" />
-        <p className="max-w-xs text-sm text-muted-foreground">{emptyMessage}</p>
-      </div>
+      <EmptyState
+        bordered
+        size="sm"
+        icon={DeliveryBox01Icon}
+        title="No files yet"
+        description={emptyMessage}
+      />
     )
   }
 
   return (
     <>
-      <ul className="overflow-hidden rounded-2xl border bg-card">
-        {groups.map((group, i) => (
-          <li key={group.current.id}>
-            <DeliverableRow
-              group={group}
-              subtitle={projectName?.(group.current.projectId)}
-              divided={i > 0}
-              onOpen={() => setOpenId(group.current.id)}
-            />
-          </li>
-        ))}
-      </ul>
+      <DataTable
+        columns={columns}
+        data={groups}
+        onRowClick={(g) => setOpenId(g.current.id)}
+      />
 
-      <Sheet
-        open={active !== null}
-        onOpenChange={(open) => !open && setOpenId(null)}
-      >
+      <Sheet open={active !== null} onOpenChange={(open) => !open && setOpenId(null)}>
         <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
           {active && (
             <DeliverablePanel
@@ -137,66 +199,9 @@ export function DeliverableList({
 }
 
 function ReviewBadge({ status }: { status: DeliverableReviewStatus | null }) {
-  if (status === "APPROVED") return <Badge variant="success">You approved this</Badge>
-  if (status === "CHANGES_REQUESTED") return <Badge variant="warning">Changes requested</Badge>
-  return <Badge variant="info">Needs your review</Badge>
-}
-
-function DeliverableRow({
-  group,
-  subtitle,
-  divided,
-  onOpen,
-}: {
-  group: DeliverableGroup
-  subtitle?: string
-  divided: boolean
-  onOpen: () => void
-}) {
-  const d = group.current
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={cn(
-        "group flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/50 sm:px-5",
-        divided && "border-t border-border"
-      )}
-    >
-      <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted text-muted-foreground">
-        {looksLikeImage(d.fileUrl) ? (
-          <Image
-            src={d.fileUrl as string}
-            alt=""
-            width={40}
-            height={40}
-            className="size-full object-cover"
-            unoptimized
-          />
-        ) : (
-          <HugeiconsIcon icon={fileIcon(d)} className="size-4.5" />
-        )}
-      </span>
-
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="truncate text-sm font-medium">{d.title}</span>
-          <Badge variant="secondary">v{d.version}</Badge>
-        </span>
-        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-          {[subtitle, `Shared ${formatDate(d.uploadedAt)}`].filter(Boolean).join(" · ")}
-        </span>
-      </span>
-
-      <span className="hidden shrink-0 sm:block">
-        <ReviewBadge status={d.review?.status ?? null} />
-      </span>
-      <HugeiconsIcon
-        icon={ArrowRight01Icon}
-        className="size-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground"
-      />
-    </button>
-  )
+  if (status === "APPROVED") return <Badge variant="success">Approved</Badge>
+  if (status === "CHANGES_REQUESTED") return <Badge variant="warning">Changes asked</Badge>
+  return <Badge variant="info">Needs review</Badge>
 }
 
 /* ------------------------------------------------------------------ panel */

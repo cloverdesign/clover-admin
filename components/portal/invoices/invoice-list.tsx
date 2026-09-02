@@ -1,18 +1,17 @@
 "use client"
 
 import * as React from "react"
+import type { ColumnDef } from "@tanstack/react-table"
 import { HugeiconsIcon } from "@hugeicons/react"
-import {
-  Invoice01Icon,
-  Download01Icon,
-  ArrowRight01Icon,
-} from "@hugeicons/core-free-icons"
+import { Invoice01Icon, Download01Icon } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
 import { formatDate, byNewest } from "@/lib/format"
 import { formatFull, lineTotal } from "@/lib/mock/invoices"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { DataTable, DataTableSortHeader } from "@/components/ui/data-table"
+import { EmptyState } from "@/components/ui/empty-state"
 import {
   Sheet,
   SheetContent,
@@ -62,76 +61,120 @@ function whenLabel(invoice: Invoice): string {
 }
 
 /**
- * Invoices as rows that open a detail panel. The row carries the number, amount
- * and state; line items, dates and the PDF live in the slide-over, so a client
- * scanning "what do I owe" isn't reading a billing breakdown to find out.
+ * Invoices as a sortable table whose rows open a detail panel. The row carries
+ * what a client scans for — number, dates, state, amount — and the panel holds
+ * the billing breakdown and the PDF.
  */
 export function InvoiceList({
   invoices,
   projectName,
-  emptyMessage = "No invoices yet. They appear here once your studio issues one.",
+  emptyMessage = "Invoices appear here once your studio issues one.",
 }: {
   invoices: Invoice[]
-  /** Renders the project under each number — omit on a single-project view. */
+  /** Adds a Project column — omit on a single-project view. */
   projectName?: (projectId: string) => string
   emptyMessage?: string
 }) {
-  const shown = React.useMemo(() => visibleInvoices(invoices), [invoices])
+  const rows = React.useMemo(() => visibleInvoices(invoices), [invoices])
   const [openId, setOpenId] = React.useState<string | null>(null)
-  const active = shown.find((i) => i.id === openId) ?? null
+  const active = rows.find((i) => i.id === openId) ?? null
 
-  if (shown.length === 0) {
+  const columns = React.useMemo<ColumnDef<Invoice>[]>(() => {
+    const cols: ColumnDef<Invoice>[] = [
+      {
+        id: "invoiceNumber",
+        accessorFn: (i) => i.invoiceNumber,
+        header: ({ column }) => <DataTableSortHeader column={column} title="Invoice" />,
+        cell: ({ getValue }) => (
+          <span className="font-mono font-medium tabular-nums">{getValue<string>()}</span>
+        ),
+      },
+    ]
+
+    if (projectName) {
+      cols.push({
+        id: "project",
+        accessorFn: (i) => projectName(i.projectId),
+        header: ({ column }) => <DataTableSortHeader column={column} title="Project" />,
+        cell: ({ getValue }) => (
+          <span className="truncate text-muted-foreground">{getValue<string>()}</span>
+        ),
+      })
+    }
+
+    cols.push(
+      {
+        id: "issuedDate",
+        accessorFn: (i) => i.issuedDate ?? "",
+        header: ({ column }) => <DataTableSortHeader column={column} title="Issued" />,
+        cell: ({ getValue }) => (
+          <span className="whitespace-nowrap text-muted-foreground">
+            {formatDate(getValue<string>() || null)}
+          </span>
+        ),
+      },
+      {
+        id: "dueDate",
+        accessorFn: (i) => i.dueDate ?? "",
+        header: ({ column }) => <DataTableSortHeader column={column} title="Due" />,
+        cell: ({ row }) => (
+          <span
+            className={cn(
+              "whitespace-nowrap",
+              row.original.status === "OVERDUE"
+                ? "text-destructive"
+                : "text-muted-foreground"
+            )}
+          >
+            {formatDate(row.original.dueDate)}
+          </span>
+        ),
+      },
+      {
+        id: "status",
+        accessorFn: (i) => i.status,
+        header: ({ column }) => <DataTableSortHeader column={column} title="Status" />,
+        cell: ({ row }) => <InvoiceStatusBadge status={row.original.status} />,
+      },
+      {
+        id: "amount",
+        accessorFn: (i) => i.amount,
+        header: ({ column }) => (
+          <DataTableSortHeader column={column} title="Amount" className="ml-auto" />
+        ),
+        cell: ({ row }) => (
+          <div className="text-right">
+            <span
+              className={cn(
+                "font-mono font-medium tabular-nums",
+                row.original.status === "OVERDUE" && "text-destructive"
+              )}
+            >
+              {formatFull(row.original.amount, row.original.currency)}
+            </span>
+          </div>
+        ),
+      }
+    )
+
+    return cols
+  }, [projectName])
+
+  if (rows.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed py-16 text-center">
-        <HugeiconsIcon icon={Invoice01Icon} className="size-6 text-muted-foreground/60" />
-        <p className="max-w-xs text-sm text-muted-foreground">{emptyMessage}</p>
-      </div>
+      <EmptyState
+        bordered
+        size="sm"
+        icon={Invoice01Icon}
+        title="No invoices"
+        description={emptyMessage}
+      />
     )
   }
 
   return (
     <>
-      <ul className="overflow-hidden rounded-2xl border bg-card">
-        {shown.map((invoice, i) => (
-          <li key={invoice.id}>
-            <button
-              type="button"
-              onClick={() => setOpenId(invoice.id)}
-              className={cn(
-                "group flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/50 sm:gap-4 sm:px-5",
-                i > 0 && "border-t border-border"
-              )}
-            >
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-sm font-medium tabular-nums">
-                    {invoice.invoiceNumber}
-                  </span>
-                  <InvoiceStatusBadge status={invoice.status} />
-                </span>
-                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                  {[projectName?.(invoice.projectId), whenLabel(invoice)]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
-              </span>
-
-              <span
-                className={cn(
-                  "shrink-0 font-mono text-sm font-semibold tabular-nums",
-                  invoice.status === "OVERDUE" && "text-destructive"
-                )}
-              >
-                {formatFull(invoice.amount, invoice.currency)}
-              </span>
-              <HugeiconsIcon
-                icon={ArrowRight01Icon}
-                className="size-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground"
-              />
-            </button>
-          </li>
-        ))}
-      </ul>
+      <DataTable columns={columns} data={rows} onRowClick={(i) => setOpenId(i.id)} />
 
       <Sheet open={active !== null} onOpenChange={(open) => !open && setOpenId(null)}>
         <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
@@ -189,7 +232,9 @@ function InvoicePanel({ invoice, subtitle }: { invoice: Invoice; subtitle?: stri
 
         {invoice.lineItems.length > 0 && (
           <div className="border-t border-border pt-4">
-            <p className="text-xs font-medium text-muted-foreground">What you’re billed for</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              What you’re billed for
+            </p>
             <ul className="mt-2 flex flex-col divide-y divide-border">
               {invoice.lineItems.map((line, i) => (
                 <li key={i} className="flex items-baseline gap-3 py-2.5">
@@ -217,9 +262,7 @@ function InvoicePanel({ invoice, subtitle }: { invoice: Invoice; subtitle?: stri
           <Button
             variant="default"
             size="sm"
-            render={
-              <a href={invoice.pdfUrl} download target="_blank" rel="noreferrer" />
-            }
+            render={<a href={invoice.pdfUrl} download target="_blank" rel="noreferrer" />}
           >
             <HugeiconsIcon icon={Download01Icon} data-icon="inline-start" className="size-4" />
             Download PDF

@@ -8,20 +8,19 @@ import { Loading03Icon } from "@hugeicons/core-free-icons"
 import { formatDate } from "@/lib/format"
 import { formatMoney } from "@/lib/mock/clients"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsContent } from "@/components/ui/tabs"
 import {
   usePortalProject,
   usePortalProjectDeliverables,
   usePortalProjectInvoices,
   usePortalRevisions,
 } from "@/lib/queries/portal-queries"
-import { ProjectStatusBadge } from "@/components/portal/parts"
-import { PortalPage } from "@/components/portal/shell/portal-page"
+import { ProjectStatusBadge, ProgressBar } from "@/components/portal/parts"
+import { PortalPage, PortalTab } from "@/components/portal/shell/portal-page"
 import { PortalMilestones } from "@/components/portal/projects/portal-milestones"
 import { PortalRevisions } from "@/components/portal/projects/portal-revisions"
 import { DeliverableList } from "@/components/portal/deliverables/deliverable-list"
 import { InvoiceList, visibleInvoices } from "@/components/portal/invoices/invoice-list"
-import { SegmentedProgress } from "@/components/ui/segmented-progress"
 import type { Project } from "@/lib/api/models"
 
 /**
@@ -143,29 +142,26 @@ function ProjectTabs({
     >
       <PortalPage
         title={project.name}
-        subtitle={project.phase || "In progress"}
-        summary={
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-baseline gap-2">
-              <span className="font-mono text-2xl font-semibold tracking-tight tabular-nums">
+        stats={
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <ProjectStatusBadge status={project.status} />
+            <span className="text-sm text-muted-foreground">
+              {project.phase || "In progress"}
+            </span>
+            <div className="flex w-full max-w-xs items-center gap-2">
+              <ProgressBar value={project.progress} className="h-1.5" />
+              <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
                 {Math.round(project.progress)}%
               </span>
-              <ProjectStatusBadge status={project.status} />
             </div>
-            <SegmentedProgress value={project.progress} className="h-10 max-w-md" />
           </div>
         }
-        toolbar={
-          <TabsList>
+        tabs={
+          <TabsList variant="line">
             {TAB_KEYS.map((key) => (
-              <TabsTrigger key={key} value={key}>
+              <PortalTab key={key} value={key} count={counts[key] ?? undefined}>
                 {labels[key]}
-                {counts[key] ? (
-                  <span className="ml-1.5 text-xs tabular-nums opacity-60">
-                    {counts[key]}
-                  </span>
-                ) : null}
-              </TabsTrigger>
+              </PortalTab>
             ))}
           </TabsList>
         }

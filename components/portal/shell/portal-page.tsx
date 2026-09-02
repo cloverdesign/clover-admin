@@ -1,104 +1,103 @@
 import { cn } from "@/lib/utils"
+import { TabsTrigger } from "@/components/ui/tabs"
 
 /**
- * The shape every portal sub page fills: an editorial hero, then a toolbar row
- * that pins under the header as the content scrolls.
+ * The shape every portal sub page fills.
  *
- * Before this the four sub pages each invented their own header — Files put
- * filter pills under the title, Invoices a summary card, Requests an action
- * button, Projects nothing — and all four repeated the title the chrome
- * breadcrumb had already shown. One scaffold, one place to change it.
- *
- * The toolbar is deliberately loose about its contents: the pages need
- * different things in it (project filters, a count, a primary action), and the
- * only rule is left-aligned controls with `meta` and `action` pushed right.
+ * Deliberately flat: one header row carrying the title, the record count and
+ * the primary action, then the page's tabs, then the table. An earlier version
+ * led with a large title and a subtitle above a toolbar, which spent ~90px
+ * before any data — the pattern across shipped dashboards (Attio, Deel,
+ * Acctual, Navattic, PayPal) is a single compact row instead, with the count
+ * folded into the tab labels rather than given a slot of its own.
  */
 export function PortalPage({
   title,
-  subtitle,
-  summary,
-  toolbar,
-  meta,
+  count,
   action,
+  stats,
+  tabs,
   children,
 }: {
   title: React.ReactNode
-  subtitle?: React.ReactNode
-  /** Extra hero content below the subtitle — progress, status, anything that
-   * belongs to the page rather than to its current filter. Scrolls away. */
-  summary?: React.ReactNode
-  /** Left-aligned toolbar controls: filter pills, tabs, segments. */
-  toolbar?: React.ReactNode
-  /** Right-aligned count or status text, before the action. */
-  meta?: React.ReactNode
-  /** The page's primary action, pinned to the toolbar's right edge. */
+  /** Shown beside the title, quiet. Ignored when `tabs` is set. */
+  count?: number
+  /** The page's primary action, right-aligned on the title row. */
   action?: React.ReactNode
+  /** A thin figures row between the title and the tabs. No card. */
+  stats?: React.ReactNode
+  /** A `TabsList` — the caller owns the `Tabs` root so panels stay in scope. */
+  tabs?: React.ReactNode
   children: React.ReactNode
 }) {
-  const hasToolbar = Boolean(toolbar || meta || action)
-
   return (
     <div className="flex flex-col">
-      <div className="pb-4">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-        {subtitle && (
-          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+        {/* Only when there are no tabs — tab labels already carry counts, and
+            showing both puts the same number on screen twice. */}
+        {count != null && !tabs && (
+          <span className="text-sm text-muted-foreground tabular-nums">{count}</span>
         )}
-        {summary && <div className="mt-4">{summary}</div>}
+        {action && <div className="ml-auto">{action}</div>}
       </div>
 
-      {hasToolbar && (
-        <div
-          className={cn(
-            // Full-bleed into the canvas gutters so the pinned row reads as a
-            // rule across the page, not a floating strip inside the content.
-            // It pins flush to the canvas top because `main` carries no vertical
-            // padding — see the shell.
-            "sticky top-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-3 sm:-mx-6 sm:px-6"
-          )}
-        >
-          {toolbar}
-          {(meta || action) && (
-            <div className="ml-auto flex items-center gap-3">
-              {meta && (
-                <span className="text-xs text-muted-foreground tabular-nums">{meta}</span>
-              )}
-              {action}
-            </div>
-          )}
-        </div>
-      )}
+      {stats && <div className="mt-3">{stats}</div>}
 
-      <div className={cn("flex flex-col gap-4", hasToolbar ? "pt-4" : "pt-0")}>
-        {children}
-      </div>
+      {tabs && <div className="mt-4 border-b border-border pb-px">{tabs}</div>}
+
+      <div className={cn("flex flex-col", tabs ? "pt-1" : "pt-4")}>{children}</div>
     </div>
   )
 }
 
-/** Toolbar filter pill — the shared control for "which slice of this list". */
-export function PortalFilterPill({
-  active,
-  onClick,
+/** A tab whose count sits in the label, the way the reference dashboards do it —
+ * so the count reads as "how many of these" rather than a page-level statistic. */
+export function PortalTab({
+  value,
+  count,
   children,
 }: {
-  active: boolean
-  onClick: () => void
+  value: string
+  count?: number
   children: React.ReactNode
 }) {
   return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "shrink-0 rounded-full px-3 py-1.5 text-sm whitespace-nowrap transition-colors",
-        active
-          ? "bg-secondary font-medium text-secondary-foreground"
-          : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-      )}
-    >
+    <TabsTrigger value={value}>
       {children}
-    </button>
+      {count != null && count > 0 && (
+        <span className="ml-1.5 text-xs tabular-nums opacity-60">{count}</span>
+      )}
+    </TabsTrigger>
   )
+}
+
+/** Quiet inline figures — the alternative to a summary card above a list. */
+export function PortalStats({
+  items,
+}: {
+  items: { label: string; value: string; tone?: string }[]
+}) {
+  return (
+    <dl className="flex flex-wrap items-baseline gap-x-8 gap-y-2">
+      {items.map((item) => (
+        <div key={item.label} className="flex items-baseline gap-2">
+          <dt className="text-xs text-muted-foreground">{item.label}</dt>
+          <dd
+            className={cn(
+              "font-mono text-sm font-medium tabular-nums",
+              item.tone
+            )}
+          >
+            {item.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+/** Row count under a table, the way the references close a list. */
+export function PortalTableFooter({ children }: { children: React.ReactNode }) {
+  return <p className="px-1 pt-3 text-xs text-muted-foreground">{children}</p>
 }
