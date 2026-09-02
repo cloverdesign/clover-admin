@@ -2,8 +2,7 @@
 
 import * as React from "react"
 import type { ColumnDef } from "@tanstack/react-table"
-import { HugeiconsIcon } from "@hugeicons/react"
-import { Invoice01Icon, Download01Icon } from "@hugeicons/core-free-icons"
+import { Invoice01Icon } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
 import { formatDate, byNewest } from "@/lib/format"
@@ -21,6 +20,8 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/components/ui/sheet"
+import { usePortalMe } from "@/lib/queries/portal-queries"
+import { InvoicePdfButton } from "@/components/invoices/invoice-pdf-button"
 import type { Invoice, InvoiceStatus } from "@/lib/api/models"
 
 /** Client-facing invoice status. "Sent" reads as an outstanding balance to the
@@ -77,6 +78,8 @@ export function InvoiceList({
 }) {
   const rows = React.useMemo(() => visibleInvoices(invoices), [invoices])
   const [openId, setOpenId] = React.useState<string | null>(null)
+  // The PDF's billed-to block names the client; the portal only knows itself.
+  const { data: client } = usePortalMe()
   const active = rows.find((i) => i.id === openId) ?? null
 
   const columns = React.useMemo<ColumnDef<Invoice>[]>(() => {
@@ -179,7 +182,12 @@ export function InvoiceList({
       <Sheet open={active !== null} onOpenChange={(open) => !open && setOpenId(null)}>
         <SheetContent side="right" className="flex w-full flex-col sm:max-w-lg">
           {active && (
-            <InvoicePanel invoice={active} subtitle={projectName?.(active.projectId)} />
+            <InvoicePanel
+              invoice={active}
+              subtitle={projectName?.(active.projectId)}
+              billedTo={client?.company ?? "Your company"}
+              contact={client?.name}
+            />
           )}
         </SheetContent>
       </Sheet>
@@ -187,7 +195,17 @@ export function InvoiceList({
   )
 }
 
-function InvoicePanel({ invoice, subtitle }: { invoice: Invoice; subtitle?: string }) {
+function InvoicePanel({
+  invoice,
+  subtitle,
+  billedTo,
+  contact,
+}: {
+  invoice: Invoice
+  subtitle?: string
+  billedTo: string
+  contact?: string | null
+}) {
   const dates: { label: string; value: string }[] = [
     { label: "Issued", value: formatDate(invoice.issuedDate) },
     { label: "Due", value: formatDate(invoice.dueDate) },
@@ -258,16 +276,18 @@ function InvoicePanel({ invoice, subtitle }: { invoice: Invoice; subtitle?: stri
 
       <SheetFooter>
         <SheetClose render={<Button variant="ghost" size="sm">Close</Button>} />
-        {invoice.pdfUrl && (
-          <Button
-            variant="default"
-            size="sm"
-            render={<a href={invoice.pdfUrl} download target="_blank" rel="noreferrer" />}
-          >
-            <HugeiconsIcon icon={Download01Icon} data-icon="inline-start" className="size-4" />
-            Download PDF
-          </Button>
-        )}
+        {/* Always offered. The API leaves `pdfUrl` null, and the old
+            `invoice.pdfUrl &&` guard meant a client opened their invoice and
+            found no way to download it, with nothing saying why. */}
+        <InvoicePdfButton
+          variant="default"
+          label="Download PDF"
+          data={{
+            invoice,
+            billedTo: { company: billedTo, contact: contact },
+            projectName: subtitle,
+          }}
+        />
       </SheetFooter>
     </>
   )

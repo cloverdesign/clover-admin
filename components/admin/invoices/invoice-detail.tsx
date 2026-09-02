@@ -5,7 +5,6 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  Download04Icon,
   SentIcon,
   CheckmarkCircle02Icon,
   MoreHorizontalIcon,
@@ -47,6 +46,7 @@ import {
 } from "@/lib/queries/invoices-queries"
 import { useProject } from "@/lib/queries/projects-queries"
 import { useClient } from "@/lib/queries/clients-queries"
+import { InvoicePdfButton } from "@/components/invoices/invoice-pdf-button"
 import type { Invoice } from "@/lib/api/models"
 
 /**
@@ -109,28 +109,21 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
               Mark paid
             </Button>
           )}
-          {/* The PDF is generated server-side on issue (§1.2.3), so a draft that
-              hasn't been rendered yet has no `pdfUrl` — show the action disabled
-              rather than handing over a link that goes nowhere. */}
-          <Button
-            variant="outline"
+          {/* §1.2.3 says the PDF is rendered server-side on issue, but the API
+              leaves `pdfUrl` null, so the button used to sit permanently
+              disabled. It now falls back to building the document locally. */}
+          <InvoicePdfButton
             className="gap-1.5"
-            disabled={!invoice.pdfUrl}
-            title={invoice.pdfUrl ? undefined : "No PDF generated for this invoice yet"}
-            render={
-              invoice.pdfUrl ? (
-                <a
-                  href={invoice.pdfUrl}
-                  download={`${invoice.invoiceNumber}.pdf`}
-                  target="_blank"
-                  rel="noreferrer"
-                />
-              ) : undefined
-            }
-          >
-            <HugeiconsIcon icon={Download04Icon} data-icon="inline-start" className="size-4" />
-            PDF
-          </Button>
+            data={{
+              invoice,
+              billedTo: {
+                company: clientQ.data?.company ?? "Client",
+                contact: clientQ.data?.name,
+                email: clientQ.data?.email,
+              },
+              projectName: projectQ.data?.name,
+            }}
+          />
           <InvoiceActions
             invoice={invoice}
             canOverdue={status === "SENT"}
