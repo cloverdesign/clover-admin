@@ -46,9 +46,11 @@ import { PROJECT_TYPES } from "@/lib/mock/projects"
 import { PHASE_ORDER } from "@/lib/phase-colors"
 import { useSiteCurrency } from "@/hooks/use-site-currency"
 import { useClients, useCreateClient } from "@/lib/queries/clients-queries"
+import { useMe } from "@/lib/queries/auth-queries"
 import {
   useCreateProject,
   useCreateMilestone,
+  useAssignAdmin,
 } from "@/lib/queries/projects-queries"
 import type { Client } from "@/lib/api/models"
 import { Monogram } from "@/components/admin/clients/atoms"
@@ -82,9 +84,11 @@ export function NewProjectWizard({
   const clientsQ = useClients()
   const clients = clientsQ.data ?? []
 
+  const { data: me } = useMe()
   const createClient = useCreateClient()
   const createProject = useCreateProject()
   const createMilestone = useCreateMilestone()
+  const assignAdmin = useAssignAdmin()
 
   const [step, setStep] = React.useState<Step>(
     initialStep ?? (initialClientId ? "project" : "client")
@@ -179,6 +183,17 @@ export function NewProjectWizard({
         endDate: toApiDateTime(project.end),
         description: project.brief || undefined,
       })
+
+      // Auto-assign the creator: create doesn't assign anyone, and the list is
+      // scoped by assignment, so an unassigned creator wouldn't see their own
+      // new project. Non-fatal — the project already exists if this fails.
+      if (me?.id) {
+        try {
+          await assignAdmin.mutateAsync({ projectId: created.id, adminId: me.id })
+        } catch {
+          // Ignore: it can be re-assigned from the project's edit page.
+        }
+      }
 
       const rows = milestones.filter((m) => m.title.trim())
       for (let i = 0; i < rows.length; i++) {

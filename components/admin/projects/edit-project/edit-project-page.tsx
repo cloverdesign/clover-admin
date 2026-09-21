@@ -23,10 +23,13 @@ import { DatePicker } from "@/components/ui/date-picker"
 import { PROJECT_STATUS_LABEL, PROJECT_TYPES } from "@/lib/mock/projects"
 import { useProject, useUpdateProject } from "@/lib/queries/projects-queries"
 import { useClient } from "@/lib/queries/clients-queries"
+import { useMe } from "@/lib/queries/auth-queries"
+import { canSeeProject } from "@/lib/access"
 import type { Project, ProjectStatus } from "@/lib/api/models"
 import { Monogram } from "@/components/admin/clients/atoms"
 import { Field } from "@/components/admin/clients/new-client/fields"
 import { EditorialFrame } from "@/components/admin/clients/new-client/editorial-parts"
+import { AssignAdmins } from "@/components/admin/projects/assign-admins"
 
 const STATUSES: ProjectStatus[] = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLETED", "ON_HOLD", "CANCELLED"]
 
@@ -34,8 +37,9 @@ const STATUSES: ProjectStatus[] = ["PLANNING", "IN_PROGRESS", "REVIEW", "COMPLET
 export function EditProjectPage({ id }: { id?: string }) {
   const router = useRouter()
   const projectQ = useProject(id ?? "")
+  const meQ = useMe()
 
-  if (projectQ.isLoading) {
+  if (projectQ.isLoading || meQ.isLoading) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
         <HugeiconsIcon icon={Loading03Icon} className="size-6 animate-spin" />
@@ -46,6 +50,16 @@ export function EditProjectPage({ id }: { id?: string }) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-24 text-center">
         <p className="text-sm text-muted-foreground">Project not found.</p>
+        <Button variant="outline" render={<Link href="/admin/projects" />}>Go to projects</Button>
+      </div>
+    )
+  }
+  if (!canSeeProject(meQ.data, projectQ.data)) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-24 text-center">
+        <p className="text-sm text-muted-foreground">
+          You don’t have access to this project.
+        </p>
         <Button variant="outline" render={<Link href="/admin/projects" />}>Go to projects</Button>
       </div>
     )
@@ -195,6 +209,12 @@ function EditProjectForm({ project, router }: { project: Project; router: Return
             </Field>
             <Field label="Brief" htmlFor="pbrief">
               <Textarea id="pbrief" value={brief} onChange={(e) => setBrief(e.target.value)} rows={4} />
+            </Field>
+            <Field
+              label="Assigned admins"
+              hint="Only assigned admins (and super admins) see this project. Changes here save immediately."
+            >
+              <AssignAdmins project={project} />
             </Field>
           </div>
 
