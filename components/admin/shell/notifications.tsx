@@ -143,7 +143,9 @@ function NotificationRow({ notification }: { notification: Notification }) {
       <span
         className={cn(
           "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
-          unread ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+          unread
+            ? "bg-success/10 text-success dark:bg-success/20"
+            : "bg-muted text-muted-foreground"
         )}
       >
         <HugeiconsIcon icon={TYPE_ICON[notification.type]} className="size-4" />
@@ -158,7 +160,7 @@ function NotificationRow({ notification }: { notification: Notification }) {
           >
             {notification.title}
           </span>
-          {unread && <span className="size-1.5 shrink-0 rounded-full bg-primary" />}
+          {unread && <span className="size-1.5 shrink-0 rounded-full bg-success" />}
         </div>
         {notification.body && (
           <p className="truncate text-xs text-muted-foreground">{notification.body}</p>
