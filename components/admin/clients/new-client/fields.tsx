@@ -90,7 +90,8 @@ export function Field({
   children,
 }: {
   label: string
-  htmlFor: string
+  /** Omit for fields that aren't a single labelable control (e.g. a chip group). */
+  htmlFor?: string
   hint?: string
   children: React.ReactNode
 }) {

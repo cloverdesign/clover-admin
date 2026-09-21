@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/api/query-client"
 import { ProjectsService } from "@/lib/services/projects-service"
 import type {
+  Admin,
   Project,
   ProjectInput,
   ProjectUpdateInput,
@@ -195,5 +196,41 @@ export function useCreateProjectInvoice() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: queryKeys.projects.invoices(vars.projectId) })
     },
+  })
+}
+
+/* --------------------------------------------------------------- assignments */
+
+/**
+ * Patch the cached project's `assignedAdmins` with the list the write returned,
+ * then invalidate the projects list — the API scopes that list by assignment,
+ * so an add/remove can change which projects a non-super-admin sees.
+ */
+function onAssignmentChange(qc: ReturnType<typeof useQueryClient>) {
+  return (assigned: Admin[], vars: { projectId: string }) => {
+    qc.setQueryData<Project>(queryKeys.projects.byId(vars.projectId), (old) =>
+      old ? { ...old, assignedAdmins: assigned } : old
+    )
+    qc.invalidateQueries({ queryKey: queryKeys.projects.all })
+  }
+}
+
+export function useAssignAdmin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { projectId: string; adminId: string }) =>
+      ProjectsService.assignAdmin(vars.projectId, vars.adminId),
+    meta: { successMessage: "Admin assigned.", errorMessage: "Couldn’t assign this admin." },
+    onSuccess: onAssignmentChange(qc),
+  })
+}
+
+export function useUnassignAdmin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { projectId: string; adminId: string }) =>
+      ProjectsService.unassignAdmin(vars.projectId, vars.adminId),
+    meta: { successMessage: "Admin removed.", errorMessage: "Couldn’t remove this admin." },
+    onSuccess: onAssignmentChange(qc),
   })
 }

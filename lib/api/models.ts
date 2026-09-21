@@ -116,6 +116,11 @@ export interface Project {
   milestones?: Milestone[]
   updates?: ProjectUpdatePost[]
   invoices?: Invoice[]
+  /** Admins assigned to this project. The API uses it to scope `GET /api/projects`
+   * for non-super-admins (they only receive projects they're on) and to route
+   * notifications. Empty until explicitly assigned via the assignments endpoints.
+   * Optional because thinner reads may omit it — treat a missing value as `[]`. */
+  assignedAdmins?: Admin[]
 }
 
 export interface ProjectInput {

@@ -31,6 +31,7 @@ import {
   PauseIcon,
   CancelCircleIcon,
   Archive02Icon,
+  ShieldKeyIcon,
 } from "@hugeicons/core-free-icons"
 
 import { cn } from "@/lib/utils"
@@ -82,17 +83,21 @@ import {
 } from "@/lib/queries/projects-queries"
 import { useProjectDeliverables } from "@/lib/queries/deliverables-queries"
 import { useClient } from "@/lib/queries/clients-queries"
+import { useMe } from "@/lib/queries/auth-queries"
+import { canSeeProject } from "@/lib/access"
 import type { Project, ProjectStatus, Milestone, MilestoneStatus, Deliverable } from "@/lib/api/models"
 import { Monogram } from "@/components/admin/clients/atoms"
 import { ProgressBar } from "@/components/admin/dashboard/atoms"
 import { SegmentedProgress } from "@/components/ui/segmented-progress"
+import { AssignedTeam } from "@/components/admin/projects/assign-admins"
 
 /* ------------------------------------------------------------------- entry */
 
 export function ProjectDetail({ id }: { id: string }) {
   const projectQ = useProject(id)
+  const meQ = useMe()
 
-  if (projectQ.isLoading) {
+  if (projectQ.isLoading || meQ.isLoading) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
         <HugeiconsIcon icon={Loading03Icon} className="size-6 animate-spin" />
@@ -102,7 +107,27 @@ export function ProjectDetail({ id }: { id: string }) {
   if (projectQ.isError || !projectQ.data) {
     return <div className="p-6 text-sm text-muted-foreground">Project not found.</div>
   }
+  if (!canSeeProject(meQ.data, projectQ.data)) {
+    return <ProjectAccessDenied />
+  }
   return <ProjectDetailInner project={projectQ.data} />
+}
+
+/** Shown when a non-super-admin opens a project they aren't assigned to. */
+function ProjectAccessDenied() {
+  return (
+    <div className="mx-auto flex max-w-md flex-col items-center gap-3 py-24 text-center">
+      <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <HugeiconsIcon icon={ShieldKeyIcon} className="size-5" />
+      </div>
+      <p className="text-sm text-muted-foreground">
+        You don’t have access to this project. Ask a super admin to assign you.
+      </p>
+      <Button variant="outline" size="sm" render={<Link href="/admin/projects" />}>
+        Back to projects
+      </Button>
+    </div>
+  )
 }
 
 function ProjectDetailInner({ project }: { project: Project }) {
@@ -138,6 +163,13 @@ function ProjectDetailInner({ project }: { project: Project }) {
           action={<SectionEditButton href={editHref} label="Edit details" />}
         >
           <FactsGrid project={project} />
+        </Section>
+        <Section
+          label="Team"
+          count={String((project.assignedAdmins ?? []).length)}
+          action={<SectionEditButton href={editHref} label="Edit assigned admins" />}
+        >
+          <AssignedTeam project={project} />
         </Section>
         <Section label="Milestones" count={`${completed}/${milestones.length}`}>
           <MilestonesEditor project={project} />

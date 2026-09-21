@@ -62,6 +62,10 @@ export const ProjectEndpoints = {
   // nested collections
   invoices: (id: string) => `/api/projects/${id}/invoices`,
   createInvoice: (id: string) => `/api/projects/${id}/invoices`,
+  // admin assignments — each write returns the project's full assigned list
+  assignments: (id: string) => `/api/projects/${id}/assignments`,
+  assignment: (id: string, adminId: string) =>
+    `/api/projects/${id}/assignments/${adminId}`,
 }
 
 export const InvoiceEndpoints = {

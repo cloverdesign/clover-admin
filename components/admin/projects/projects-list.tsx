@@ -10,6 +10,8 @@ import { convert } from "@/lib/mock/currencies"
 import { useSiteCurrency } from "@/hooks/use-site-currency"
 import { useProjects } from "@/lib/queries/projects-queries"
 import { useClients } from "@/lib/queries/clients-queries"
+import { useMe } from "@/lib/queries/auth-queries"
+import { visibleProjects } from "@/lib/access"
 import type { Project } from "@/lib/api/models"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -28,6 +30,7 @@ export function ProjectsList() {
   const [display] = useSiteCurrency()
   const projectsQ = useProjects()
   const clientsQ = useClients()
+  const meQ = useMe()
 
   const clientName = React.useCallback(
     (id: string) =>
@@ -35,7 +38,7 @@ export function ProjectsList() {
     [clientsQ.data]
   )
 
-  if (projectsQ.isLoading) {
+  if (projectsQ.isLoading || meQ.isLoading) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
         <HugeiconsIcon icon={Loading03Icon} className="size-6 animate-spin" />
@@ -51,7 +54,9 @@ export function ProjectsList() {
     )
   }
 
-  const list = [...(projectsQ.data ?? [])]
+  // The API already scopes the list by assignment for non-super-admins; filter
+  // again client-side so counts and cache stay consistent regardless.
+  const list = visibleProjects(meQ.data, projectsQ.data ?? [])
     .filter((p) => !p.archived)
     .sort((a, b) => Number(isLive(b)) - Number(isLive(a)))
 

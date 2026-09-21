@@ -7,6 +7,7 @@ import { apiClient } from "@/lib/api/client"
 import { ProjectEndpoints } from "@/lib/api/endpoints"
 import type { ApiEnvelope } from "@/lib/api/types"
 import type {
+  Admin,
   Project,
   ProjectInput,
   ProjectUpdateInput,
@@ -132,6 +133,26 @@ export class ProjectsService {
     const res = await apiClient.post<ApiEnvelope<Invoice>>(
       ProjectEndpoints.createInvoice(projectId),
       input
+    )
+    return res.data.data
+  }
+
+  /* --------------------------------------------------------- assignments */
+
+  /** Assign an admin to a project. Returns the project's full assigned list
+   * after the change (so callers can seed the cache without a refetch). */
+  static async assignAdmin(projectId: string, adminId: string): Promise<Admin[]> {
+    const res = await apiClient.post<ApiEnvelope<Admin[]>>(
+      ProjectEndpoints.assignments(projectId),
+      { adminId }
+    )
+    return res.data.data
+  }
+
+  /** Remove an admin from a project. Returns the remaining assigned list. */
+  static async unassignAdmin(projectId: string, adminId: string): Promise<Admin[]> {
+    const res = await apiClient.delete<ApiEnvelope<Admin[]>>(
+      ProjectEndpoints.assignment(projectId, adminId)
     )
     return res.data.data
   }
