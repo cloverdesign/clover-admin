@@ -1,5 +1,6 @@
 "use client"
 
+import { useAdminAccess } from "@/hooks/use-admin-access"
 import * as React from "react"
 import { Folder01Icon, Loading03Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -27,6 +28,7 @@ const isLive = (p: Project) =>
  * clientId). Only the table body scrolls.
  */
 export function ProjectsList() {
+  const allowed = useAdminAccess()
   const [display] = useSiteCurrency()
   const projectsQ = useProjects()
   const clientsQ = useClients()
@@ -68,16 +70,16 @@ export function ProjectsList() {
 
   return (
     <div className="flex h-full flex-col gap-5">
-      <div className="grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border md:grid-cols-4">
+      <div className={cn("grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border", allowed ? "md:grid-cols-4" : "md:grid-cols-3")}>
         <Metric label="Projects" value={String(list.length)} />
         <Metric label="Active" value={String(active)} />
         <Metric label="On hold" value={String(onHold)} tone={onHold ? "warning" : undefined} />
-        <Metric label="Pipeline" value={formatMoney(pipeline, display)} />
+        {allowed && <Metric label="Pipeline" value={formatMoney(pipeline, display)} />}
       </div>
 
       <PanelCard
         icon={Folder01Icon}
-        title="All projects"
+        title={allowed ? "All projects" : "Your projects"}
         className="min-h-0 flex-1"
         bodyClassName="min-h-0 overflow-y-auto px-2"
       >

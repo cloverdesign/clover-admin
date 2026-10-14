@@ -1,5 +1,6 @@
 "use client"
 
+import { useAdminAccess } from "@/hooks/use-admin-access"
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -257,6 +258,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function DeliverableActions({ deliverable, onDelete }: { deliverable: Deliverable; onDelete: () => void }) {
+  const allowed = useAdminAccess()
   const router = useRouter()
   return (
     <DropdownMenu>
@@ -275,11 +277,11 @@ function DeliverableActions({ deliverable, onDelete }: { deliverable: Deliverabl
           <HugeiconsIcon icon={Layers01Icon} />
           Add version
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={onDelete}>
+        {allowed && <DropdownMenuSeparator />}
+        {allowed && <DropdownMenuItem variant="destructive" onClick={onDelete}>
           <HugeiconsIcon icon={Delete02Icon} />
           Delete
-        </DropdownMenuItem>
+        </DropdownMenuItem>}
       </DropdownMenuContent>
     </DropdownMenu>
   )

@@ -1,5 +1,6 @@
 "use client"
 
+import { useAdminAccess } from "@/hooks/use-admin-access"
 import { useRouter } from "next/navigation"
 import type { ColumnDef } from "@tanstack/react-table"
 
@@ -85,10 +86,11 @@ export function ProjectsTable({
   data: Project[]
   clientName: (id: string) => string
 }) {
+  const allowed = useAdminAccess()
   const router = useRouter()
   return (
     <DataTable
-      columns={makeColumns(clientName)}
+      columns={makeColumns(clientName).filter((column) => allowed || column.id !== "value")}
       data={data}
       onRowClick={(p) => router.push(`/admin/projects/${p.id}`)}
     />

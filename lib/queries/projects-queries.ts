@@ -4,6 +4,9 @@
  * key. Mutations invalidate the collection they touched.
  */
 
+import { useMe } from "@/lib/queries/auth-queries"
+import { canSeeProject, visibleProjects } from "@/lib/access"
+import { useAdminAccess } from "@/hooks/use-admin-access"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { queryKeys } from "@/lib/api/query-client"
@@ -19,7 +22,10 @@ import type {
 } from "@/lib/api/models"
 
 export function useProjects() {
+  const { data: me } = useMe()
   return useQuery({
+    enabled: Boolean(me?.approved),
+    select: (projects) => visibleProjects(me, projects),
     queryKey: queryKeys.projects.all,
     queryFn: () => ProjectsService.list(),
     meta: { errorMessage: "Failed to load projects." },
@@ -27,7 +33,9 @@ export function useProjects() {
 }
 
 export function useProject(id: string) {
+  const { data: me } = useMe()
   return useQuery({
+    select: (project) => canSeeProject(me, project) ? project : undefined,
     queryKey: queryKeys.projects.byId(id),
     queryFn: () => ProjectsService.getById(id),
     enabled: Boolean(id),
@@ -179,12 +187,14 @@ export function useDeleteProjectUpdate() {
 /* ------------------------------------------------------------------ invoices */
 
 export function useProjectInvoices(projectId: string) {
-  return useQuery({
+  const allowed = useAdminAccess()
+  const query = useQuery({
     queryKey: queryKeys.projects.invoices(projectId),
     queryFn: () => ProjectsService.invoices(projectId),
-    enabled: Boolean(projectId),
+    enabled: allowed && Boolean(projectId),
     meta: { errorMessage: "Failed to load invoices." },
   })
+  return { ...query, data: allowed ? query.data : undefined }
 }
 
 export function useCreateProjectInvoice() {

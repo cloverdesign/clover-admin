@@ -39,7 +39,7 @@ export function NewDeliverablePage({ projectId }: { projectId?: string }) {
 
   const [selectedId, setSelectedId] = React.useState(projectId ?? "")
   const project = projects.find((p) => p.id === selectedId)
-  const projectQ = useProject(selectedId)
+  const projectQ = useProject(project?.id ?? "")
   const milestones = projectQ.data?.milestones ?? []
 
   const [title, setTitle] = React.useState("")

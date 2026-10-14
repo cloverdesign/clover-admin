@@ -4,6 +4,7 @@
  * can spawn a project, so it also invalidates the projects list.
  */
 
+import { useAdminAccess } from "@/hooks/use-admin-access"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { queryKeys } from "@/lib/api/query-client"
@@ -11,20 +12,25 @@ import { RevisionsService } from "@/lib/services/revisions-service"
 import type { RevisionStatusInput, RevisionApproveInput } from "@/lib/api/models"
 
 export function useRevisions() {
-  return useQuery({
+  const allowed = useAdminAccess()
+  const query = useQuery({
+    enabled: allowed,
     queryKey: queryKeys.revisions.all,
     queryFn: () => RevisionsService.list(),
     meta: { errorMessage: "Failed to load revision requests." },
   })
+  return { ...query, data: allowed ? query.data : undefined }
 }
 
 export function useRevision(id: string) {
-  return useQuery({
+  const allowed = useAdminAccess()
+  const query = useQuery({
     queryKey: queryKeys.revisions.byId(id),
     queryFn: () => RevisionsService.getById(id),
-    enabled: Boolean(id),
+    enabled: allowed && Boolean(id),
     meta: { errorMessage: "Failed to load revision request." },
   })
+  return { ...query, data: allowed ? query.data : undefined }
 }
 
 export function useUpdateRevisionStatus() {

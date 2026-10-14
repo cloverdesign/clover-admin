@@ -4,6 +4,7 @@
  * with `isPublished: true` (the deploy hook lives server-side).
  */
 
+import { useAdminAccess } from "@/hooks/use-admin-access"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { queryKeys } from "@/lib/api/query-client"
@@ -13,20 +14,25 @@ import type { PageInput, PageBlockInput } from "@/lib/api/models"
 /* ------------------------------------------------------------------ pages */
 
 export function usePages() {
-  return useQuery({
+  const allowed = useAdminAccess()
+  const query = useQuery({
+    enabled: allowed,
     queryKey: queryKeys.pages.all,
     queryFn: () => PagesService.list(),
     meta: { errorMessage: "Failed to load pages." },
   })
+  return { ...query, data: allowed ? query.data : undefined }
 }
 
 export function usePage(id: string) {
-  return useQuery({
+  const allowed = useAdminAccess()
+  const query = useQuery({
     queryKey: queryKeys.pages.byId(id),
     queryFn: () => PagesService.getById(id),
-    enabled: Boolean(id),
+    enabled: allowed && Boolean(id),
     meta: { errorMessage: "Failed to load page." },
   })
+  return { ...query, data: allowed ? query.data : undefined }
 }
 
 export function useCreatePage() {
@@ -120,11 +126,14 @@ export function useDeleteBlock() {
 /* ------------------------------------------------------------------ media */
 
 export function useMedia() {
-  return useQuery({
+  const allowed = useAdminAccess()
+  const query = useQuery({
+    enabled: allowed,
     queryKey: queryKeys.media.all,
     queryFn: () => MediaService.list(),
     meta: { errorMessage: "Failed to load media." },
   })
+  return { ...query, data: allowed ? query.data : undefined }
 }
 
 export function useUploadMedia() {

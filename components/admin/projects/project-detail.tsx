@@ -7,6 +7,7 @@
  * their project-scoped queries, linked revisions composed from the projects list.
  */
 
+import { useAdminAccess } from "@/hooks/use-admin-access"
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -131,6 +132,7 @@ function ProjectAccessDenied() {
 }
 
 function ProjectDetailInner({ project }: { project: Project }) {
+  const allowed = useAdminAccess()
   const revisionsQ = useProjects()
   const revisions = (revisionsQ.data ?? []).filter((p) => p.parentProjectId === project.id)
   // Shares a cache key with the editor below, so this is one request, not two.
@@ -164,19 +166,19 @@ function ProjectDetailInner({ project }: { project: Project }) {
         >
           <FactsGrid project={project} />
         </Section>
-        <Section
+        {allowed && <Section
           label="Team"
           count={String((project.assignedAdmins ?? []).length)}
           action={<SectionEditButton href={editHref} label="Edit assigned admins" />}
         >
           <AssignedTeam project={project} />
-        </Section>
+        </Section>}
         <Section label="Milestones" count={`${completed}/${milestones.length}`}>
           <MilestonesEditor project={project} />
         </Section>
-        <Section label="Invoices">
+        {allowed && <Section label="Invoices">
           <InvoicesTab project={project} />
-        </Section>
+        </Section>}
         <Section label="Deliverables">
           <DeliverablesTab project={project} />
         </Section>
@@ -255,6 +257,8 @@ function Section({
 /** Pencil link that opens the project edit form — the hover action on editable
  * cards. */
 function SectionEditButton({ href, label }: { href: string; label: string }) {
+  const allowed = useAdminAccess()
+  if (!allowed) return null
   return (
     <Link
       href={href}
@@ -267,8 +271,9 @@ function SectionEditButton({ href, label }: { href: string; label: string }) {
 }
 
 function IdentityRow({ project }: { project: Project }) {
+  const allowed = useAdminAccess()
   const clientQ = useClient(project.clientId)
-  const clientName = clientQ.data?.company ?? "…"
+  const clientName = clientQ.data?.company ?? project.name
   const update = useUpdateProject()
 
   const setPhase = (phase: string) => {
@@ -286,12 +291,12 @@ function IdentityRow({ project }: { project: Project }) {
         <div className="min-w-0">
           <h1 className="truncate text-xl font-semibold tracking-tight">{project.name}</h1>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
-            <Link
+            {allowed && <Link
               href={`/admin/clients?c=${project.clientId}`}
               className="underline-offset-4 hover:text-foreground hover:underline"
             >
               {clientName}
-            </Link>
+            </Link>}
             {project.type && (
               <>
                 <span>·</span>
@@ -313,7 +318,7 @@ function IdentityRow({ project }: { project: Project }) {
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
-        <Select value={project.phase} onValueChange={(v) => v && setPhase(v)}>
+        <Select disabled={!allowed} value={project.phase} onValueChange={(v) => v && setPhase(v)}>
           <SelectTrigger className="w-40" aria-label="Set phase">
             <SelectValue>
               {(value: string) => (
@@ -342,6 +347,7 @@ function IdentityRow({ project }: { project: Project }) {
           </SelectContent>
         </Select>
         <Select
+          disabled={!allowed}
           value={project.status}
           onValueChange={(v) => v && setStatus(v as ProjectStatus)}
         >
@@ -372,7 +378,7 @@ function IdentityRow({ project }: { project: Project }) {
             ))}
           </SelectContent>
         </Select>
-        <ProjectActions project={project} />
+        {allowed && <ProjectActions project={project} />}
       </div>
     </div>
   )
@@ -427,11 +433,12 @@ function ProgressCard({ project }: { project: Project }) {
 }
 
 function FactsGrid({ project }: { project: Project }) {
+  const allowed = useAdminAccess()
   const clientQ = useClient(project.clientId)
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-      <Fact icon={UserGroupIcon} label="Client" value={clientQ.data?.company ?? "—"} />
-      <Fact icon={Money01Icon} label="Value" value={formatMoney(project.totalValue, project.currency)} />
+    <div className={cn("grid grid-cols-1 gap-3", allowed && "sm:grid-cols-3")}>
+      {allowed && <Fact icon={UserGroupIcon} label="Client" value={clientQ.data?.company ?? "—"} />}
+      {allowed && <Fact icon={Money01Icon} label="Value" value={formatMoney(project.totalValue, project.currency)} />}
       <Fact
         icon={Calendar03Icon}
         label="Timeline"
@@ -462,6 +469,7 @@ function Fact({
 }
 
 function LinkedRevisionsList({ items }: { items: Project[] }) {
+  const allowed = useAdminAccess()
   return (
     <div className="flex flex-col divide-y divide-border rounded-xl border bg-card">
       {items.map((c) => (
@@ -472,9 +480,9 @@ function LinkedRevisionsList({ items }: { items: Project[] }) {
         >
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-medium">{c.name}</div>
-            <div className="text-xs text-muted-foreground">
+            {allowed && <div className="text-xs text-muted-foreground">
               {formatMoney(c.totalValue, c.currency)}
-            </div>
+            </div>}
           </div>
           <Badge variant="secondary">{c.phase}</Badge>
         </Link>
@@ -495,6 +503,7 @@ const MS_STATUS_META: Record<
 }
 
 function MilestonesEditor({ project }: { project: Project }) {
+  const allowed = useAdminAccess()
   const projectId = project.id
   const milestones = useProjectMilestones(projectId).data ?? []
   const create = useCreateMilestone()
@@ -575,7 +584,7 @@ function MilestonesEditor({ project }: { project: Project }) {
                 <div className="text-xs text-muted-foreground">Due {formatDate(m.dueDate, "compact")}</div>
               </div>
               <Badge variant={meta.variant} className="shrink-0">{meta.label}</Badge>
-              <button
+              {allowed && <button
                 type="button"
                 aria-label="Remove"
                 onClick={() =>
@@ -587,20 +596,20 @@ function MilestonesEditor({ project }: { project: Project }) {
                 className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground opacity-0 transition-all hover:bg-muted hover:text-foreground group-hover:opacity-100"
               >
                 <HugeiconsIcon icon={Delete02Icon} className="size-4" />
-              </button>
+              </button>}
             </div>
           )
         })}
         {milestones.length === 0 && (
           <EmptyState
             variant="subtle"
-            title="No milestones yet — add the first below."
+            title={allowed ? "No milestones yet — add the first below." : "No milestones yet."}
             className="py-8"
           />
         )}
       </div>
 
-      <div className="flex flex-col gap-2 rounded-2xl border border-dashed border-border p-3 sm:flex-row">
+      {allowed && <div className="flex flex-col gap-2 rounded-2xl border border-dashed border-border p-3 sm:flex-row">
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -618,7 +627,7 @@ function MilestonesEditor({ project }: { project: Project }) {
           <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-4" />
           Add
         </Button>
-      </div>
+      </div>}
     </div>
   )
 }

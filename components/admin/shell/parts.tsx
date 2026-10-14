@@ -1,5 +1,6 @@
 "use client"
 
+import { canAccessAdminRoute } from "@/lib/access"
 import * as React from "react"
 
 import { useHydrated } from "@/hooks/use-hydrated"
@@ -71,7 +72,7 @@ export function SearchField({ className }: { className?: string }) {
         icon={Search01Icon}
         className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
       />
-      <span className="truncate">Search clients, projects…</span>
+      <span className="truncate">Search your workspace…</span>
       <Kbd className="absolute top-1/2 right-2.5 hidden -translate-y-1/2 sm:inline-flex">
         ⌘K
       </Kbd>
@@ -151,7 +152,9 @@ function newAction(pathname: string): { label: string; href: string } {
 
 export function NewButton({ className }: { className?: string }) {
   const pathname = usePathname()
+  const { data: me } = useMe()
   const { label, href } = newAction(pathname)
+  if (!canAccessAdminRoute(me, href)) return null
   return (
     <>
       {/* Mobile: icon-only, perfectly centered (no inline-start padding). */}

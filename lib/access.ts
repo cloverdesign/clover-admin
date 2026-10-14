@@ -19,3 +19,20 @@ export function visibleProjects(me: Admin | undefined, projects: Project[]): Pro
   if (me?.role === "SUPER_ADMIN") return projects
   return projects.filter((p) => canSeeProject(me, p))
 }
+
+/** UI policy only. The API must independently enforce these permissions. */
+export function isSuperAdmin(me: Admin | undefined): boolean {
+  return Boolean(me?.approved && me.emailVerified && me.role === "SUPER_ADMIN")
+}
+
+/** Explicit allowlist: new workspace routes are restricted until reviewed. */
+export function canAccessAdminRoute(me: Admin | undefined, pathname: string): boolean {
+  if (!me?.approved || !me.emailVerified) return false
+  if (isSuperAdmin(me)) return true
+  if (me.role !== "ADMIN") return false
+  const path = pathname.replace(/\/+$/, "")
+  return path === "/admin" || path === "/admin/projects" ||
+    path === "/admin/calendar" ||
+    /^\/admin\/projects\/(?!new$)[^/]+$/.test(path) ||
+    /^\/admin\/deliverables(?:\/[^/]+(?:\/edit)?)?$/.test(path)
+}

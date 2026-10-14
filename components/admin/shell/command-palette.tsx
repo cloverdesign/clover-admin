@@ -1,5 +1,7 @@
 "use client"
 
+import { useMe } from "@/lib/queries/auth-queries"
+import { canAccessAdminRoute, isSuperAdmin } from "@/lib/access"
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -60,6 +62,8 @@ export function CommandPaletteProvider({
 }: {
   children: React.ReactNode
 }) {
+  const { data: me } = useMe()
+  const allowed = isSuperAdmin(me)
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
@@ -95,7 +99,7 @@ export function CommandPaletteProvider({
         onOpenChange={setOpen}
         className="max-w-xl"
         title="Search"
-        description="Search clients, projects, invoices, and requests"
+        description="Search your workspace"
       >
         <Command
           className="rounded-none bg-transparent p-0"
@@ -104,7 +108,7 @@ export function CommandPaletteProvider({
           }
         >
         <CommandInput
-          placeholder="Search clients, projects, invoices…"
+          placeholder="Search your workspace…"
           value={query}
           onValueChange={setQuery}
         />
@@ -112,7 +116,7 @@ export function CommandPaletteProvider({
           <CommandEmpty>No results found.</CommandEmpty>
 
           <CommandGroup heading="Go to">
-            {ALL_ITEMS.map((item) => (
+            {ALL_ITEMS.filter((item) => canAccessAdminRoute(me, item.href)).map((item) => (
               <CommandItem
                 key={item.key}
                 value={`page ${item.label}`}
@@ -125,9 +129,9 @@ export function CommandPaletteProvider({
           </CommandGroup>
 
           {query === "" ? (
-            <CommandGroup heading="Recent clients">
+            <CommandGroup heading={allowed ? "Recent clients" : "Your projects"}>
               {index
-                .filter((e) => e.type === "client")
+                .filter((e) => e.type === (allowed ? "client" : "project"))
                 .slice(0, 5)
                 .map((e) => (
                   <ResultItem key={e.id} entity={e} onSelect={go} />

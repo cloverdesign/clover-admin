@@ -1,5 +1,6 @@
 "use client"
 
+import { useAdminAccess } from "@/hooks/use-admin-access"
 import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -38,7 +39,6 @@ import { useInvoice } from "@/lib/queries/invoices-queries"
 import { useRevision } from "@/lib/queries/revisions-queries"
 import { useDeliverable } from "@/lib/queries/deliverables-queries"
 import { usePage } from "@/lib/queries/cms-queries"
-import { useMe } from "@/lib/queries/auth-queries"
 import { useNavBadges } from "@/hooks/use-nav-badges"
 import { useSidebarCollapsed } from "@/hooks/use-sidebar-collapsed"
 import { useRates } from "@/lib/queries/rates-queries"
@@ -66,8 +66,7 @@ function SidebarBody({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { data: me } = useMe()
-  const isSuperAdmin = me?.role === "SUPER_ADMIN"
+  const isSuperAdmin = useAdminAccess()
   const badges = useNavBadges()
 
   // Hide super-admin-only items (and any section left empty) for regular admins.
@@ -157,7 +156,7 @@ function SidebarBody({
         ))}
       </nav>
 
-      {showCurrency && !collapsed && (
+      {showCurrency && isSuperAdmin && !collapsed && (
         <div className="mb-3 space-y-2 border-t border-border pt-3">
           <div className="px-2 font-mono text-[10px] tracking-widest text-muted-foreground/70 uppercase">
             Currency
@@ -323,6 +322,7 @@ function HeaderNav() {
 }
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
+  const allowed = useAdminAccess()
   const [navOpen, setNavOpen] = React.useState(false)
   const [collapsed, setCollapsed] = useSidebarCollapsed("admin")
   // Hydrate live FX rates once for the whole admin app (feeds every convert()).
@@ -376,8 +376,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
           <div className="ml-auto flex items-center gap-1 sm:gap-2 md:ml-0">
             <SearchIconButton className="md:hidden" />
-            <CurrencyControls className="hidden sm:flex" />
-            <NotificationBell />
+            {allowed && <CurrencyControls className="hidden sm:flex" />}
+            {allowed && <NotificationBell />}
             <ThemeToggle />
             <NewButton />
           </div>

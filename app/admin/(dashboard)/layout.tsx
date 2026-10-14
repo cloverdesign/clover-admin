@@ -1,3 +1,4 @@
+import { RoleGuard } from "@/components/admin/auth/role-guard"
 import { AdminShell } from "@/components/admin/shell/admin-shell"
 import { AuthGuard } from "@/components/admin/auth/auth-guard"
 
@@ -12,7 +13,7 @@ export default function AdminDashboardLayout({
 }) {
   return (
     <AuthGuard>
-      <AdminShell>{children}</AdminShell>
+      <RoleGuard><AdminShell>{children}</AdminShell></RoleGuard>
     </AuthGuard>
   )
 }

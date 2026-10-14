@@ -37,6 +37,7 @@ export function useVerifyOtp() {
       errorMessage: "That code didn’t work. Check it and try again.",
     },
     onSuccess: (result) => {
+      qc.clear()
       setToken(result.token)
       qc.setQueryData(queryKeys.auth.me, result.admin)
     },
@@ -61,6 +62,7 @@ export function useVerifyEmail() {
       errorMessage: "This verification link is invalid or has expired.",
     },
     onSuccess: (result) => {
+      qc.clear()
       setToken(result.token)
       qc.setQueryData(queryKeys.auth.me, result.admin)
     },

@@ -1,5 +1,7 @@
 "use client"
 
+import { useAdminAccess } from "@/hooks/use-admin-access"
+import { ProjectsList } from "@/components/admin/projects/projects-list"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Loading03Icon } from "@hugeicons/core-free-icons"
 
@@ -11,6 +13,11 @@ import { DashboardEmpty } from "@/components/admin/dashboard/dashboard-empty"
 /** Client entry for the dashboard — composes live data and renders the
  * presentational Dashboard (loading / error / empty handled here). */
 export function DashboardView() {
+  const allowed = useAdminAccess()
+  return allowed ? <SuperAdminDashboard /> : <ProjectsList />
+}
+
+function SuperAdminDashboard() {
   const { data, isLoading, isError } = useDashboardData()
 
   if (isLoading) {

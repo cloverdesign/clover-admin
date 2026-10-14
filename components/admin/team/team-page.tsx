@@ -13,6 +13,7 @@ import {
   ShieldKeyIcon,
 } from "@hugeicons/core-free-icons"
 
+import { TeamNavigation } from "@/components/admin/team/team-navigation"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { CopyButton } from "@/components/ui/copy-button"
@@ -101,6 +102,8 @@ export function TeamPage() {
           {pending.length > 0 && ` · ${pending.length} awaiting approval`}
         </p>
       </div>
+
+      <TeamNavigation />
 
       {pending.length > 0 && (
         <Section title="Pending approval">

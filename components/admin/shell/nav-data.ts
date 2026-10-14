@@ -51,6 +51,7 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       {
         key: "clients",
+        superAdminOnly: true,
         label: "Clients",
         icon: UserGroupIcon,
         href: "/admin/clients",
@@ -72,6 +73,7 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       {
         key: "invoices",
+        superAdminOnly: true,
         label: "Invoices",
         icon: Invoice01Icon,
         href: "/admin/invoices",
@@ -79,6 +81,7 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       {
         key: "revisions",
+        superAdminOnly: true,
         label: "Revision requests",
         icon: Task01Icon,
         href: "/admin/revisions",
@@ -98,6 +101,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       {
         key: "cms",
+        superAdminOnly: true,
         label: "Site CMS",
         icon: BrowserIcon,
         href: "/admin/cms",
@@ -118,6 +122,7 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       {
         key: "settings",
+        superAdminOnly: true,
         label: "Settings",
         icon: Settings01Icon,
         href: "/admin/settings",

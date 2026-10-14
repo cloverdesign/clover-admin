@@ -7,6 +7,7 @@
  * `useCreateProjectInvoice` in `projects-queries`.
  */
 
+import { useAdminAccess } from "@/hooks/use-admin-access"
 import {
   useMutation,
   useQueries,
@@ -26,9 +27,10 @@ import type { Invoice, InvoiceInput } from "@/lib/api/models"
  * project; results flatten into a single list.
  */
 export function useAllInvoices(options?: { enabled?: boolean }) {
-  const enabled = options?.enabled ?? true
+  const allowed = useAdminAccess()
+  const enabled = allowed && (options?.enabled ?? true)
   const projectsQ = useProjects()
-  const projects = projectsQ.data ?? []
+  const projects = allowed ? projectsQ.data ?? [] : []
 
   const results = useQueries({
     queries: projects.map((p) => ({
@@ -51,12 +53,14 @@ export function useAllInvoices(options?: { enabled?: boolean }) {
 }
 
 export function useInvoice(id: string) {
-  return useQuery({
+  const allowed = useAdminAccess()
+  const query = useQuery({
     queryKey: queryKeys.invoices.byId(id),
     queryFn: () => InvoicesService.getById(id),
-    enabled: Boolean(id),
+    enabled: allowed && Boolean(id),
     meta: { errorMessage: "Failed to load invoice." },
   })
+  return { ...query, data: allowed ? query.data : undefined }
 }
 
 /** Shared cache refresh for a mutated invoice + its project's list. */

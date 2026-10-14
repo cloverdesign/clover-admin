@@ -1,5 +1,6 @@
 /** Clients hooks — list/detail reads + CRUD and portal-invite mutations. */
 
+import { useAdminAccess } from "@/hooks/use-admin-access"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { queryKeys } from "@/lib/api/query-client"
@@ -7,20 +8,25 @@ import { ClientsService } from "@/lib/services/clients-service"
 import type { ClientInput } from "@/lib/api/models"
 
 export function useClients() {
-  return useQuery({
+  const allowed = useAdminAccess()
+  const query = useQuery({
+    enabled: allowed,
     queryKey: queryKeys.clients.all,
     queryFn: () => ClientsService.list(),
     meta: { errorMessage: "Failed to load clients." },
   })
+  return { ...query, data: allowed ? query.data : undefined }
 }
 
 export function useClient(id: string) {
-  return useQuery({
+  const allowed = useAdminAccess()
+  const query = useQuery({
     queryKey: queryKeys.clients.byId(id),
     queryFn: () => ClientsService.getById(id),
-    enabled: Boolean(id),
+    enabled: allowed && Boolean(id),
     meta: { errorMessage: "Failed to load client." },
   })
+  return { ...query, data: allowed ? query.data : undefined }
 }
 
 export function useCreateClient() {
