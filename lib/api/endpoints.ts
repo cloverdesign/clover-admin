@@ -69,6 +69,8 @@ export const ProjectEndpoints = {
 }
 
 export const InvoiceEndpoints = {
+  previewPdf: (id: string) => `/api/invoices/${id}/pdf/preview`,
+  downloadPdf: (id: string) => `/api/invoices/${id}/pdf/download`,
   byId: (id: string) => `/api/invoices/${id}`,
   update: (id: string) => `/api/invoices/${id}`,
   remove: (id: string) => `/api/invoices/${id}`,

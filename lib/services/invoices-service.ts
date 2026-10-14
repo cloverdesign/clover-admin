@@ -10,6 +10,20 @@ import type { ApiEnvelope } from "@/lib/api/types"
 import type { Invoice, InvoiceInput } from "@/lib/api/models"
 
 export class InvoicesService {
+  /** Authenticated binary response, not the API's usual JSON envelope. */
+  static async pdf(id: string, mode: "preview" | "download", signal?: AbortSignal): Promise<Blob> {
+    const endpoint = mode === "preview" ? InvoiceEndpoints.previewPdf(id) : InvoiceEndpoints.downloadPdf(id)
+    const res = await apiClient.get<Blob>(endpoint, {
+      responseType: "blob",
+      headers: { Accept: "application/pdf" },
+      signal,
+    })
+    if (!res.data.type.toLowerCase().startsWith("application/pdf")) {
+      throw new Error("The server did not return a PDF.")
+    }
+    return res.data
+  }
+
   static async getById(id: string): Promise<Invoice> {
     const res = await apiClient.get<ApiEnvelope<Invoice>>(InvoiceEndpoints.byId(id))
     return res.data.data

@@ -46,7 +46,7 @@ import {
 } from "@/lib/queries/invoices-queries"
 import { useProject } from "@/lib/queries/projects-queries"
 import { useClient } from "@/lib/queries/clients-queries"
-import { InvoicePdfButton } from "@/components/invoices/invoice-pdf-button"
+import { InvoicePdfActions } from "@/components/admin/invoices/invoice-pdf-actions"
 import type { Invoice } from "@/lib/api/models"
 
 /**
@@ -96,7 +96,7 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
           <CopyButton value={invoice.invoiceNumber} label="invoice number" />
           <Badge variant={INVOICE_STATUS_VARIANT[status]}>{INVOICE_STATUS_LABEL[status]}</Badge>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {status === "DRAFT" && (
             <Button className="gap-1.5" disabled={busy} onClick={() => send.mutate(invoice.id)}>
               <HugeiconsIcon icon={SentIcon} data-icon="inline-start" className="size-4" />
@@ -109,21 +109,7 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
               Mark paid
             </Button>
           )}
-          {/* §1.2.3 says the PDF is rendered server-side on issue, but the API
-              leaves `pdfUrl` null, so the button used to sit permanently
-              disabled. It now falls back to building the document locally. */}
-          <InvoicePdfButton
-            className="gap-1.5"
-            data={{
-              invoice,
-              billedTo: {
-                company: clientQ.data?.company ?? "Client",
-                contact: clientQ.data?.name,
-                email: clientQ.data?.email,
-              },
-              projectName: projectQ.data?.name,
-            }}
-          />
+          <InvoicePdfActions id={invoice.id} invoiceNumber={invoice.invoiceNumber} />
           <InvoiceActions
             invoice={invoice}
             canOverdue={status === "SENT"}
