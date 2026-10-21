@@ -122,7 +122,6 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       {
         key: "settings",
-        superAdminOnly: true,
         label: "Settings",
         icon: Settings01Icon,
         href: "/admin/settings",

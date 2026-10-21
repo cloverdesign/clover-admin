@@ -258,8 +258,10 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function DeliverableActions({ deliverable, onDelete }: { deliverable: Deliverable; onDelete: () => void }) {
-  const allowed = useAdminAccess()
+  const canDelete = useAdminAccess("delivery.delete")
+  const canEdit = useAdminAccess("delivery.edit")
   const router = useRouter()
+  if (!canDelete && !canEdit) return null
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -269,16 +271,16 @@ function DeliverableActions({ deliverable, onDelete }: { deliverable: Deliverabl
         <HugeiconsIcon icon={MoreHorizontalIcon} className="size-5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => router.push(`/admin/deliverables/${deliverable.id}/edit`)}>
+        {canEdit && <DropdownMenuItem onClick={() => router.push(`/admin/deliverables/${deliverable.id}/edit`)}>
           <HugeiconsIcon icon={PencilEdit02Icon} />
           Edit details
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push(`/admin/deliverables/new?project=${deliverable.projectId}`)}>
+        </DropdownMenuItem>}
+        {canEdit && <DropdownMenuItem onClick={() => router.push(`/admin/deliverables/new?project=${deliverable.projectId}`)}>
           <HugeiconsIcon icon={Layers01Icon} />
           Add version
-        </DropdownMenuItem>
-        {allowed && <DropdownMenuSeparator />}
-        {allowed && <DropdownMenuItem variant="destructive" onClick={onDelete}>
+        </DropdownMenuItem>}
+        {canDelete && <DropdownMenuSeparator />}
+        {canDelete && <DropdownMenuItem variant="destructive" onClick={onDelete}>
           <HugeiconsIcon icon={Delete02Icon} />
           Delete
         </DropdownMenuItem>}

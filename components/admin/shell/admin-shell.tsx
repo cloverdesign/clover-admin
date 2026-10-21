@@ -1,6 +1,6 @@
 "use client"
 
-import { useAdminAccess } from "@/hooks/use-admin-access"
+import { useMe } from "@/lib/queries/auth-queries"
 import * as React from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
@@ -33,6 +33,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet"
 import { CurrencyControls } from "@/components/admin/shell/currency-controls"
+import { canAccessAdminRoute, hasPermission, isSuperAdmin } from "@/lib/access"
 import { CommandPaletteProvider } from "@/components/admin/shell/command-palette"
 import { useProject } from "@/lib/queries/projects-queries"
 import { useInvoice } from "@/lib/queries/invoices-queries"
@@ -66,13 +67,13 @@ function SidebarBody({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const isSuperAdmin = useAdminAccess()
+  const { data: me } = useMe()
   const badges = useNavBadges()
 
-  // Hide super-admin-only items (and any section left empty) for regular admins.
+  // Navigation follows effective permissions and direct route checks.
   const sections = NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) => !item.superAdminOnly || isSuperAdmin),
+    items: section.items.filter((item) => canAccessAdminRoute(me, item.href)),
   })).filter((section) => section.items.length > 0)
 
   const signOut = () => {
@@ -156,7 +157,7 @@ function SidebarBody({
         ))}
       </nav>
 
-      {showCurrency && isSuperAdmin && !collapsed && (
+      {showCurrency && isSuperAdmin(me) && !collapsed && (
         <div className="mb-3 space-y-2 border-t border-border pt-3">
           <div className="px-2 font-mono text-[10px] tracking-widest text-muted-foreground/70 uppercase">
             Currency
@@ -322,7 +323,8 @@ function HeaderNav() {
 }
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
-  const allowed = useAdminAccess()
+  const { data: me } = useMe()
+  const allowed = hasPermission(me, "finance.view")
   const [navOpen, setNavOpen] = React.useState(false)
   const [collapsed, setCollapsed] = useSidebarCollapsed("admin")
   // Hydrate live FX rates once for the whole admin app (feeds every convert()).
@@ -377,7 +379,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <div className="ml-auto flex items-center gap-1 sm:gap-2 md:ml-0">
             <SearchIconButton className="md:hidden" />
             {allowed && <CurrencyControls className="hidden sm:flex" />}
-            {allowed && <NotificationBell />}
+            {isSuperAdmin(me) && <NotificationBell />}
             <ThemeToggle />
             <NewButton />
           </div>

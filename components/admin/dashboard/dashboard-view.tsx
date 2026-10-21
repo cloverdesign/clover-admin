@@ -13,7 +13,7 @@ import { DashboardEmpty } from "@/components/admin/dashboard/dashboard-empty"
 /** Client entry for the dashboard — composes live data and renders the
  * presentational Dashboard (loading / error / empty handled here). */
 export function DashboardView() {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("finance.view")
   return allowed ? <SuperAdminDashboard /> : <ProjectsList />
 }
 

@@ -176,7 +176,7 @@ function AdminRow({ admin, meId }: { admin: Admin; meId: string }) {
             <span className="truncate text-sm font-medium">{admin.name}</span>
             {isSelf && <span className="text-xs text-muted-foreground">You</span>}
             <Badge variant={isSuper ? "info" : "secondary"}>
-              {isSuper ? "Super admin" : "Admin"}
+              {admin.roleName ?? (isSuper ? "Super admin" : "Admin")}
             </Badge>
             <Badge variant={admin.approved ? "success" : "warning"}>
               {admin.approved ? "Active" : "Pending"}

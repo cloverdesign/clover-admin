@@ -26,7 +26,7 @@ export function InvoicePdfActions({
   id: string
   invoiceNumber: string
 }) {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("invoices.view")
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [downloading, setDownloading] = React.useState(false)
   const pending = React.useRef(false)

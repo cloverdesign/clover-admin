@@ -1,7 +1,7 @@
 "use client"
 
 import { useMe } from "@/lib/queries/auth-queries"
-import { canAccessAdminRoute, isSuperAdmin } from "@/lib/access"
+import { canAccessAdminRoute, hasPermission } from "@/lib/access"
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -63,7 +63,7 @@ export function CommandPaletteProvider({
   children: React.ReactNode
 }) {
   const { data: me } = useMe()
-  const allowed = isSuperAdmin(me)
+  const allowed = hasPermission(me, "clients.view")
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")

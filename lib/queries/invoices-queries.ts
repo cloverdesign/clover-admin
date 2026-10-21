@@ -27,7 +27,7 @@ import type { Invoice, InvoiceInput } from "@/lib/api/models"
  * project; results flatten into a single list.
  */
 export function useAllInvoices(options?: { enabled?: boolean }) {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("invoices.view")
   const enabled = allowed && (options?.enabled ?? true)
   const projectsQ = useProjects()
   const projects = allowed ? projectsQ.data ?? [] : []
@@ -53,7 +53,7 @@ export function useAllInvoices(options?: { enabled?: boolean }) {
 }
 
 export function useInvoice(id: string) {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("invoices.view")
   const query = useQuery({
     queryKey: queryKeys.invoices.byId(id),
     queryFn: () => InvoicesService.getById(id),

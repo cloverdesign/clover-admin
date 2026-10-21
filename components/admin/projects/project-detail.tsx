@@ -132,7 +132,8 @@ function ProjectAccessDenied() {
 }
 
 function ProjectDetailInner({ project }: { project: Project }) {
-  const allowed = useAdminAccess()
+  const assignmentAllowed = useAdminAccess("projects.assign")
+  const invoiceAllowed = useAdminAccess("invoices.view")
   const revisionsQ = useProjects()
   const revisions = (revisionsQ.data ?? []).filter((p) => p.parentProjectId === project.id)
   // Shares a cache key with the editor below, so this is one request, not two.
@@ -146,14 +147,14 @@ function ProjectDetailInner({ project }: { project: Project }) {
       <div className="flex flex-col">
         <Section
           label="Progress"
-          action={<SectionEditButton href={editHref} label="Edit progress" />}
+          action={<SectionEditButton href={editHref} label="Edit progress" permission="projects.edit" />}
         >
           <ProgressCard project={project} />
         </Section>
         {project.description && (
           <Section
             label="Brief"
-            action={<SectionEditButton href={editHref} label="Edit brief" />}
+            action={<SectionEditButton href={editHref} label="Edit brief" permission="projects.edit" />}
           >
             <p className="text-sm leading-relaxed text-foreground/90">
               {project.description}
@@ -162,21 +163,21 @@ function ProjectDetailInner({ project }: { project: Project }) {
         )}
         <Section
           label="Details"
-          action={<SectionEditButton href={editHref} label="Edit details" />}
+          action={<SectionEditButton href={editHref} label="Edit details" permission="projects.edit" />}
         >
           <FactsGrid project={project} />
         </Section>
-        {allowed && <Section
+        {assignmentAllowed && <Section
           label="Team"
           count={String((project.assignedAdmins ?? []).length)}
-          action={<SectionEditButton href={editHref} label="Edit assigned admins" />}
+          action={<SectionEditButton href={editHref} label="Edit assigned admins" permission="projects.assign" />}
         >
           <AssignedTeam project={project} />
         </Section>}
         <Section label="Milestones" count={`${completed}/${milestones.length}`}>
           <MilestonesEditor project={project} />
         </Section>
-        {allowed && <Section label="Invoices">
+        {invoiceAllowed && <Section label="Invoices">
           <InvoicesTab project={project} />
         </Section>}
         <Section label="Deliverables">
@@ -256,8 +257,8 @@ function Section({
 
 /** Pencil link that opens the project edit form — the hover action on editable
  * cards. */
-function SectionEditButton({ href, label }: { href: string; label: string }) {
-  const allowed = useAdminAccess()
+function SectionEditButton({ href, label, permission }: { href: string; label: string; permission: "projects.progress" | "projects.edit" | "projects.assign" }) {
+  const allowed = useAdminAccess(permission)
   if (!allowed) return null
   return (
     <Link
@@ -271,17 +272,20 @@ function SectionEditButton({ href, label }: { href: string; label: string }) {
 }
 
 function IdentityRow({ project }: { project: Project }) {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("projects.edit")
+  const clientAllowed = useAdminAccess("clients.view")
+  const canDelete = useAdminAccess("projects.delete")
+  const canArchive = useAdminAccess("projects.delete")
   const clientQ = useClient(project.clientId)
   const clientName = clientQ.data?.company ?? project.name
   const update = useUpdateProject()
 
   const setPhase = (phase: string) => {
-    update.mutate({ id: project.id, input: { ...toInput(project), phase } })
+    update.mutate({ id: project.id, input: { phase } })
   }
 
   const setStatus = (status: ProjectStatus) => {
-    update.mutate({ id: project.id, input: { ...toInput(project), status } })
+    update.mutate({ id: project.id, input: { status } })
   }
 
   return (
@@ -291,7 +295,7 @@ function IdentityRow({ project }: { project: Project }) {
         <div className="min-w-0">
           <h1 className="truncate text-xl font-semibold tracking-tight">{project.name}</h1>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
-            {allowed && <Link
+            {clientAllowed && <Link
               href={`/admin/clients?c=${project.clientId}`}
               className="underline-offset-4 hover:text-foreground hover:underline"
             >
@@ -378,29 +382,10 @@ function IdentityRow({ project }: { project: Project }) {
             ))}
           </SelectContent>
         </Select>
-        {allowed && <ProjectActions project={project} />}
+        {(allowed || canDelete) && <ProjectActions project={project} canEdit={allowed} canDelete={canDelete} canArchive={canArchive} />}
       </div>
     </div>
   )
-}
-
-/** Build the update body from a project (all editable fields). */
-function toInput(p: Project) {
-  return {
-    name: p.name,
-    type: p.type,
-    description: p.description ?? undefined,
-    phase: p.phase,
-    status: p.status,
-    progress: p.progress,
-    currency: p.currency,
-    totalValue: p.totalValue,
-    budget: p.budget ?? undefined,
-    startDate: p.startDate ?? undefined,
-    endDate: p.endDate ?? undefined,
-    archived: p.archived,
-    notes: p.notes ?? undefined,
-  }
 }
 
 /** A glyph per project status — Planning through Cancelled. */
@@ -433,12 +418,13 @@ function ProgressCard({ project }: { project: Project }) {
 }
 
 function FactsGrid({ project }: { project: Project }) {
-  const allowed = useAdminAccess()
+  const clientsAllowed = useAdminAccess("clients.view")
+  const financeAllowed = useAdminAccess("finance.view")
   const clientQ = useClient(project.clientId)
   return (
-    <div className={cn("grid grid-cols-1 gap-3", allowed && "sm:grid-cols-3")}>
-      {allowed && <Fact icon={UserGroupIcon} label="Client" value={clientQ.data?.company ?? "—"} />}
-      {allowed && <Fact icon={Money01Icon} label="Value" value={formatMoney(project.totalValue, project.currency)} />}
+    <div className={cn("grid grid-cols-1 gap-3", (clientsAllowed || financeAllowed) && "sm:grid-cols-3")}>
+      {clientsAllowed && <Fact icon={UserGroupIcon} label="Client" value={clientQ.data?.company ?? "—"} />}
+      {financeAllowed && <Fact icon={Money01Icon} label="Value" value={formatMoney(project.totalValue, project.currency)} />}
       <Fact
         icon={Calendar03Icon}
         label="Timeline"
@@ -469,7 +455,7 @@ function Fact({
 }
 
 function LinkedRevisionsList({ items }: { items: Project[] }) {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("finance.view")
   return (
     <div className="flex flex-col divide-y divide-border rounded-xl border bg-card">
       {items.map((c) => (
@@ -503,7 +489,8 @@ const MS_STATUS_META: Record<
 }
 
 function MilestonesEditor({ project }: { project: Project }) {
-  const allowed = useAdminAccess()
+  const canManage = useAdminAccess("projects.edit")
+  const canProgress = useAdminAccess("projects.progress")
   const projectId = project.id
   const milestones = useProjectMilestones(projectId).data ?? []
   const create = useCreateMilestone()
@@ -532,7 +519,7 @@ function MilestonesEditor({ project }: { project: Project }) {
       {
         projectId,
         milestoneId: m.id,
-        input: { title: m.title, description: m.description ?? undefined, status, dueDate: m.dueDate ?? undefined, order: m.order },
+        input: { status },
       },
       { onSuccess: () => syncFrom(milestones.map((x) => (x.id === m.id ? { ...x, status } : x))) }
     )
@@ -566,7 +553,7 @@ function MilestonesEditor({ project }: { project: Project }) {
           const done = m.status === "COMPLETED"
           return (
             <div key={m.id} className="group flex items-center gap-3 px-4 py-3">
-              <button
+              {canProgress ? <button
                 type="button"
                 aria-label={done ? "Mark incomplete" : "Mark complete"}
                 onClick={() => toggle(m)}
@@ -576,7 +563,7 @@ function MilestonesEditor({ project }: { project: Project }) {
                 )}
               >
                 <HugeiconsIcon icon={done ? CheckmarkCircle02Icon : CircleIcon} className="size-5" />
-              </button>
+              </button> : <span className="shrink-0 text-muted-foreground/50"><HugeiconsIcon icon={done ? CheckmarkCircle02Icon : CircleIcon} className="size-5" /></span>}
               <div className="min-w-0 flex-1">
                 <div className={cn("truncate text-sm font-medium", done && "text-muted-foreground line-through")}>
                   {m.title}
@@ -584,7 +571,7 @@ function MilestonesEditor({ project }: { project: Project }) {
                 <div className="text-xs text-muted-foreground">Due {formatDate(m.dueDate, "compact")}</div>
               </div>
               <Badge variant={meta.variant} className="shrink-0">{meta.label}</Badge>
-              {allowed && <button
+              {canManage && <button
                 type="button"
                 aria-label="Remove"
                 onClick={() =>
@@ -603,13 +590,13 @@ function MilestonesEditor({ project }: { project: Project }) {
         {milestones.length === 0 && (
           <EmptyState
             variant="subtle"
-            title={allowed ? "No milestones yet — add the first below." : "No milestones yet."}
+            title={canManage ? "No milestones yet — add the first below." : "No milestones yet."}
             className="py-8"
           />
         )}
       </div>
 
-      {allowed && <div className="flex flex-col gap-2 rounded-2xl border border-dashed border-border p-3 sm:flex-row">
+      {canManage && <div className="flex flex-col gap-2 rounded-2xl border border-dashed border-border p-3 sm:flex-row">
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -701,6 +688,7 @@ function versionBadgeFor(
 }
 
 function DeliverablesTab({ project }: { project: Project }) {
+  const canEdit = useAdminAccess("delivery.edit")
   const { data, isLoading, isError } = useProjectDeliverables(project.id)
   const newHref = `/admin/deliverables/new?project=${project.id}`
 
@@ -715,10 +703,10 @@ function DeliverablesTab({ project }: { project: Project }) {
         title="No deliverables yet"
         body="Upload finished work or link an external asset for the client to review."
         action={
-          <Button className="gap-1.5" render={<Link href={newHref} />}>
+          canEdit ? <Button className="gap-1.5" render={<Link href={newHref} />}>
             <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-4" />
             Add deliverable
-          </Button>
+          </Button> : undefined
         }
       />
     )
@@ -728,10 +716,10 @@ function DeliverablesTab({ project }: { project: Project }) {
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <SectionLabel>{items.length} deliverable{items.length > 1 ? "s" : ""}</SectionLabel>
-        <Button variant="outline" size="sm" className="gap-1.5" render={<Link href={newHref} />}>
+        {canEdit && <Button variant="outline" size="sm" className="gap-1.5" render={<Link href={newHref} />}>
           <HugeiconsIcon icon={Add01Icon} data-icon="inline-start" className="size-3.5" />
           New deliverable
-        </Button>
+        </Button>}
       </div>
       <div className="flex flex-col divide-y divide-border rounded-2xl border bg-card">
         {items.map((d) => {
@@ -808,7 +796,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function ProjectActions({ project }: { project: Project }) {
+function ProjectActions({ project, canEdit, canDelete, canArchive }: { project: Project; canEdit: boolean; canDelete: boolean; canArchive: boolean }) {
   const router = useRouter()
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const del = useDeleteProject()
@@ -825,27 +813,27 @@ function ProjectActions({ project }: { project: Project }) {
           <HugeiconsIcon icon={MoreHorizontalIcon} className="size-5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => router.push(`/admin/projects/${project.id}/edit`)}>
+          {canEdit && <DropdownMenuItem onClick={() => router.push(`/admin/projects/${project.id}/edit`)}>
             <HugeiconsIcon icon={PencilEdit02Icon} />
             Edit project
-          </DropdownMenuItem>
-          <DropdownMenuItem
+          </DropdownMenuItem>}
+          {canArchive && <DropdownMenuItem
             onClick={() =>
-              update.mutate({ id: project.id, input: { ...toInput(project), archived: !archived } })
+              update.mutate({ id: project.id, input: { archived: !archived } })
             }
           >
             <HugeiconsIcon icon={Archive02Icon} />
             {archived ? "Unarchive" : "Archive"}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
+          </DropdownMenuItem>}
+          {canDelete && <DropdownMenuSeparator />}
+          {canDelete && <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
             <HugeiconsIcon icon={Delete02Icon} />
             Delete
-          </DropdownMenuItem>
+          </DropdownMenuItem>}
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      {canDelete && <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {project.name}?</AlertDialogTitle>
@@ -870,7 +858,7 @@ function ProjectActions({ project }: { project: Project }) {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>}
     </>
   )
 }

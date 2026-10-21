@@ -1,6 +1,8 @@
 # Admin access: backend requirements
 
-Status: frontend restrictions implemented; API enforcement is still required.
+> **Policy source:** [Admin role access control PRD](./admin-role-access-prd.md). `ADMIN` is a configurable seeded role profile; arbitrary custom roles are supported. Only `SUPER_ADMIN` has unconditional full access. The PRD is authoritative for live roles and server enforcement.
+
+Status: frontend permission-aware UI is prepared; effective permissions and live role management require backend API support.
 
 ## Policy
 
@@ -8,7 +10,7 @@ Keep the existing roles. `ADMIN` is a project contributor (including contractors
 `SUPER_ADMIN` owns commercial data and workspace administration. Both require
 an approved account and verified email.
 
-| Capability | ADMIN | SUPER_ADMIN |
+| Capability | Seeded ADMIN default | SUPER_ADMIN |
 | --- | --- | --- |
 | Project brief, phase, status, timeline, milestones | Assigned projects | All projects |
 | Deliverables and feedback; create/update deliverables | Assigned projects | All projects |
@@ -39,11 +41,10 @@ an approved account and verified email.
    to clients and invites, team/account management, assignments, CMS/media, revision
    approvals and workspace settings. Audit existing enforcement; the frontend
    repository cannot establish which endpoints already enforce these rules.
-4. Restrict contributor writes by field. Allow milestone completion/status and
-   project progress only on assigned projects; reject commercial fields, ownership,
-   assignment, scope, phase/status, dates and archive fields even in mixed payloads.
-   Existing milestone toggles send unchanged title/description/dueDate/order too;
-   coordinate a status-only contract rather than accepting edits to those fields.
+4. Restrict writes by permission and field. Allow milestone completion/status and
+   project progress only within the assigned role scope; reject fields the role
+   cannot edit even in mixed payloads. The frontend milestone toggle now sends
+   status only; do not require or accept unchanged metadata as a workaround.
 5. Scope deliverable read/create/update operations to assigned projects. Validate
    milestone ownership and prevent moving a deliverable to another project by ID.
    Require SUPER_ADMIN for deletion. Protect file download access as well as
@@ -116,3 +117,22 @@ Before activating drafts, the backend needs:
 
 Local draft storage must never be accepted as authorization evidence or silently
 applied to members when connecting this UI to the API.
+
+## Workspace Settings API request
+
+The frontend now includes a Settings page preview at `/admin/settings`. Its
+workspace identity and regional-default fields are intentionally not saveable
+until the backend contract is implemented. Add the shared settings resource in
+the role-access PRD's §5.8. In particular:
+
+- Persist workspace name, nullable contact email, IANA timezone, supported ISO
+  currency code for new financial records, and supported date-format enum.
+- Implement authorized `GET /api/workspace/settings` and atomic, versioned
+  `PATCH /api/workspace/settings`; resolve workspace from the session, validate
+  fields, return canonical values, and audit changes.
+- Authorize using `workspace.settings` for both custom roles and reconfigured
+  `ADMIN`. `SUPER_ADMIN` remains the only unconditional bypass. This permission
+  must not imply `roles.manage`, `team.manage`, or CMS capabilities.
+- Keep the shared default currency separate from the current per-user browser
+  display-currency preference. It applies to new records only and does not
+  rewrite existing project or invoice currencies.

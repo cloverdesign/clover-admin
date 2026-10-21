@@ -57,6 +57,7 @@ import { useProject } from "@/lib/queries/projects-queries"
 import { useClient } from "@/lib/queries/clients-queries"
 import type { RevisionRequest } from "@/lib/api/models"
 import { revisionTitle } from "@/components/admin/revisions/revisions-table"
+import { useAdminAccess } from "@/hooks/use-admin-access"
 
 /**
  * Revision request detail — review, then decide (§1.2.5): approve as a new phase
@@ -81,6 +82,8 @@ export function RevisionDetail({ id }: { id: string }) {
 }
 
 function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
+  const canApprove = useAdminAccess("revisions.approve")
+  const canViewClient = useAdminAccess("clients.view")
   const title = revisionTitle(revision.description)
   const [declineOpen, setDeclineOpen] = React.useState(false)
   const [declineReason, setDeclineReason] = React.useState("")
@@ -125,9 +128,11 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
             <Badge variant={REVISION_STATUS_VARIANT[status]}>{REVISION_STATUS_LABEL[status]}</Badge>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
-            <Link href={`/admin/clients?c=${revision.clientId}`} className="underline-offset-4 hover:text-foreground hover:underline">
-              {clientName}
-            </Link>
+            {canViewClient ? (
+              <Link href={`/admin/clients?c=${revision.clientId}`} className="underline-offset-4 hover:text-foreground hover:underline">
+                {clientName}
+              </Link>
+            ) : <span>{clientName}</span>}
             <span>·</span>
             <Link href={`/admin/projects/${revision.projectId}`} className="underline-offset-4 hover:text-foreground hover:underline">
               {projectName}
@@ -137,7 +142,7 @@ function RevisionDetailInner({ revision }: { revision: RevisionRequest }) {
           </div>
         </div>
 
-        {pending && (
+        {pending && canApprove && (
           <div className="flex shrink-0 items-center gap-2">
             {status === "REQUESTED" && (
               <Button variant="ghost" disabled={busy} onClick={markInReview}>Mark in review</Button>

@@ -96,7 +96,7 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
     (p) => p.sensitive && selected.permissions.includes(p.id)
   ).length
   const currentMembers = admins?.filter(
-    (a) => a.role === selected.id && a.approved
+    (a) => (a.roleId ?? a.role) === selected.id && a.approved
   ).length
   const groups = PERMISSION_GROUPS.map((g) => ({
     ...g,
@@ -110,8 +110,11 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
   function update(patch: Partial<RoleDraft>) {
     if (locked) return
     setSavedMessage("")
+    const safePatch = patch.permissions
+      ? { ...patch, permissions: patch.permissions.filter((id) => id !== "roles.manage") }
+      : patch
     setRoles((all) =>
-      all.map((r) => (r.id === selected.id ? { ...r, ...patch } : r))
+      all.map((r) => (r.id === selected.id ? { ...r, ...safePatch } : r))
     )
   }
 
@@ -154,7 +157,7 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
       name,
       description: "",
       system: false,
-      permissions: [...base.permissions],
+      permissions: base.permissions.filter((id) => id !== "roles.manage"),
     }
     setRoles((all) => [...all, role])
     setSelectedId(role.id)
@@ -249,8 +252,8 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
             })}
           </div>
           <p className="mt-5 hidden px-2 text-xs leading-relaxed text-muted-foreground lg:block">
-            Start with Admin for contributors. Add access only where their work
-            needs it.
+            Admin starts with contributor access. Its grants can be changed; the
+            listed permissions are defaults, not a fixed policy.
           </p>
         </aside>
 
@@ -267,8 +270,8 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
                 <Badge variant="secondary">
                   {locked
                     ? "Protected role"
-                    : selected.system
-                      ? "Built-in role draft"
+                      : selected.system
+                        ? "Built-in role · configurable"
                       : "Custom role draft"}
                 </Badge>
               </div>
@@ -458,14 +461,16 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
                           id={`help-${permission.id}`}
                           className="mt-1 text-xs leading-relaxed text-muted-foreground"
                         >
-                          {permission.description}
+                          {permission.id === "roles.manage"
+                            ? "Reserved for Super Admins. This permission cannot be granted to another role."
+                            : permission.description}
                         </p>
                       </div>
                       <Switch
                         id={`permission-${permission.id}`}
                         aria-label={permission.label}
                         aria-describedby={`help-${permission.id}`}
-                        disabled={locked}
+                        disabled={locked || permission.id === "roles.manage"}
                         checked={selected.permissions.includes(permission.id)}
                         onCheckedChange={(checked) =>
                           update({

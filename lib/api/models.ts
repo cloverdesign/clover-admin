@@ -174,6 +174,10 @@ export interface MilestoneInput {
   dueDate?: string
 }
 
+export type MilestoneUpdateInput = {
+  status: MilestoneStatus
+} & Partial<Omit<MilestoneInput, "status">>
+
 /* ---------------------------------------------------------- project updates */
 
 export interface ProjectUpdatePost {
@@ -298,6 +302,13 @@ export interface Admin {
   name: string
   email: string
   role: AdminRole
+  /** Stable persisted role ID. Custom roles are identified here. */
+  roleId?: string
+  /** Display name for custom or renamed roles. */
+  roleName?: string
+  /** Server-resolved grants. When present, this is authoritative for UI visibility. */
+  effectivePermissions?: string[]
+  projectScope?: "assigned" | "all"
   emailVerified: boolean
   approved: boolean
   createdAt: string

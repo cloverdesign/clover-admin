@@ -18,6 +18,7 @@ import {
 } from "@hugeicons/core-free-icons"
 
 import { formatDate } from "@/lib/format"
+import { cn } from "@/lib/utils"
 import { convert } from "@/lib/mock/currencies"
 import { formatMoney } from "@/lib/mock/clients"
 import { useSiteCurrency } from "@/hooks/use-site-currency"
@@ -46,6 +47,7 @@ import { useClient, useDeleteClient, useUpdateClient, useSendPortalInvite } from
 import { useProjects } from "@/lib/queries/projects-queries"
 import type { Client } from "@/lib/api/models"
 import { Monogram, ClientStatusBadge } from "@/components/admin/clients/atoms"
+import { useAdminAccess } from "@/hooks/use-admin-access"
 
 /**
  * Client detail — reads the client from the API and composes its projects +
@@ -72,15 +74,21 @@ function ClientDetailInner({ client }: { client: Client }) {
   const [display] = useSiteCurrency()
   const projectsQ = useProjects()
   const invite = useSendPortalInvite()
+  const canEdit = useAdminAccess("clients.edit")
+  const canInvite = useAdminAccess("clients.invite")
+  const canDelete = useAdminAccess("clients.delete")
+  const canViewFinance = useAdminAccess("finance.view")
 
   const projects = (projectsQ.data ?? []).filter((p) => p.clientId === client.id)
   const active = projects.filter(
     (p) => !p.archived && p.status !== "COMPLETED" && p.status !== "CANCELLED"
   ).length
-  const pipeline = projects.reduce(
-    (s, p) => s + convert(p.totalValue, p.currency, display),
-    0
-  )
+  const pipeline = canViewFinance
+    ? projects.reduce(
+        (s, p) => s + convert(p.totalValue, p.currency, display),
+        0
+      )
+    : 0
 
   return (
     <div className="flex flex-col gap-6 p-5 sm:p-6">
@@ -99,7 +107,7 @@ function ClientDetailInner({ client }: { client: Client }) {
         </div>
         <div className="flex items-center gap-2">
           <ClientStatusBadge status={client.status} />
-          <ClientActions client={client} />
+          {(canEdit || canDelete) && <ClientActions client={client} canEdit={canEdit} canDelete={canDelete} />}
         </div>
       </div>
 
@@ -120,7 +128,7 @@ function ClientDetailInner({ client }: { client: Client }) {
             Signs in with {client.email}
           </div>
         </div>
-        <Button
+        {canInvite && <Button
           variant="outline"
           size="sm"
           className="gap-1.5"
@@ -129,13 +137,13 @@ function ClientDetailInner({ client }: { client: Client }) {
         >
           <HugeiconsIcon icon={Mail02Icon} data-icon="inline-start" className="size-3.5" />
           {invite.isPending ? "Sending…" : "Send invite"}
-        </Button>
+        </Button>}
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className={cn("grid grid-cols-2 gap-3", !canViewFinance && "grid-cols-1")}>
         <Stat label="Active projects" value={String(active)} />
-        <Stat label="Pipeline value" value={formatMoney(pipeline, display)} />
+        {canViewFinance && <Stat label="Pipeline value" value={formatMoney(pipeline, display)} />}
       </div>
 
       {/* Notes */}
@@ -222,7 +230,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 /** Edit / status-toggle / delete — real mutations. */
-function ClientActions({ client }: { client: Client }) {
+function ClientActions({ client, canEdit, canDelete }: { client: Client; canEdit: boolean; canDelete: boolean }) {
   const router = useRouter()
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const del = useDeleteClient()
@@ -253,23 +261,23 @@ function ClientActions({ client }: { client: Client }) {
           <HugeiconsIcon icon={MoreHorizontalIcon} className="size-5" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => router.push(`/admin/clients/${client.id}/edit`)}>
+          {canEdit && <DropdownMenuItem onClick={() => router.push(`/admin/clients/${client.id}/edit`)}>
             <HugeiconsIcon icon={PencilEdit02Icon} />
             Edit client
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={toggleChurned}>
+          </DropdownMenuItem>}
+          {canEdit && <DropdownMenuItem onClick={toggleChurned}>
             <HugeiconsIcon icon={Archive02Icon} />
             {churned ? "Mark active" : "Mark churned"}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
+          </DropdownMenuItem>}
+          {canDelete && <DropdownMenuSeparator />}
+          {canDelete && <DropdownMenuItem variant="destructive" onClick={() => setConfirmOpen(true)}>
             <HugeiconsIcon icon={Delete02Icon} />
             Delete
-          </DropdownMenuItem>
+          </DropdownMenuItem>}
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      {canDelete && <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {client.company}?</AlertDialogTitle>
@@ -295,7 +303,7 @@ function ClientActions({ client }: { client: Client }) {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog>}
     </>
   )
 }

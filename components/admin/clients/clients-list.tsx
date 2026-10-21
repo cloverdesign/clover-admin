@@ -15,6 +15,7 @@ import { ClientsEmpty } from "@/components/admin/clients/clients-empty"
 import { ClientDetailPanel } from "@/components/admin/clients/client-detail-panel"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
+import { useAdminAccess } from "@/hooks/use-admin-access"
 
 type Filter = "all" | ClientStatus
 
@@ -41,6 +42,7 @@ export function ClientsList({ selectedId }: { selectedId?: string }) {
 
   const clientsQ = useClients()
   const projectsQ = useProjects()
+  const canViewFinance = useAdminAccess("finance.view")
 
   // Compose per-client rollups from projects (one request, cheap).
   const rollups = React.useMemo(() => {
@@ -48,11 +50,11 @@ export function ClientsList({ selectedId }: { selectedId?: string }) {
     for (const p of projectsQ.data ?? []) {
       const r = map.get(p.clientId) ?? { active: 0, pipeline: 0 }
       if (!p.archived && ACTIVE_PROJECT(p.status)) r.active += 1
-      r.pipeline += convert(p.totalValue, p.currency, display)
+      if (canViewFinance) r.pipeline += convert(p.totalValue, p.currency, display)
       map.set(p.clientId, r)
     }
     return map
-  }, [projectsQ.data, display])
+  }, [projectsQ.data, display, canViewFinance])
 
   if (clientsQ.isLoading) {
     return (
@@ -119,6 +121,7 @@ export function ClientsList({ selectedId }: { selectedId?: string }) {
               rollups={rollups}
               display={display}
               selectedId={selectedId}
+              showFinancials={canViewFinance}
             />
           </div>
         ) : (

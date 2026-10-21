@@ -5,7 +5,7 @@
  */
 
 import { useMe } from "@/lib/queries/auth-queries"
-import { canSeeProject, visibleProjects } from "@/lib/access"
+import { canSeeProject, hasPermission, visibleProjects } from "@/lib/access"
 import { useAdminAccess } from "@/hooks/use-admin-access"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
@@ -17,6 +17,7 @@ import type {
   ProjectInput,
   ProjectUpdateInput,
   MilestoneInput,
+  MilestoneUpdateInput,
   ProjectUpdatePostInput,
   InvoiceInput,
 } from "@/lib/api/models"
@@ -24,7 +25,7 @@ import type {
 export function useProjects() {
   const { data: me } = useMe()
   return useQuery({
-    enabled: Boolean(me?.approved),
+    enabled: Boolean(me?.approved && me.emailVerified && hasPermission(me, "projects.view")),
     select: (projects) => visibleProjects(me, projects),
     queryKey: queryKeys.projects.all,
     queryFn: () => ProjectsService.list(),
@@ -38,7 +39,7 @@ export function useProject(id: string) {
     select: (project) => canSeeProject(me, project) ? project : undefined,
     queryKey: queryKeys.projects.byId(id),
     queryFn: () => ProjectsService.getById(id),
-    enabled: Boolean(id),
+    enabled: Boolean(id && me?.approved && me.emailVerified && hasPermission(me, "projects.view")),
     meta: { errorMessage: "Failed to load project." },
   })
 }
@@ -128,7 +129,7 @@ export function useUpdateMilestone() {
     mutationFn: (vars: {
       projectId: string
       milestoneId: string
-      input: MilestoneInput
+      input: MilestoneUpdateInput
     }) => ProjectsService.updateMilestone(vars.projectId, vars.milestoneId, vars.input),
     meta: { successMessage: "Milestone updated.", errorMessage: "Failed to update milestone." },
     onSuccess: (_updated, vars) => {
@@ -187,7 +188,7 @@ export function useDeleteProjectUpdate() {
 /* ------------------------------------------------------------------ invoices */
 
 export function useProjectInvoices(projectId: string) {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("invoices.view")
   const query = useQuery({
     queryKey: queryKeys.projects.invoices(projectId),
     queryFn: () => ProjectsService.invoices(projectId),

@@ -21,34 +21,36 @@ export function ClientsLedger({
   rollups,
   display,
   selectedId,
+  showFinancials,
 }: {
   data: Client[]
   rollups: Map<string, ClientRollup>
   display: string
   selectedId?: string
+  showFinancials: boolean
 }) {
   const activeCount = data.filter((c) => c.status === "ACTIVE").length
-  const pipeline = data.reduce(
+  const pipeline = showFinancials ? data.reduce(
     (s, c) => s + (rollups.get(c.id)?.pipeline ?? 0),
     0
-  )
+  ) : 0
 
   return (
     <div className="flex h-full flex-col gap-5">
       {/* Summary strip */}
-      <div className="grid shrink-0 grid-cols-3 gap-px overflow-hidden rounded-2xl border bg-border">
+      <div className={cn("grid shrink-0 gap-px overflow-hidden rounded-2xl border bg-border", showFinancials ? "grid-cols-3" : "grid-cols-2")}>
         <Metric label="Clients" value={String(data.length)} />
         <Metric label="Active" value={String(activeCount)} />
-        <Metric label="Pipeline value" value={formatMoney(pipeline, display)} />
+        {showFinancials && <Metric label="Pipeline value" value={formatMoney(pipeline, display)} />}
       </div>
 
       {/* Flat list — only the rows scroll; header stays pinned */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-card">
-        <div className="grid shrink-0 grid-cols-[1fr_auto] items-center gap-4 border-b border-border px-5 py-2.5 text-[11px] font-medium tracking-wider text-muted-foreground/70 uppercase sm:grid-cols-[1.6fr_1fr_0.8fr_0.9fr]">
+        <div className={cn("grid shrink-0 grid-cols-[1fr_auto] items-center gap-4 border-b border-border px-5 py-2.5 text-[11px] font-medium tracking-wider text-muted-foreground/70 uppercase", showFinancials ? "sm:grid-cols-[1.6fr_1fr_0.8fr_0.9fr]" : "sm:grid-cols-[1.6fr_1fr_0.8fr]")}>
           <span>Client</span>
           <span className="hidden sm:block">Contact</span>
           <span className="hidden text-right sm:block">Projects</span>
-          <span className="text-right">Value</span>
+          {showFinancials && <span className="text-right">Value</span>}
         </div>
         <div className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-y-auto">
           {data.map((client) => {
@@ -59,7 +61,10 @@ export function ClientsLedger({
                 href={`/admin/clients?c=${client.id}`}
                 scroll={false}
                 className={cn(
-                  "grid grid-cols-[1fr_auto] items-center gap-4 px-5 py-3 text-left transition-colors hover:bg-muted/40 sm:grid-cols-[1.6fr_1fr_0.8fr_0.9fr]",
+                  "grid grid-cols-[1fr_auto] items-center gap-4 px-5 py-3 text-left transition-colors hover:bg-muted/40",
+                  showFinancials
+                    ? "sm:grid-cols-[1.6fr_1fr_0.8fr_0.9fr]"
+                    : "sm:grid-cols-[1.6fr_1fr_0.8fr]",
                   selectedId === client.id && "bg-muted/60"
                 )}
               >
@@ -82,11 +87,11 @@ export function ClientsLedger({
                     {roll?.active ?? 0} active
                   </Badge>
                 </div>
-                <div className="text-right">
+                {showFinancials && <div className="text-right">
                   <div className="font-mono text-sm font-medium tabular-nums">
                     {formatMoney(roll?.pipeline ?? 0, display)}
                   </div>
-                </div>
+                </div>}
               </Link>
             )
           })}

@@ -12,7 +12,7 @@ import { RevisionsService } from "@/lib/services/revisions-service"
 import type { RevisionStatusInput, RevisionApproveInput } from "@/lib/api/models"
 
 export function useRevisions() {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("revisions.view")
   const query = useQuery({
     enabled: allowed,
     queryKey: queryKeys.revisions.all,
@@ -23,7 +23,7 @@ export function useRevisions() {
 }
 
 export function useRevision(id: string) {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("revisions.view")
   const query = useQuery({
     queryKey: queryKeys.revisions.byId(id),
     queryFn: () => RevisionsService.getById(id),

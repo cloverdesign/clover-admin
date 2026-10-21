@@ -28,7 +28,7 @@ const isLive = (p: Project) =>
  * clientId). Only the table body scrolls.
  */
 export function ProjectsList() {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("finance.view")
   const [display] = useSiteCurrency()
   const projectsQ = useProjects()
   const clientsQ = useClients()

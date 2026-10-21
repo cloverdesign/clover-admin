@@ -86,7 +86,7 @@ export function ProjectsTable({
   data: Project[]
   clientName: (id: string) => string
 }) {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("finance.view")
   const router = useRouter()
   return (
     <DataTable

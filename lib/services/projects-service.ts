@@ -13,6 +13,7 @@ import type {
   ProjectUpdateInput,
   Milestone,
   MilestoneInput,
+  MilestoneUpdateInput,
   ProjectUpdatePost,
   ProjectUpdatePostInput,
   Invoice,
@@ -61,7 +62,7 @@ export class ProjectsService {
 
   static async createMilestone(
     projectId: string,
-    input: MilestoneInput
+    input: MilestoneUpdateInput
   ): Promise<Milestone> {
     const res = await apiClient.post<ApiEnvelope<Milestone>>(
       ProjectEndpoints.createMilestone(projectId),

@@ -1,4 +1,5 @@
-/** Design drafts only. Never use these values to authorize live requests. */
+/** Role editor UX data. Browser-saved drafts never authorize requests; the
+ * INITIAL_ROLES entries mirror the backend's seeded defaults for the UI. */
 export const PERMISSION_GROUPS = [
   {
     id: "projects",
@@ -66,6 +67,12 @@ export const PERMISSION_GROUPS = [
         description: "Permanently remove files and their records.",
         requires: "delivery.view",
         sensitive: true,
+      },
+      {
+        id: "revisions.view",
+        label: "View revision requests",
+        description: "Review incoming requests for changes to project scope.",
+        requires: "projects.view",
       },
       {
         id: "revisions.approve",

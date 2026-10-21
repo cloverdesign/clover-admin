@@ -8,7 +8,7 @@ import { ClientsService } from "@/lib/services/clients-service"
 import type { ClientInput } from "@/lib/api/models"
 
 export function useClients() {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("clients.view")
   const query = useQuery({
     enabled: allowed,
     queryKey: queryKeys.clients.all,
@@ -19,7 +19,7 @@ export function useClients() {
 }
 
 export function useClient(id: string) {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("clients.view")
   const query = useQuery({
     queryKey: queryKeys.clients.byId(id),
     queryFn: () => ClientsService.getById(id),

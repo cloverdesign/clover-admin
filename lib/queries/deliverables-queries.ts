@@ -16,16 +16,22 @@ import {
 
 import { queryKeys } from "@/lib/api/query-client"
 import { DeliverablesService } from "@/lib/services/deliverables-service"
+import { hasPermission } from "@/lib/access"
+import { useMe } from "@/lib/queries/auth-queries"
 import { useProjects } from "@/lib/queries/projects-queries"
 import type { Deliverable, DeliverableInput } from "@/lib/api/models"
 
 export function useProjectDeliverables(projectId: string) {
-  return useQuery({
+  const { data: me } = useMe()
+  const projectsQ = useProjects()
+  const allowed = hasPermission(me, "delivery.view") && Boolean(projectsQ.data?.some((project) => project.id === projectId))
+  const query = useQuery({
     queryKey: queryKeys.deliverables.byProject(projectId),
     queryFn: () => DeliverablesService.listByProject(projectId),
-    enabled: Boolean(projectId),
+    enabled: Boolean(projectId && allowed),
     meta: { errorMessage: "Failed to load deliverables." },
   })
+  return { ...query, data: allowed ? query.data : undefined }
 }
 
 /**
@@ -34,20 +40,22 @@ export function useProjectDeliverables(projectId: string) {
  */
 export function useAllDeliverables(options?: { enabled?: boolean }) {
   const enabled = options?.enabled ?? true
+  const { data: me } = useMe()
+  const canView = hasPermission(me, "delivery.view")
   const projectsQ = useProjects()
-  const projects = projectsQ.data ?? []
+  const projects = canView ? projectsQ.data ?? [] : []
 
   const results = useQueries({
     queries: projects.map((p) => ({
       queryKey: queryKeys.deliverables.byProject(p.id),
       queryFn: () => DeliverablesService.listByProject(p.id),
-      enabled: enabled && projectsQ.isSuccess,
+      enabled: enabled && canView && projectsQ.isSuccess,
       meta: { silent: true as const },
     })),
   })
 
   return {
-    deliverables: results.flatMap((r) => r.data ?? []) as Deliverable[],
+    deliverables: canView ? results.flatMap((r) => r.data ?? []) as Deliverable[] : [],
     isLoading: projectsQ.isLoading || results.some((r) => r.isLoading),
     isError: projectsQ.isError || results.some((r) => r.isError),
     refetch: () => {

@@ -54,6 +54,7 @@ import {
   useDeleteBlock,
 } from "@/lib/queries/cms-queries"
 import { PageStatusBadge } from "@/components/admin/cms/parts"
+import { useAdminAccess } from "@/hooks/use-admin-access"
 import {
   BLOCK_TYPES,
   BLOCK_META,
@@ -94,6 +95,7 @@ export function PageEditor({ id }: { id: string }) {
 
 function PageEditorInner({ page }: { page: Page }) {
   const router = useRouter()
+  const canPublish = useAdminAccess("site.publish")
   const updatePage = useUpdatePage()
   const deletePage = useDeletePage()
   const createBlock = useCreateBlock()
@@ -184,10 +186,10 @@ function PageEditorInner({ page }: { page: Page }) {
           <Button variant="outline" onClick={savePage} disabled={!metaValid || updatePage.isPending}>
             Save
           </Button>
-          <Button className="gap-1.5" onClick={togglePublish} disabled={updatePage.isPending}>
+          {canPublish && <Button className="gap-1.5" onClick={togglePublish} disabled={updatePage.isPending}>
             <HugeiconsIcon icon={RocketIcon} data-icon="inline-start" className="size-4" />
             {page.isPublished ? "Unpublish" : "Publish"}
-          </Button>
+          </Button>}
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label="Page actions"

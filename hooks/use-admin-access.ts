@@ -1,8 +1,9 @@
 "use client"
 
 import { useMe } from "@/lib/queries/auth-queries"
-import { isSuperAdmin } from "@/lib/access"
+import { hasPermission } from "@/lib/access"
+import type { PermissionId } from "@/lib/role-drafts"
 
-export function useAdminAccess() {
-  return isSuperAdmin(useMe().data)
+export function useAdminAccess(permission: PermissionId = "workspace.settings") {
+  return hasPermission(useMe().data, permission)
 }

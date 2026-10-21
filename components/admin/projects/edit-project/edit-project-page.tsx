@@ -24,7 +24,7 @@ import { PROJECT_STATUS_LABEL, PROJECT_TYPES } from "@/lib/mock/projects"
 import { useProject, useUpdateProject } from "@/lib/queries/projects-queries"
 import { useClient } from "@/lib/queries/clients-queries"
 import { useMe } from "@/lib/queries/auth-queries"
-import { canSeeProject } from "@/lib/access"
+import { canSeeProject, hasPermission } from "@/lib/access"
 import type { Project, ProjectStatus } from "@/lib/api/models"
 import { Monogram } from "@/components/admin/clients/atoms"
 import { Field } from "@/components/admin/clients/new-client/fields"
@@ -70,6 +70,11 @@ export function EditProjectPage({ id }: { id?: string }) {
 function EditProjectForm({ project, router }: { project: Project; router: ReturnType<typeof useRouter> }) {
   const update = useUpdateProject()
   const clientQ = useClient(project.clientId)
+  const meQ = useMe()
+  const canEditFinance = hasPermission(meQ.data, "finance.edit")
+  const canViewFinance = hasPermission(meQ.data, "finance.view")
+  const canProgress = hasPermission(meQ.data, "projects.progress")
+  const canAssign = hasPermission(meQ.data, "projects.assign")
   const backHref = `/admin/projects/${project.id}`
 
   const [name, setName] = React.useState(project.name)
@@ -86,21 +91,21 @@ function EditProjectForm({ project, router }: { project: Project; router: Return
   const valid = name.trim().length > 0
 
   const save = () => {
+    const input = {
+      name: name.trim(),
+      type,
+      phase,
+      status,
+      startDate: toApiDateTime(start),
+      endDate: toApiDateTime(end),
+      description: brief || undefined,
+      ...(canEditFinance ? { currency, totalValue: Number(value) || 0 } : {}),
+      ...(canProgress ? { progress: Math.max(0, Math.min(100, Number(progress) || 0)) } : {}),
+    }
     update.mutate(
       {
         id: project.id,
-        input: {
-          name: name.trim(),
-          type,
-          phase,
-          status,
-          currency,
-          totalValue: Number(value) || 0,
-          startDate: toApiDateTime(start),
-          endDate: toApiDateTime(end),
-          progress: Math.max(0, Math.min(100, Number(progress) || 0)),
-          description: brief || undefined,
-        },
+        input,
       },
       { onSuccess: () => router.push(backHref) }
     )
@@ -171,19 +176,19 @@ function EditProjectForm({ project, router }: { project: Project; router: Return
                 </Select>
               </Field>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            {canViewFinance && <div className="grid grid-cols-2 gap-3">
               <Field label="Value" htmlFor="pvalue">
-                <Input id="pvalue" type="number" inputMode="numeric" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0" />
+                {canEditFinance ? <Input id="pvalue" type="number" inputMode="numeric" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0" /> : <p className="rounded-md border px-3 py-2 text-sm">{value}</p>}
               </Field>
               <Field label="Currency" htmlFor="pcurrency">
-                <Select value={currency} onValueChange={(v) => v && setCurrency(v)}>
+                {canEditFinance ? <Select value={currency} onValueChange={(v) => v && setCurrency(v)}>
                   <SelectTrigger id="pcurrency" className="w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CURRENCIES.map((c) => (<SelectItem key={c.code} value={c.code}>{c.flag} {c.code} — {c.name}</SelectItem>))}
                   </SelectContent>
-                </Select>
+                </Select> : <p className="rounded-md border px-3 py-2 text-sm">{currency}</p>}
               </Field>
-            </div>
+            </div>}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Start" htmlFor="pstart">
                 <DatePicker id="pstart" value={start} onChange={setStart} placeholder="No start date" />
@@ -192,7 +197,7 @@ function EditProjectForm({ project, router }: { project: Project; router: Return
                 <DatePicker id="ptarget" value={end} onChange={setEnd} placeholder="No end date" />
               </Field>
             </div>
-            <Field label="Progress" htmlFor="pprogress" hint="0–100%. Auto-syncs from milestone completion when the project has milestones.">
+            {canProgress && <Field label="Progress" htmlFor="pprogress" hint="0–100%. Auto-syncs from milestone completion when the project has milestones.">
               <div className="flex items-center gap-2">
                 <Input
                   id="pprogress"
@@ -206,16 +211,16 @@ function EditProjectForm({ project, router }: { project: Project; router: Return
                 />
                 <span className="text-sm text-muted-foreground">%</span>
               </div>
-            </Field>
+            </Field>}
             <Field label="Brief" htmlFor="pbrief">
               <Textarea id="pbrief" value={brief} onChange={(e) => setBrief(e.target.value)} rows={4} />
             </Field>
-            <Field
+            {canAssign && <Field
               label="Assigned admins"
               hint="Only assigned admins (and super admins) see this project. Changes here save immediately."
             >
               <AssignAdmins project={project} />
-            </Field>
+            </Field>}
           </div>
 
           <div className="mt-auto flex justify-end gap-2 pt-8">

@@ -47,6 +47,7 @@ import {
 import { useProject } from "@/lib/queries/projects-queries"
 import { useClient } from "@/lib/queries/clients-queries"
 import { InvoicePdfActions } from "@/components/admin/invoices/invoice-pdf-actions"
+import { useAdminAccess } from "@/hooks/use-admin-access"
 import type { Invoice } from "@/lib/api/models"
 
 /**
@@ -71,6 +72,9 @@ export function InvoiceDetail({ id }: { id: string }) {
 }
 
 function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
+  const canManage = useAdminAccess("invoices.manage")
+  const canRecordPayment = useAdminAccess("invoices.paid")
+  const canDelete = useAdminAccess("invoices.delete")
   const router = useRouter()
   const [confirmOpen, setConfirmOpen] = React.useState(false)
 
@@ -97,13 +101,13 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
           <Badge variant={INVOICE_STATUS_VARIANT[status]}>{INVOICE_STATUS_LABEL[status]}</Badge>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {status === "DRAFT" && (
+          {status === "DRAFT" && canManage && (
             <Button className="gap-1.5" disabled={busy} onClick={() => send.mutate(invoice.id)}>
               <HugeiconsIcon icon={SentIcon} data-icon="inline-start" className="size-4" />
               Send invoice
             </Button>
           )}
-          {open && (
+          {open && canRecordPayment && (
             <Button className="gap-1.5" disabled={busy} onClick={() => markPaid.mutate(invoice.id)}>
               <HugeiconsIcon icon={CheckmarkCircle02Icon} data-icon="inline-start" className="size-4" />
               Mark paid
@@ -112,7 +116,9 @@ function InvoiceDetailInner({ invoice }: { invoice: Invoice }) {
           <InvoicePdfActions id={invoice.id} invoiceNumber={invoice.invoiceNumber} />
           <InvoiceActions
             invoice={invoice}
-            canOverdue={status === "SENT"}
+            canManage={canManage}
+            canOverdue={status === "SENT" && canRecordPayment}
+            canDelete={canDelete}
             onOverdue={() => markOverdue.mutate(invoice.id)}
             onDelete={() => setConfirmOpen(true)}
           />
@@ -212,16 +218,21 @@ function Meta({ label, value, tone }: { label: string; value: string; tone?: "de
 
 function InvoiceActions({
   invoice,
+  canManage,
   canOverdue,
+  canDelete,
   onOverdue,
   onDelete,
 }: {
   invoice: Invoice
+  canManage: boolean
   canOverdue: boolean
+  canDelete: boolean
   onOverdue: () => void
   onDelete: () => void
 }) {
   const router = useRouter()
+  if (!canManage && !canOverdue && !canDelete) return null
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -231,21 +242,21 @@ function InvoiceActions({
         <HugeiconsIcon icon={MoreHorizontalIcon} className="size-5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => router.push(`/admin/invoices/${invoice.id}/edit`)}>
+        {canManage && <DropdownMenuItem onClick={() => router.push(`/admin/invoices/${invoice.id}/edit`)}>
           <HugeiconsIcon icon={PencilEdit02Icon} />
           Edit invoice
-        </DropdownMenuItem>
+        </DropdownMenuItem>}
         {canOverdue && (
           <DropdownMenuItem onClick={onOverdue}>
             <HugeiconsIcon icon={Alert02Icon} />
             Mark overdue
           </DropdownMenuItem>
         )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onClick={onDelete}>
+        {canDelete && <DropdownMenuSeparator />}
+        {canDelete && <DropdownMenuItem variant="destructive" onClick={onDelete}>
           <HugeiconsIcon icon={Delete02Icon} />
           Delete
-        </DropdownMenuItem>
+        </DropdownMenuItem>}
       </DropdownMenuContent>
     </DropdownMenu>
   )

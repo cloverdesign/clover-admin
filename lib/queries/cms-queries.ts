@@ -14,7 +14,7 @@ import type { PageInput, PageBlockInput } from "@/lib/api/models"
 /* ------------------------------------------------------------------ pages */
 
 export function usePages() {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("site.edit")
   const query = useQuery({
     enabled: allowed,
     queryKey: queryKeys.pages.all,
@@ -25,7 +25,7 @@ export function usePages() {
 }
 
 export function usePage(id: string) {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("site.edit")
   const query = useQuery({
     queryKey: queryKeys.pages.byId(id),
     queryFn: () => PagesService.getById(id),
@@ -126,7 +126,7 @@ export function useDeleteBlock() {
 /* ------------------------------------------------------------------ media */
 
 export function useMedia() {
-  const allowed = useAdminAccess()
+  const allowed = useAdminAccess("site.edit")
   const query = useQuery({
     enabled: allowed,
     queryKey: queryKeys.media.all,
