@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { queryKeys } from "@/lib/api/query-client"
 import { AdminsService } from "@/lib/services/admins-service"
-import type { AdminRole } from "@/lib/api/models"
+import type { Admin, AdminRole } from "@/lib/api/models"
 
 export function useAdmins() {
   return useQuery({
@@ -43,6 +43,29 @@ export function useSetAdminRole() {
       AdminsService.setRole(vars.id, { role: vars.role }),
     meta: { successMessage: "Role updated.", errorMessage: "Couldn’t change this admin’s role." },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admins.all }),
+  })
+}
+
+/**
+ * Assign or clear an admin's dynamic RBAC role. The list endpoint isn't
+ * documented to include `assignedRole`, so the response is written into the
+ * cached list rather than relying only on the refetch. Roles are refetched
+ * because their `adminCount` changes.
+ */
+export function useAssignAdminRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; roleId: string | null }) =>
+      AdminsService.setAssignedRole(vars.id, { roleId: vars.roleId }),
+    meta: { successMessage: "Role assigned.", errorMessage: "Couldn’t assign this role." },
+    onSuccess: (updated, vars) => {
+      qc.setQueryData<Admin[]>(queryKeys.admins.all, (list) =>
+        list?.map((a) =>
+          a.id === vars.id ? { ...a, assignedRole: updated.assignedRole ?? null } : a
+        )
+      )
+      qc.invalidateQueries({ queryKey: queryKeys.roles.all })
+    },
   })
 }
 

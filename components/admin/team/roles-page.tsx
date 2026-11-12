@@ -8,23 +8,29 @@ import {
   Search01Icon,
   ArrowRight01Icon,
   CheckmarkCircle02Icon,
+  Delete02Icon,
+  Loading03Icon,
 } from "@hugeicons/core-free-icons"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { useHydrated } from "@/hooks/use-hydrated"
 import { useMe } from "@/lib/queries/auth-queries"
-import { useAdmins } from "@/lib/queries/admins-queries"
+import { useDeleteRole, useRoles, useSaveRole } from "@/lib/queries/roles-queries"
 import { isSuperAdmin } from "@/lib/access"
 import {
   INITIAL_ROLES,
   PERMISSIONS,
   PERMISSION_GROUPS,
-  loadRoleDrafts,
+  detailsChanged,
+  draftFromRole,
+  permissionKeys,
+  permissionsChanged,
   roleChanges,
   togglePermission,
   type Permission,
+  type PermissionId,
   type RoleDraft,
 } from "@/lib/role-drafts"
+import type { Role } from "@/lib/api/models"
 import { TeamNavigation } from "@/components/admin/team/team-navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -46,6 +52,42 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog"
+
+/** Selection key for the built-in, read-only super admin entry. */
+const SUPER = "SUPER_ADMIN"
+/** Selection key for a role that hasn't been created yet. */
+const NEW = "new"
+
+/** `roles.manage` stays super-admin only; it is never granted to a role. */
+const grantable = (ids: readonly PermissionId[]) =>
+  ids.filter((id) => id !== "roles.manage")
+
+const SUPER_DRAFT: RoleDraft = {
+  name: INITIAL_ROLES[0].name,
+  description: INITIAL_ROLES[0].description,
+  permissions: [...INITIAL_ROLES[0].permissions],
+  otherKeys: [],
+}
+
+/** Starting points offered when creating a role (besides existing roles). */
+const TEMPLATES: { id: string; name: string; permissions: PermissionId[] }[] = [
+  {
+    id: "template:contributor",
+    name: "Contributor defaults",
+    permissions: [...INITIAL_ROLES[1].permissions],
+  },
+  { id: "template:empty", name: "No permissions", permissions: [] },
+]
 
 export function RolesPage() {
   const hydrated = useHydrated()
@@ -58,46 +100,81 @@ export function RolesPage() {
         Only super admins can manage roles.
       </p>
     )
-  return (
-    <RolesEditor key={me.id} storageKey={`clover.role-drafts.v1.${me.id}`} />
-  )
+  return <RolesLoader />
 }
 
-function RolesEditor({ storageKey }: { storageKey: string }) {
-  const [saved, setSaved] = React.useState(() => loadRoleDrafts(storageKey))
-  const [roles, setRoles] = React.useState(saved)
-  const [selectedId, setSelectedId] = React.useState("ADMIN")
+function RolesLoader() {
+  const { data: roles, isLoading, isError } = useRoles()
+  if (isLoading)
+    return (
+      <div className="flex items-center justify-center py-24 text-muted-foreground">
+        <HugeiconsIcon icon={Loading03Icon} className="size-6 animate-spin" />
+      </div>
+    )
+  if (isError || !roles)
+    return (
+      <p className="py-24 text-center text-sm text-muted-foreground">
+        Couldn’t load roles.
+      </p>
+    )
+  return <RolesEditor roles={roles} />
+}
+
+function RolesEditor({ roles }: { roles: Role[] }) {
+  const saveRole = useSaveRole()
+  const deleteRole = useDeleteRole()
+
+  const saved = React.useMemo(
+    () =>
+      [...roles]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((role) => ({ role, draft: draftFromRole(role) })),
+    [roles]
+  )
+  /** Unsaved edits, keyed by role id (or NEW). Survive switching roles. */
+  const [edits, setEdits] = React.useState<Record<string, RoleDraft>>({})
+  const [selectedKey, setSelectedKey] = React.useState<string>(
+    () => saved[0]?.role.id ?? SUPER
+  )
   const [search, setSearch] = React.useState("")
   const [review, setReview] = React.useState(false)
+  const [confirmDelete, setConfirmDelete] = React.useState(false)
   const [creating, setCreating] = React.useState(false)
   const [newName, setNewName] = React.useState("")
-  const [template, setTemplate] = React.useState("ADMIN")
-  const [savedMessage, setSavedMessage] = React.useState("")
-  const { data: admins } = useAdmins()
-  const selected = roles.find((r) => r.id === selectedId) ?? roles[0]
-  const original = saved.find((r) => r.id === selected.id)
-  const locked = selected.id === "SUPER_ADMIN"
+  const [template, setTemplate] = React.useState(TEMPLATES[0].id)
+
+  // A role deleted elsewhere (or just now) falls back to the first entry.
+  const savedEntry = saved.find((s) => s.role.id === selectedKey)
+  const key =
+    selectedKey === SUPER || (selectedKey === NEW && edits[NEW]) || savedEntry
+      ? selectedKey
+      : (saved[0]?.role.id ?? SUPER)
+  const locked = key === SUPER
+  const original = locked ? SUPER_DRAFT : savedEntry?.draft
+  const selected = edits[key] ?? original ?? SUPER_DRAFT
+  const isNew = key === NEW
+
   const changes = original
     ? roleChanges(original, selected)
     : [
-        "Create custom role",
+        "Create role",
         ...selected.permissions.map(
           (id) => `Allow: ${PERMISSIONS.find((p) => p.id === id)?.label}`
         ),
       ]
-  const dirty = !original || changes.length > 0
-  const duplicate = roles.some(
-    (r) =>
-      r.id !== selected.id &&
-      r.name.trim().toLowerCase() === selected.name.trim().toLowerCase()
-  )
+  const dirty = !locked && (isNew || changes.length > 0)
+  const nameTaken = (name: string, exceptId?: string) =>
+    saved.some(
+      (s) =>
+        s.role.id !== exceptId &&
+        s.role.name.trim().toLowerCase() === name.trim().toLowerCase()
+    ) || name.trim().toLowerCase() === SUPER_DRAFT.name.toLowerCase()
+  const duplicate = !locked && nameTaken(selected.name, selected.id)
   const valid = selected.name.trim().length > 0 && !duplicate
   const sensitive = PERMISSIONS.filter(
     (p) => p.sensitive && selected.permissions.includes(p.id)
   ).length
-  const currentMembers = admins?.filter(
-    (a) => (a.roleId ?? a.role) === selected.id && a.approved
-  ).length
+  const members = savedEntry?.role.adminCount ?? 0
   const groups = PERMISSION_GROUPS.map((g) => ({
     ...g,
     permissions: (g.permissions as readonly Permission[]).filter((p) =>
@@ -107,64 +184,105 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
     ),
   })).filter((g) => g.permissions.length)
 
+  function select(next: string) {
+    setSelectedKey(next)
+    setSearch("")
+  }
+
   function update(patch: Partial<RoleDraft>) {
     if (locked) return
-    setSavedMessage("")
     const safePatch = patch.permissions
-      ? { ...patch, permissions: patch.permissions.filter((id) => id !== "roles.manage") }
+      ? { ...patch, permissions: grantable(patch.permissions) }
       : patch
-    setRoles((all) =>
-      all.map((r) => (r.id === selected.id ? { ...r, ...safePatch } : r))
-    )
+    setEdits((all) => ({ ...all, [key]: { ...selected, ...safePatch } }))
+  }
+
+  function clearEdit(k: string) {
+    setEdits((all) => {
+      const next = { ...all }
+      delete next[k]
+      return next
+    })
   }
 
   function save() {
     if (!valid || locked) return
-    const next = original
-      ? saved.map((r) => (r.id === selected.id ? selected : r))
-      : [...saved, selected]
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(next))
-      setSaved(next)
-      setReview(false)
-      setSavedMessage("Draft saved in this browser. Live access is unchanged.")
-      toast.success("Role draft saved")
-    } catch {
-      toast.error(
-        "Couldn’t save this draft. Browser storage may be unavailable."
-      )
+    const input = {
+      id: selected.id,
+      name: selected.name.trim(),
+      description: selected.description.trim(),
+      permissionKeys: permissionKeys(selected),
+      changed: original
+        ? {
+            details: detailsChanged(original, selected),
+            permissions: permissionsChanged(original, selected),
+          }
+        : undefined,
     }
+    saveRole.mutate(input, {
+      onSuccess: (role) => {
+        clearEdit(key)
+        if (isNew && role) setSelectedKey(role.id)
+        setReview(false)
+      },
+    })
   }
 
   function discard() {
-    if (original)
-      setRoles((all) => all.map((r) => (r.id === selected.id ? original : r)))
-    else {
-      setRoles((all) => all.filter((r) => r.id !== selected.id))
-      setSelectedId("ADMIN")
-    }
-    setSavedMessage("")
+    clearEdit(key)
+    if (isNew) select(saved[0]?.role.id ?? SUPER)
+  }
+
+  function remove() {
+    if (!selected.id) return
+    const id = selected.id
+    deleteRole.mutate(id, {
+      onSuccess: () => {
+        clearEdit(id)
+        setConfirmDelete(false)
+        select(saved.find((s) => s.role.id !== id)?.role.id ?? SUPER)
+      },
+    })
+  }
+
+  function openCreate(from?: string) {
+    setNewName("")
+    setTemplate(from && from !== NEW ? from : TEMPLATES[0].id)
+    setCreating(true)
   }
 
   function create() {
     const name = newName.trim()
-    if (!name || roles.some((r) => r.name.toLowerCase() === name.toLowerCase()))
-      return
-    const base = roles.find((r) => r.id === template) ?? INITIAL_ROLES[1]
-    const role: RoleDraft = {
-      ...base,
-      id: crypto.randomUUID(),
-      name,
-      description: "",
-      system: false,
-      permissions: base.permissions.filter((id) => id !== "roles.manage"),
-    }
-    setRoles((all) => [...all, role])
-    setSelectedId(role.id)
-    setSearch("")
+    if (!name || nameTaken(name)) return
+    const base =
+      template === SUPER
+        ? SUPER_DRAFT
+        : (TEMPLATES.find((t) => t.id === template) ??
+          saved.find((s) => s.role.id === template)?.draft ??
+          SUPER_DRAFT)
+    setEdits((all) => ({
+      ...all,
+      [NEW]: {
+        name,
+        description: "",
+        permissions: grantable(base.permissions),
+        otherKeys: "otherKeys" in base ? [...base.otherKeys] : [],
+      },
+    }))
+    select(NEW)
     setCreating(false)
-    setSavedMessage("")
   }
+
+  const createOptions = [
+    ...TEMPLATES,
+    ...saved.map((s) => ({ id: s.role.id, name: s.role.name })),
+    { id: SUPER, name: `${SUPER_DRAFT.name} (all permissions)` },
+  ]
+  const listEntries = [
+    { key: SUPER, draft: SUPER_DRAFT, role: undefined as Role | undefined },
+    ...saved.map((s) => ({ key: s.role.id, draft: s.draft, role: s.role })),
+    ...(edits[NEW] ? [{ key: NEW, draft: edits[NEW], role: undefined }] : []),
+  ]
 
   return (
     <div className="flex flex-col gap-6">
@@ -175,25 +293,17 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
             The right access for everyone who works with Clover.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setNewName("")
-            setTemplate(selected.id)
-            setCreating(true)
-          }}
-        >
+        <Button onClick={() => openCreate(key)}>
           <HugeiconsIcon icon={Add01Icon} className="size-4" />
           Create role
         </Button>
       </div>
       <TeamNavigation />
-      <div className="flex items-start gap-3 rounded-xl border border-dashed bg-muted/30 px-4 py-3">
-        <Badge variant="secondary" className="mt-0.5 shrink-0">
-          Draft workspace
-        </Badge>
+      <div className="rounded-xl border border-dashed bg-muted/30 px-4 py-3">
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Design roles before putting them into use. Saved drafts stay in this
-          browser; members keep their current access.
+          Roles control what admins can do. Saved changes apply right away to
+          everyone with the role. Super admins always have full access, and
+          admins only see projects they’re assigned to.
         </p>
       </div>
 
@@ -204,25 +314,23 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
               Roles
             </h2>
             <span className="font-mono text-xs text-muted-foreground">
-              {roles.length}
+              {listEntries.length}
             </span>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible">
-            {roles.map((r) => {
-              const baseline = saved.find((s) => s.id === r.id)
-              const changed = !baseline || roleChanges(baseline, r).length > 0
+            {listEntries.map((entry) => {
+              const draft = edits[entry.key] ?? entry.draft
+              const changed =
+                entry.key === NEW ||
+                (!!edits[entry.key] && roleChanges(entry.draft, draft).length > 0)
               return (
                 <button
-                  key={r.id}
-                  onClick={() => {
-                    setSelectedId(r.id)
-                    setSearch("")
-                    setSavedMessage("")
-                  }}
-                  aria-pressed={selected.id === r.id}
+                  key={entry.key}
+                  onClick={() => select(entry.key)}
+                  aria-pressed={key === entry.key}
                   className={cn(
                     "min-w-48 rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none lg:min-w-0",
-                    selected.id === r.id
+                    key === entry.key
                       ? "border-primary/25 bg-primary/5"
                       : "border-transparent hover:bg-muted/60"
                   )}
@@ -233,7 +341,7 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
                       className="size-4 shrink-0 text-muted-foreground"
                     />
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                      {r.name || "Untitled role"}
+                      {draft.name || "Untitled role"}
                     </span>
                     {changed && (
                       <span
@@ -243,18 +351,22 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
                     )}
                   </div>
                   <div className="mt-1.5 pl-6 text-xs text-muted-foreground">
-                    {r.id === "SUPER_ADMIN"
+                    {entry.key === SUPER
                       ? "Full access · protected"
-                      : `${r.permissions.length} permissions · ${r.scope === "assigned" ? "assigned" : "all"} projects`}
+                      : entry.key === NEW
+                        ? `${draft.permissions.length} permissions · not created yet`
+                        : `${draft.permissions.length} permissions · ${entry.role?.adminCount ?? 0} ${entry.role?.adminCount === 1 ? "member" : "members"}`}
                   </div>
                 </button>
               )
             })}
           </div>
-          <p className="mt-5 hidden px-2 text-xs leading-relaxed text-muted-foreground lg:block">
-            Admin starts with contributor access. Its grants can be changed; the
-            listed permissions are defaults, not a fixed policy.
-          </p>
+          {saved.length === 0 && !edits[NEW] && (
+            <p className="mt-3 px-2 text-xs leading-relaxed text-muted-foreground">
+              No custom roles yet. Create one, then assign it to admins from
+              the Members tab.
+            </p>
+          )}
         </aside>
 
         <div className="min-w-0">
@@ -268,11 +380,7 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
                   {selected.name || "Untitled role"}
                 </h2>
                 <Badge variant="secondary">
-                  {locked
-                    ? "Protected role"
-                      : selected.system
-                        ? "Built-in role · configurable"
-                      : "Custom role draft"}
+                  {locked ? "Protected role" : isNew ? "New role" : "Custom role"}
                 </Badge>
               </div>
               {locked ? (
@@ -331,67 +439,15 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
                   </strong>{" "}
                   sensitive permissions
                 </span>
-                <span>
-                  {selected.system
-                    ? `${currentMembers ?? "—"} current members`
-                    : "Not assigned to members"}
-                </span>
+                {!locked && (
+                  <span>
+                    {isNew
+                      ? "Not assigned to members"
+                      : `${members} ${members === 1 ? "member" : "members"}`}
+                  </span>
+                )}
               </div>
             </div>
-
-            <fieldset disabled={locked} className="border-b p-5 sm:p-6">
-              <legend className="sr-only">Project access</legend>
-              <h3 className="text-sm font-semibold">
-                Which projects can this role access?
-              </h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Project permissions below apply within this scope.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {(
-                  [
-                    {
-                      value: "assigned",
-                      title: "Assigned projects",
-                      body: "Only projects they’ve been added to.",
-                    },
-                    {
-                      value: "all",
-                      title: "All projects",
-                      body: "Every project in the workspace.",
-                    },
-                  ] as const
-                ).map((option) => (
-                  <label
-                    key={option.value}
-                    className={cn(
-                      "flex cursor-pointer items-start gap-3 rounded-xl border p-3.5",
-                      selected.scope === option.value
-                        ? "border-primary/30 bg-primary/5"
-                        : "border-border",
-                      locked && "cursor-default"
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="project-scope"
-                      value={option.value}
-                      checked={selected.scope === option.value}
-                      onChange={() => update({ scope: option.value })}
-                      className="mt-0.5 size-4 accent-primary"
-                    />
-                    <span>
-                      <span className="block text-sm font-medium">
-                        {option.title}
-                      </span>
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        {option.body}
-                      </span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4 sm:px-6">
               <h3 className="text-sm font-semibold">Permissions</h3>
@@ -491,6 +547,23 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
                   No permissions match “{search}”.
                 </p>
               )}
+              {selected.otherKeys.length > 0 && (
+                <section className="border-t py-5" aria-labelledby="group-other">
+                  <h4 id="group-other" className="text-sm font-semibold">
+                    Other permission keys
+                  </h4>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Granted outside this editor. They’re kept when you save.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {selected.otherKeys.map((k) => (
+                      <Badge key={k} variant="outline" className="font-mono">
+                        {k}
+                      </Badge>
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           </div>
           <p className="px-1 py-3 text-xs leading-relaxed text-muted-foreground">
@@ -502,14 +575,26 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
               className="min-w-0 text-xs text-muted-foreground"
               role="status"
             >
-              {savedMessage ||
-                (locked
-                  ? "This role always has full access."
+              {locked
+                ? "This role always has full access."
+                : isNew
+                  ? "New role · not created yet"
                   : dirty
-                    ? `${changes.length} unsaved change${changes.length === 1 ? "" : "s"} · live access unchanged`
-                    : "No unsaved changes · live access unchanged")}
+                    ? `${changes.length} unsaved change${changes.length === 1 ? "" : "s"}`
+                    : "No unsaved changes"}
             </div>
             <div className="flex gap-2">
+              {!locked && !isNew && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <HugeiconsIcon icon={Delete02Icon} className="size-3.5" />
+                  Delete
+                </Button>
+              )}
               {!locked && (
                 <Button
                   variant="ghost"
@@ -524,11 +609,7 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => {
-                    setNewName("")
-                    setTemplate(selected.id)
-                    setCreating(true)
-                  }}
+                  onClick={() => openCreate(SUPER)}
                 >
                   Duplicate role
                 </Button>
@@ -550,10 +631,13 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
       <Dialog open={review} onOpenChange={setReview}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Review {selected.name}</DialogTitle>
+            <DialogTitle>Review {selected.name.trim()}</DialogTitle>
             <DialogDescription>
-              This saves a role draft in this browser. It does not change
-              anyone’s current access.
+              {isNew
+                ? "This creates the role. Nobody has it until you assign it."
+                : members > 0
+                  ? `Changes apply immediately to the ${members} ${members === 1 ? "admin" : "admins"} with this role.`
+                  : "No admins have this role yet."}
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-72 space-y-2 overflow-y-auto">
@@ -570,24 +654,45 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
               </div>
             ))}
           </div>
-          {(sensitive > 0 || selected.scope === "all") && (
+          {sensitive > 0 && (
             <p className="rounded-xl border border-warning/25 bg-warning/5 p-3 text-xs leading-relaxed">
               This role includes {sensitive} sensitive permission
-              {sensitive === 1 ? "" : "s"} and access to{" "}
-              {selected.scope === "all"
-                ? "all projects"
-                : "assigned projects only"}
-              .
+              {sensitive === 1 ? "" : "s"}.
             </p>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setReview(false)}>
               Keep editing
             </Button>
-            <Button onClick={save}>Save draft</Button>
+            <Button onClick={save} disabled={saveRole.isPending}>
+              {isNew ? "Create role" : "Save role"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {original?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {members > 0
+                ? `${members} ${members === 1 ? "admin has" : "admins have"} this role. They’ll be left with no role until you assign another. Their accounts aren’t affected.`
+                : "No admins have this role. This can’t be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleteRole.isPending}
+              onClick={remove}
+            >
+              Delete role
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={creating} onOpenChange={setCreating}>
         <DialogContent>
@@ -620,21 +725,19 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
               >
                 <SelectTrigger id="role-template" className="w-full">
                   <SelectValue>
-                    {roles.find((role) => role.id === template)?.name}
+                    {createOptions.find((o) => o.id === template)?.name}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {roles.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.name}
+                  {createOptions.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            {roles.some(
-              (r) => r.name.toLowerCase() === newName.trim().toLowerCase()
-            ) && (
+            {newName.trim() && nameTaken(newName) && (
               <p className="text-xs text-destructive">
                 Choose a unique role name.
               </p>
@@ -645,15 +748,10 @@ function RolesEditor({ storageKey }: { storageKey: string }) {
               Cancel
             </Button>
             <Button
-              disabled={
-                !newName.trim() ||
-                roles.some(
-                  (r) => r.name.toLowerCase() === newName.trim().toLowerCase()
-                )
-              }
+              disabled={!newName.trim() || nameTaken(newName)}
               onClick={create}
             >
-              Create draft
+              Continue
             </Button>
           </DialogFooter>
         </DialogContent>

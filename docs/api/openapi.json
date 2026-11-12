@@ -29,6 +29,10 @@
       "description": "Admin user management — super admin only"
     },
     {
+      "name": "Roles & Permissions",
+      "description": "Dynamic RBAC — arbitrary super-admin-defined roles and permission keys. SUPER_ADMIN accounts bypass this system entirely; it only gates ADMIN accounts"
+    },
+    {
       "name": "Pages",
       "description": "CMS page management — admin only"
     },
@@ -55,6 +59,10 @@
     {
       "name": "Project Updates",
       "description": "Internal project updates — admin only"
+    },
+    {
+      "name": "Project Assignments",
+      "description": "Which admins are assigned to a project — scopes the admin dashboard and notifications feed"
     },
     {
       "name": "Invoices",
@@ -128,7 +136,8 @@
             "enum": [
               "SUPER_ADMIN",
               "ADMIN"
-            ]
+            ],
+            "description": "Coarse switch — SUPER_ADMIN always bypasses the dynamic permission system below, regardless of assignedRole"
           },
           "emailVerified": {
             "type": "boolean",
@@ -137,6 +146,83 @@
           "approved": {
             "type": "boolean",
             "description": "Must be true (set by super admin) before the admin can sign in"
+          },
+          "assignedRole": {
+            "nullable": true,
+            "allOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            ],
+            "description": "The admin's dynamic RBAC role (irrelevant for SUPER_ADMIN). Only present on admin-detail-shaped responses, e.g. PUT /api/admins/{id}/assigned-role."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Permission": {
+        "type": "object",
+        "description": "A named, data-driven access-control key — e.g. \"workspace.settings\". There is no code-level enum of permissions; any key can be created, either explicitly via POST /api/permissions or implicitly by granting a new key to a role.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string",
+            "example": "workspace.settings",
+            "description": "lowercase, dot-separated \"resource.action\" shape"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Role": {
+        "type": "object",
+        "description": "A super-admin-defined, arbitrary bundle of permissions. An ADMIN's effective permissions are exactly their assigned role's permissionKeys; SUPER_ADMIN accounts bypass this system entirely.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Workspace Manager"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "permissionKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "workspace.settings"
+            ]
+          },
+          "adminCount": {
+            "type": "integer",
+            "description": "Number of admins currently assigned this role"
           },
           "createdAt": {
             "type": "string",
@@ -404,6 +490,13 @@
           "notes": {
             "type": "string",
             "nullable": true
+          },
+          "assignedAdmins": {
+            "type": "array",
+            "description": "Admins assigned to this project — determines who sees it on GET /api/projects and gets notified about it. Empty unless explicitly assigned via POST /api/projects/{id}/assignments.",
+            "items": {
+              "$ref": "#/components/schemas/Admin"
+            }
           },
           "createdAt": {
             "type": "string",
@@ -1636,6 +1729,757 @@
           },
           "404": {
             "description": "Admin not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admins/{id}/assigned-role": {
+      "put": {
+        "tags": [
+          "Admin Management",
+          "Roles & Permissions"
+        ],
+        "summary": "Assign or clear an admin's dynamic RBAC role",
+        "description": "Has no effect on a SUPER_ADMIN account — it bypasses the permission system regardless of any assigned role. Pass `roleId: null` to unassign.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "roleId"
+                ],
+                "properties": {
+                  "roleId": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Admin"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Admin not found / Role not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/permissions": {
+      "get": {
+        "tags": [
+          "Roles & Permissions"
+        ],
+        "summary": "List all known permission keys",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Permission"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Super admin access required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Roles & Permissions"
+        ],
+        "summary": "Explicitly define a new permission key",
+        "description": "Usually unnecessary — granting an unknown key to a role (POST /api/roles or PUT /api/roles/{id}/permissions) creates it automatically. Use this only to define a key with a description ahead of assigning it anywhere.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "key"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "example": "workspace.settings"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Permission"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Permission key must look like \"resource.action\" (lowercase, dot-separated)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Super admin access required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Permission key already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/permissions/{id}": {
+      "delete": {
+        "tags": [
+          "Roles & Permissions"
+        ],
+        "summary": "Delete a permission key",
+        "description": "Cascades — removes it from every role currently granting it.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Super admin access required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Permission not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/roles": {
+      "get": {
+        "tags": [
+          "Roles & Permissions"
+        ],
+        "summary": "List all roles",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Role"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Super admin access required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Roles & Permissions"
+        ],
+        "summary": "Create a role",
+        "description": "Any `permissionKeys` not already defined are created automatically.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Workspace Manager"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "permissionKeys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "example": [
+                      "workspace.settings"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Role"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Permission key must look like \"resource.action\" (lowercase, dot-separated)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Super admin access required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Role name already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/roles/{id}": {
+      "get": {
+        "tags": [
+          "Roles & Permissions"
+        ],
+        "summary": "Get a single role",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Role"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Super admin access required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Role not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Roles & Permissions"
+        ],
+        "summary": "Rename / redescribe a role",
+        "description": "Does not touch permissions — use PUT /api/roles/{id}/permissions for that.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Role"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Super admin access required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Role not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Role name already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Roles & Permissions"
+        ],
+        "summary": "Delete a role",
+        "description": "Admins assigned this role have their assignment cleared (their `assignedRole` becomes null) rather than being blocked or deleted themselves.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Super admin access required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Role not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/roles/{id}/permissions": {
+      "put": {
+        "tags": [
+          "Roles & Permissions"
+        ],
+        "summary": "Replace a role's full permission set",
+        "description": "Wholesale replace, not merge — pass every key the role should end up with. Any key not already defined is created automatically. Takes effect immediately for every admin holding this role (no re-authentication needed).",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "permissionKeys"
+                ],
+                "properties": {
+                  "permissionKeys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "example": [
+                      "workspace.settings",
+                      "projects.write"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Role"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Super admin access required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Role not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -3009,7 +3853,8 @@
         "tags": [
           "Projects"
         ],
-        "summary": "List all projects across all clients",
+        "summary": "List projects — scoped to the calling admin",
+        "description": "A SUPER_ADMIN sees every project. A regular ADMIN only sees projects they are assigned to (see the Project Assignments endpoints) — this is what powers the admin dashboard. An admin with no assignments sees an empty list.",
         "security": [
           {
             "AdminBearer": []
@@ -3188,7 +4033,8 @@
         "tags": [
           "Projects"
         ],
-        "summary": "Get a project with milestones, updates, invoices, and deliverables",
+        "summary": "Get a project with milestones, updates, invoices, deliverables, and assigned admins",
+        "description": "Not scoped by assignment — any authenticated admin can look up a project directly by id, regardless of whether they appear in `assignedAdmins`. Only the list endpoint (`GET /api/projects`) is filtered.",
         "security": [
           {
             "AdminBearer": []
@@ -3946,6 +4792,165 @@
         }
       }
     },
+    "/api/projects/{id}/assignments": {
+      "post": {
+        "tags": [
+          "Project Assignments"
+        ],
+        "summary": "Assign an admin to a project",
+        "description": "Once assigned, the project appears on that admin's `GET /api/projects` (dashboard) and they receive notifications about it. Has no effect on SUPER_ADMIN visibility — they see every project regardless of assignment.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "adminId"
+                ],
+                "properties": {
+                  "adminId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Admin"
+                      },
+                      "description": "The project's full list of assigned admins after the change"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found / Admin not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Admin is already assigned to this project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{id}/assignments/{adminId}": {
+      "delete": {
+        "tags": [
+          "Project Assignments"
+        ],
+        "summary": "Unassign an admin from a project",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "adminId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Admin"
+                      },
+                      "description": "The project's full list of assigned admins after the change"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Admin is not assigned to this project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/projects/{id}/invoices": {
       "get": {
         "tags": [
@@ -4533,6 +5538,100 @@
           },
           "409": {
             "description": "Invoice is already paid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/{id}/pdf/preview": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Preview the invoice PDF inline",
+        "description": "Returns the PDF with `Content-Disposition: inline` so it renders directly in the browser instead of downloading. If the invoice has not been sent yet (no PDF generated so far, e.g. still DRAFT), the PDF is generated on the fly from the invoice's current data — this does not mark the invoice as sent or persist a `pdfUrl`. If a PDF already exists (the invoice was sent), that file is reused as-is.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The invoice PDF",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invoice not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/{id}/pdf/download": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Download the invoice PDF",
+        "description": "Same PDF resolution as the preview endpoint, but returned with `Content-Disposition: attachment` to trigger a download as `Invoice-{invoiceNumber}.pdf`.",
+        "security": [
+          {
+            "AdminBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The invoice PDF",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Invoice not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -5191,7 +6290,7 @@
           "Notifications"
         ],
         "summary": "List the calling admin's notifications, newest first",
-        "description": "Capped at the 50 most recent. `INVOICE_OVERDUE` and `MILESTONE_DUE` are derived lazily on each call from current invoice/milestone state (there is no background scheduler); `REVISION_REQUESTED` and `DELIVERABLE_REVIEW` are created at the moment those events happen, for every approved admin. Intended to be polled roughly every 60s. There is no separate unread-count endpoint — derive it client-side from `data.filter(n => !n.read).length`.",
+        "description": "Capped at the 50 most recent. Scoped like the dashboard (see `GET /api/projects`): a SUPER_ADMIN gets notified about every project, a regular ADMIN only about projects they're assigned to. `INVOICE_OVERDUE` and `MILESTONE_DUE` are derived lazily on each call from current invoice/milestone state (there is no background scheduler); `REVISION_REQUESTED` and `DELIVERABLE_REVIEW` are created at the moment those events happen, for every admin in scope for that project. Intended to be polled roughly every 60s. There is no separate unread-count endpoint — derive it client-side from `data.filter(n => !n.read).length`.",
         "security": [
           {
             "AdminBearer": []
@@ -6231,100 +7330,6 @@
           },
           "401": {
             "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/invoices/{id}/pdf/preview": {
-      "get": {
-        "tags": [
-          "Invoices"
-        ],
-        "summary": "Preview the invoice PDF inline",
-        "description": "Returns the PDF with `Content-Disposition: inline` so it renders directly in the browser instead of downloading. If the invoice has not been sent yet (no PDF generated so far, e.g. still DRAFT), the PDF is generated on the fly from the invoice's current data — this does not mark the invoice as sent or persist a `pdfUrl`. If a PDF already exists (the invoice was sent), that file is reused as-is.",
-        "security": [
-          {
-            "AdminBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The invoice PDF",
-            "content": {
-              "application/pdf": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Invoice not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/invoices/{id}/pdf/download": {
-      "get": {
-        "tags": [
-          "Invoices"
-        ],
-        "summary": "Download the invoice PDF",
-        "description": "Same PDF resolution as the preview endpoint, but returned with `Content-Disposition: attachment` to trigger a download as `Invoice-{invoiceNumber}.pdf`.",
-        "security": [
-          {
-            "AdminBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The invoice PDF",
-            "content": {
-              "application/pdf": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Invoice not found",
             "content": {
               "application/json": {
                 "schema": {

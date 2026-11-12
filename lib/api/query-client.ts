@@ -80,6 +80,10 @@ export const queryKeys = {
     all: ["admins"] as const,
     byId: (id: string) => ["admins", id] as const,
   },
+  roles: {
+    all: ["roles"] as const,
+    byId: (id: string) => ["roles", id] as const,
+  },
   clients: {
     all: ["clients"] as const,
     byId: (id: string) => ["clients", id] as const,

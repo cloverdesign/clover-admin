@@ -2,7 +2,7 @@
 
 > **Policy source:** [Admin role access control PRD](./admin-role-access-prd.md). `ADMIN` is a configurable seeded role profile; arbitrary custom roles are supported. Only `SUPER_ADMIN` has unconditional full access. The PRD is authoritative for live roles and server enforcement.
 
-Status: frontend permission-aware UI is prepared; effective permissions and live role management require backend API support.
+Status: live role management is connected (`/api/roles`, `/api/admins/{id}/assigned-role`). Effective permissions for the signed-in admin are still missing from the API, so navigation and route checks use the contributor defaults.
 
 ## Policy
 
@@ -85,38 +85,28 @@ The client portal is outside this change and must retain its own authorization.
 - SUPER_ADMIN retains the permitted workflows; client portal access remains scoped
   to its authenticated client.
 
-## Granular role editor design
+## Role editor (live)
 
-The frontend now includes `/admin/team/roles`, linked from Team. This is an
-interactive draft editor, not live role management. Drafts are stored locally per
-super-admin account (`clover.role-drafts.v1.<adminId>`). Existing `ADMIN` and
-`SUPER_ADMIN` authorization remains unchanged. Super admin is immutable; Admin
-can be used as a draft template and custom roles can be created from any role.
+`/admin/team/roles` reads and writes `GET/POST /api/roles`, `PUT /api/roles/{id}`,
+`PUT /api/roles/{id}/permissions` (full replace) and `DELETE /api/roles/{id}`.
+Members get a role from the Team row menu (`PUT /api/admins/{id}/assigned-role`).
+Browser-saved drafts are gone. The keys offered in the editor come from
+`lib/role-drafts.ts`. Keys the API returns that aren't in that list are shown
+read-only and are kept when a role is saved. `roles.manage` is never granted.
+The API has no per-role project scope, so admins see only projects they're
+assigned to.
 
-The draft catalog in `lib/role-drafts.ts` separates project scope (`assigned` or
-`all`) from individual permissions. Financial viewing, financial editing, invoice
-viewing, invoice management, payment recording and deletion are separate grants.
-Granting an action includes required viewing permissions; removing a prerequisite
-removes dependent actions. Workspace permissions are explicitly global.
+Still needed from the backend:
 
-Before activating drafts, the backend needs:
-
-- Stable role IDs, names, descriptions, project scope and permission IDs; seeded
-  role defaults, immutable SUPER_ADMIN, and a deny-by-default permission catalog.
-- Authorized list/create/update/delete role endpoints with version checks to
-  prevent concurrent edits overwriting one another.
-- Explicit role assignment to accounts, an affected-member count and a reviewed
-  change summary. Custom drafts currently have no live member assignment.
-- Server-side validation of permission dependencies and project scope, including
-  client visibility derived from accessible projects (never all projects of a
-  shared client by implication). Global workspace permissions remain separate.
-- A current-user effective-permissions response to drive navigation, reads and
-  actions. Replace current binary frontend checks only after this contract exists.
-- Audit events for role edits and member assignment, immediate session permission
-  refresh, and protections against self-escalation or removal of the final owner.
-
-Local draft storage must never be accepted as authorization evidence or silently
-applied to members when connecting this UI to the API.
+- **Effective permissions on `GET /api/auth/me`** (or `assignedRole` with its
+  `permissionKeys`). An ADMIN can't read `/api/roles/{id}`, so until then the UI
+  can't tell what a custom role allows and falls back to contributor defaults.
+- **`assignedRole` on `GET /api/admins`.** The spec only promises it on
+  detail responses, so the Team list may not show each admin's role after a reload.
+- **Which keys each endpoint enforces.** The spec documents none; the frontend
+  catalog keys (e.g. `invoices.view`) must match what the server checks.
+- **ADMIN with no role.** The spec says effective permissions are exactly the
+  role's keys, which would mean no access at all. Confirm, or seed a default role.
 
 ## Workspace Settings API request
 

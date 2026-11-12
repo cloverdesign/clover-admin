@@ -302,17 +302,68 @@ export interface Admin {
   name: string
   email: string
   role: AdminRole
+  /** Dynamic RBAC role (`PUT /api/admins/{id}/assigned-role`). Irrelevant for
+   * SUPER_ADMIN, which bypasses permissions. The spec only promises it on
+   * admin-detail-shaped responses, so `undefined` means "not sent", while
+   * `null` means "no role". */
+  assignedRole?: AdminAssignedRole | null
   /** Stable persisted role ID. Custom roles are identified here. */
   roleId?: string
   /** Display name for custom or renamed roles. */
   roleName?: string
-  /** Server-resolved grants. When present, this is authoritative for UI visibility. */
+  /** Server-resolved grants. Not in the API yet; when present, this is
+   * authoritative for UI visibility. */
   effectivePermissions?: string[]
   projectScope?: "assigned" | "all"
   emailVerified: boolean
   approved: boolean
   createdAt: string
   updatedAt: string
+}
+
+export interface AdminAssignedRole {
+  id: string
+  name: string
+}
+
+/** `PUT /api/admins/{id}/assigned-role` — `null` unassigns. */
+export interface AdminAssignedRoleInput {
+  roleId: string | null
+}
+
+/* -------------------------------------------------------------------- rbac */
+
+/** A super-admin-defined bundle of permission keys (gates ADMIN accounts only). */
+export interface Role {
+  id: string
+  name: string
+  description: string | null
+  permissionKeys: string[]
+  /** Admins currently assigned this role. */
+  adminCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+/** `POST /api/roles`. Unknown permission keys are created automatically. */
+export interface RoleCreateInput {
+  name: string
+  description?: string
+  permissionKeys?: string[]
+}
+
+/** `PUT /api/roles/{id}` — name/description only; permissions are separate. */
+export interface RoleUpdateInput {
+  name?: string
+  description?: string
+}
+
+/** A data-driven `resource.action` key, e.g. `workspace.settings`. */
+export interface Permission {
+  id: string
+  key: string
+  description: string | null
+  createdAt: string
 }
 
 /** Result of the token-minting steps (`verify-otp`, `verify-email`) — a 7-day

@@ -7,7 +7,7 @@
 import { apiClient } from "@/lib/api/client"
 import { AdminsEndpoints } from "@/lib/api/endpoints"
 import type { ApiEnvelope } from "@/lib/api/types"
-import type { Admin, AdminRoleInput } from "@/lib/api/models"
+import type { Admin, AdminAssignedRoleInput, AdminRoleInput } from "@/lib/api/models"
 
 export class AdminsService {
   static async list(): Promise<Admin[]> {
@@ -30,6 +30,12 @@ export class AdminsService {
 
   static async setRole(id: string, input: AdminRoleInput): Promise<void> {
     await apiClient.put<ApiEnvelope<Admin>>(AdminsEndpoints.role(id), input)
+  }
+
+  /** Assign a dynamic RBAC role, or clear it with `roleId: null`. */
+  static async setAssignedRole(id: string, input: AdminAssignedRoleInput): Promise<Admin> {
+    const res = await apiClient.put<ApiEnvelope<Admin>>(AdminsEndpoints.assignedRole(id), input)
+    return res.data.data
   }
 
   static async remove(id: string): Promise<void> {

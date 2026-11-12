@@ -18,7 +18,26 @@ export const AdminsEndpoints = {
   approve: (id: string) => `/api/admins/${id}/approve`,
   revoke: (id: string) => `/api/admins/${id}/revoke`,
   role: (id: string) => `/api/admins/${id}/role`,
+  /** Dynamic RBAC role (body `{ roleId }`, `null` unassigns). */
+  assignedRole: (id: string) => `/api/admins/${id}/assigned-role`,
   remove: (id: string) => `/api/admins/${id}`,
+}
+
+/** Dynamic RBAC — super-admin only. Gates ADMIN accounts; SUPER_ADMIN bypasses. */
+export const RoleEndpoints = {
+  list: "/api/roles",
+  create: "/api/roles",
+  byId: (id: string) => `/api/roles/${id}`,
+  update: (id: string) => `/api/roles/${id}`,
+  remove: (id: string) => `/api/roles/${id}`,
+  /** Wholesale replace (not merge) of a role's permission keys. */
+  permissions: (id: string) => `/api/roles/${id}/permissions`,
+}
+
+export const PermissionEndpoints = {
+  list: "/api/permissions",
+  create: "/api/permissions",
+  remove: (id: string) => `/api/permissions/${id}`,
 }
 
 export const DeliverableEndpoints = {

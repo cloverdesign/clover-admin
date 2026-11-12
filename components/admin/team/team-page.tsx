@@ -23,6 +23,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu"
 import {
   AlertDialog,
@@ -41,8 +46,13 @@ import {
   useRevokeAdmin,
   useSetAdminRole,
   useDeleteAdmin,
+  useAssignAdminRole,
 } from "@/lib/queries/admins-queries"
-import type { Admin } from "@/lib/api/models"
+import { useRoles } from "@/lib/queries/roles-queries"
+import type { Admin, Role } from "@/lib/api/models"
+
+/** Radio value for "no role assigned". */
+const NO_ROLE = "__none__"
 
 /**
  * Team — admin account management for super admins. Lists pending and active
@@ -52,6 +62,7 @@ import type { Admin } from "@/lib/api/models"
 export function TeamPage() {
   const { data: me, isLoading: meLoading } = useMe()
   const { data: admins, isLoading, isError } = useAdmins()
+  const { data: roles } = useRoles({ enabled: me?.role === "SUPER_ADMIN" })
 
   if (meLoading) {
     return (
@@ -108,14 +119,14 @@ export function TeamPage() {
       {pending.length > 0 && (
         <Section title="Pending approval">
           {pending.map((a) => (
-            <AdminRow key={a.id} admin={a} meId={me.id} />
+            <AdminRow key={a.id} admin={a} meId={me.id} roles={roles} />
           ))}
         </Section>
       )}
 
       <Section title="Active">
         {active.map((a) => (
-          <AdminRow key={a.id} admin={a} meId={me.id} />
+          <AdminRow key={a.id} admin={a} meId={me.id} roles={roles} />
         ))}
       </Section>
     </div>
@@ -144,12 +155,21 @@ function initials(name: string): string {
     .join("")
 }
 
-function AdminRow({ admin, meId }: { admin: Admin; meId: string }) {
+function AdminRow({
+  admin,
+  meId,
+  roles,
+}: {
+  admin: Admin
+  meId: string
+  roles: Role[] | undefined
+}) {
   const [confirm, setConfirm] = React.useState<"revoke" | "delete" | null>(null)
   const approve = useApproveAdmin()
   const revoke = useRevokeAdmin()
   const setRole = useSetAdminRole()
   const del = useDeleteAdmin()
+  const assignRole = useAssignAdminRole()
 
   const isSelf = admin.id === meId
   const isSuper = admin.role === "SUPER_ADMIN"
@@ -160,7 +180,16 @@ function AdminRow({ admin, meId }: { admin: Admin; meId: string }) {
   const canPromote = !isSuper && !isSelf
   const canDemote = isSuper && !isSelf
   const canDelete = !isSelf && !isSuper
-  const hasActions = canApprove || canRevoke || canPromote || canDemote || canDelete
+  // Roles only gate ADMIN accounts; a super admin bypasses them.
+  const canAssignRole = !isSuper && Boolean(roles?.length)
+  const hasActions =
+    canApprove || canRevoke || canPromote || canDemote || canDelete || canAssignRole
+  // `undefined` = the API didn't say; `null` = explicitly no role.
+  const roleLabel = isSuper
+    ? "Super admin"
+    : (admin.assignedRole?.name ?? admin.roleName ?? "Admin")
+  const roleValue =
+    admin.assignedRole === undefined ? "" : (admin.assignedRole?.id ?? NO_ROLE)
 
   return (
     <>
@@ -176,7 +205,7 @@ function AdminRow({ admin, meId }: { admin: Admin; meId: string }) {
             <span className="truncate text-sm font-medium">{admin.name}</span>
             {isSelf && <span className="text-xs text-muted-foreground">You</span>}
             <Badge variant={isSuper ? "info" : "secondary"}>
-              {admin.roleName ?? (isSuper ? "Super admin" : "Admin")}
+              {roleLabel}
             </Badge>
             <Badge variant={admin.approved ? "success" : "warning"}>
               {admin.approved ? "Active" : "Pending"}
@@ -203,6 +232,33 @@ function AdminRow({ admin, meId }: { admin: Admin; meId: string }) {
                   <HugeiconsIcon icon={CheckmarkCircle02Icon} />
                   Approve
                 </DropdownMenuItem>
+              )}
+              {canAssignRole && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <HugeiconsIcon icon={ShieldKeyIcon} />
+                    Role
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuRadioGroup
+                      value={roleValue}
+                      onValueChange={(value: string) =>
+                        value !== roleValue &&
+                        assignRole.mutate({
+                          id: admin.id,
+                          roleId: value === NO_ROLE ? null : value,
+                        })
+                      }
+                    >
+                      {roles!.map((r) => (
+                        <DropdownMenuRadioItem key={r.id} value={r.id}>
+                          {r.name}
+                        </DropdownMenuRadioItem>
+                      ))}
+                      <DropdownMenuRadioItem value={NO_ROLE}>No role</DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
               )}
               {canPromote && (
                 <DropdownMenuItem

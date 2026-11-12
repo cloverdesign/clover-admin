@@ -1,5 +1,9 @@
-/** Role editor UX data. Browser-saved drafts never authorize requests; the
- * INITIAL_ROLES entries mirror the backend's seeded defaults for the UI. */
+/** Permission catalog for the role editor. The API stores permission keys as
+ * free-form strings (`resource.action`) with no enum, so this list is the
+ * frontend's vocabulary: the keys it offers in the editor and checks in
+ * `lib/access.ts`. INITIAL_ROLES describe the two coarse account roles for the
+ * UI: SUPER_ADMIN (full access), and the contributor defaults the UI assumes
+ * for an ADMIN until the API returns effective permissions. */
 export const PERMISSION_GROUPS = [
   {
     id: "projects",
@@ -220,39 +224,71 @@ export const PERMISSIONS: readonly Permission[] = PERMISSION_GROUPS.flatMap(
   (g) => [...g.permissions]
 )
 export type RoleDraft = {
-  id: string
+  /** API role id. Absent for a role that hasn't been created yet. */
+  id?: string
   name: string
   description: string
-  scope: "assigned" | "all"
+  /** Catalog keys, edited with switches. */
   permissions: PermissionId[]
-  system?: boolean
+  /** Keys the API returned that aren't in the catalog. Kept on save so the
+   * editor never silently drops grants it can't display. */
+  otherKeys: string[]
 }
+
+export function isCatalogPermission(key: string): key is PermissionId {
+  return PERMISSIONS.some((p) => p.id === key)
+}
+
+/** Split an API role's keys into catalog permissions and unknown keys. */
+export function draftFromRole(role: {
+  id: string
+  name: string
+  description: string | null
+  permissionKeys: string[]
+}): RoleDraft {
+  return {
+    id: role.id,
+    name: role.name,
+    description: role.description ?? "",
+    permissions: PERMISSIONS.filter((p) => role.permissionKeys.includes(p.id)).map(
+      (p) => p.id
+    ),
+    otherKeys: role.permissionKeys.filter((k) => !isCatalogPermission(k)),
+  }
+}
+
+/** Every key to send to the API for this draft, catalog order first. */
+export function permissionKeys(draft: RoleDraft): string[] {
+  return [...draft.permissions, ...draft.otherKeys]
+}
+
 const contributor: PermissionId[] = [
   "projects.view",
   "projects.progress",
   "delivery.view",
   "delivery.edit",
 ]
-export const INITIAL_ROLES: RoleDraft[] = [
+export const INITIAL_ROLES = [
   {
     id: "SUPER_ADMIN",
     name: "Super admin",
     description:
       "Full workspace access. Reserved for people who manage Clover.",
-    scope: "all",
     permissions: PERMISSIONS.map((p) => p.id),
-    system: true,
   },
   {
     id: "ADMIN",
     name: "Admin",
     description:
       "Project contributors and contractors. Delivery access without financial information.",
-    scope: "assigned",
     permissions: contributor,
-    system: true,
   },
-]
+] as const satisfies readonly {
+  id: string
+  name: string
+  description: string
+  permissions: readonly PermissionId[]
+}[]
 
 /** Grant prerequisites together; removing a prerequisite removes dependants. */
 export function togglePermission(
@@ -283,16 +319,24 @@ export function togglePermission(
   return PERMISSIONS.filter((p) => next.has(p.id)).map((p) => p.id)
 }
 
+export function detailsChanged(before: RoleDraft, after: RoleDraft): boolean {
+  return (
+    before.name.trim() !== after.name.trim() ||
+    before.description.trim() !== after.description.trim()
+  )
+}
+
+export function permissionsChanged(before: RoleDraft, after: RoleDraft): boolean {
+  const a = permissionKeys(before)
+  const b = permissionKeys(after)
+  return a.length !== b.length || a.some((k) => !b.includes(k))
+}
+
 export function roleChanges(before: RoleDraft, after: RoleDraft): string[] {
   return [
-    ...(before.name !== after.name ? [`Rename to ${after.name}`] : []),
-    ...(before.description !== after.description
+    ...(before.name.trim() !== after.name.trim() ? [`Rename to ${after.name.trim()}`] : []),
+    ...(before.description.trim() !== after.description.trim()
       ? ["Update role description"]
-      : []),
-    ...(before.scope !== after.scope
-      ? [
-          `Project scope: ${after.scope === "all" ? "all projects" : "assigned projects only"}`,
-        ]
       : []),
     ...PERMISSIONS.filter(
       (p) =>
@@ -302,31 +346,4 @@ export function roleChanges(before: RoleDraft, after: RoleDraft): string[] {
         `${after.permissions.includes(p.id) ? "Allow" : "Remove"}: ${p.label}`
     ),
   ]
-}
-
-export function loadRoleDrafts(key: string): RoleDraft[] {
-  try {
-    const parsed: unknown = JSON.parse(localStorage.getItem(key) ?? "null")
-    if (!Array.isArray(parsed)) return INITIAL_ROLES
-    const valid = parsed.filter(
-      (r): r is RoleDraft =>
-        r &&
-        typeof r.id === "string" &&
-        typeof r.name === "string" &&
-        typeof r.description === "string" &&
-        ["assigned", "all"].includes(r.scope) &&
-        Array.isArray(r.permissions) &&
-        r.permissions.every((p: unknown) =>
-          PERMISSIONS.some((permission) => permission.id === p)
-        )
-    )
-    // The super-admin template always stays immutable, even in old local drafts.
-    return [
-      INITIAL_ROLES[0],
-      valid.find((r) => r.id === "ADMIN") ?? INITIAL_ROLES[1],
-      ...valid.filter((r) => r.id !== "ADMIN" && r.id !== "SUPER_ADMIN"),
-    ]
-  } catch {
-    return INITIAL_ROLES
-  }
 }
