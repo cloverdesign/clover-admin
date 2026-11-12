@@ -62,7 +62,7 @@ export class ProjectsService {
 
   static async createMilestone(
     projectId: string,
-    input: MilestoneUpdateInput
+    input: MilestoneInput
   ): Promise<Milestone> {
     const res = await apiClient.post<ApiEnvelope<Milestone>>(
       ProjectEndpoints.createMilestone(projectId),
@@ -74,7 +74,7 @@ export class ProjectsService {
   static async updateMilestone(
     projectId: string,
     milestoneId: string,
-    input: MilestoneInput
+    input: MilestoneUpdateInput
   ): Promise<Milestone> {
     const res = await apiClient.put<ApiEnvelope<Milestone>>(
       ProjectEndpoints.updateMilestone(projectId, milestoneId),
