@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { queryKeys } from "@/lib/api/query-client"
 import { AuthService } from "@/lib/services/auth-service"
+import { withEffectivePermissions } from "@/lib/services/effective-permissions"
 import { setToken, getToken } from "@/lib/api/auth-storage"
 import type {
   LoginCredentialsInput,
@@ -40,6 +41,8 @@ export function useVerifyOtp() {
       qc.clear()
       setToken(result.token)
       qc.setQueryData(queryKeys.auth.me, result.admin)
+      // The seeded profile has no resolved permissions; refetch to add them.
+      qc.invalidateQueries({ queryKey: queryKeys.auth.me })
     },
   })
 }
@@ -65,6 +68,8 @@ export function useVerifyEmail() {
       qc.clear()
       setToken(result.token)
       qc.setQueryData(queryKeys.auth.me, result.admin)
+      // The seeded profile has no resolved permissions; refetch to add them.
+      qc.invalidateQueries({ queryKey: queryKeys.auth.me })
     },
   })
 }
@@ -72,7 +77,7 @@ export function useVerifyEmail() {
 export function useMe() {
   return useQuery({
     queryKey: queryKeys.auth.me,
-    queryFn: () => AuthService.me(),
+    queryFn: async () => withEffectivePermissions(await AuthService.me()),
     enabled: Boolean(getToken()),
     meta: { silent: true },
   })

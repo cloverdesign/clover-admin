@@ -205,7 +205,7 @@ export function UserChip({
   const role =
     me?.role === "SUPER_ADMIN"
       ? ROLE_LABELS[me.role]
-      : (me?.assignedRole?.name ?? me?.roleName ?? (me ? ROLE_LABELS[me.role] : ""))
+      : (me?.assignedRole?.name ?? (me ? ROLE_LABELS[me.role] : ""))
 
   return (
     <div className={cn("flex items-center gap-3", className)}>

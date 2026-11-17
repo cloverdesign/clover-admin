@@ -307,14 +307,10 @@ export interface Admin {
    * admin-detail-shaped responses, so `undefined` means "not sent", while
    * `null` means "no role". */
   assignedRole?: AdminAssignedRole | null
-  /** Stable persisted role ID. Custom roles are identified here. */
-  roleId?: string
-  /** Display name for custom or renamed roles. */
-  roleName?: string
-  /** Server-resolved grants. Not in the API yet; when present, this is
-   * authoritative for UI visibility. */
+  /** Frontend-only: the permission keys resolved for this admin by
+   * `withEffectivePermissions`. The API doesn't send it yet. When present, it
+   * decides UI visibility for ADMIN accounts. */
   effectivePermissions?: string[]
-  projectScope?: "assigned" | "all"
   emailVerified: boolean
   approved: boolean
   createdAt: string
@@ -324,6 +320,8 @@ export interface Admin {
 export interface AdminAssignedRole {
   id: string
   name: string
+  /** Not in the spec. Read if the backend starts embedding the role's keys. */
+  permissionKeys?: string[]
 }
 
 /** `PUT /api/admins/{id}/assigned-role` — `null` unassigns. */

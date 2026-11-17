@@ -15,6 +15,11 @@ export class RolesService {
     return res.data.data
   }
 
+  static async getById(id: string): Promise<Role> {
+    const res = await apiClient.get<ApiEnvelope<Role>>(RoleEndpoints.byId(id))
+    return res.data.data
+  }
+
   static async create(input: RoleCreateInput): Promise<Role> {
     const res = await apiClient.post<ApiEnvelope<Role>>(RoleEndpoints.create, input)
     return res.data.data

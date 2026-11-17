@@ -10,10 +10,31 @@ import { queryKeys } from "@/lib/api/query-client"
 import { AdminsService } from "@/lib/services/admins-service"
 import type { Admin, AdminRole } from "@/lib/api/models"
 
+/**
+ * TEMPORARY: `GET /api/admins` isn't documented to include `assignedRole`, so
+ * ADMIN rows without it are filled from `GET /api/admins/{id}`, one request
+ * per row. A failed lookup leaves the row as the list returned it. Drop the
+ * fill once the list includes the field.
+ */
+async function listAdminsWithRoles(): Promise<Admin[]> {
+  const admins = await AdminsService.list()
+  return Promise.all(
+    admins.map(async (admin) => {
+      if (admin.role !== "ADMIN" || admin.assignedRole !== undefined) return admin
+      try {
+        const detail = await AdminsService.getById(admin.id)
+        return { ...admin, assignedRole: detail.assignedRole ?? null }
+      } catch {
+        return admin
+      }
+    })
+  )
+}
+
 export function useAdmins() {
   return useQuery({
     queryKey: queryKeys.admins.all,
-    queryFn: () => AdminsService.list(),
+    queryFn: listAdminsWithRoles,
     meta: { errorMessage: "Couldn’t load admins." },
   })
 }

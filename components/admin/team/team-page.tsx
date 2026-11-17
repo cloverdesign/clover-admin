@@ -187,7 +187,7 @@ function AdminRow({
   // `undefined` = the API didn't say; `null` = explicitly no role.
   const roleLabel = isSuper
     ? "Super admin"
-    : (admin.assignedRole?.name ?? admin.roleName ?? "Admin")
+    : (admin.assignedRole?.name ?? "Admin")
   const roleValue =
     admin.assignedRole === undefined ? "" : (admin.assignedRole?.id ?? NO_ROLE)
 

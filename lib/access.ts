@@ -42,12 +42,10 @@ export function hasPermission(
   permission: PermissionId
 ): boolean {
   if (!me?.approved || !me.emailVerified) return false
-  if (me.role === "SUPER_ADMIN" || me.roleId === "SUPER_ADMIN") return true
+  if (me.role === "SUPER_ADMIN") return true
   if (permission === "roles.manage") return false
   if (me.effectivePermissions) return me.effectivePermissions.includes(permission)
-  if ((me.roleId ?? me.role) === "ADMIN") {
-    return SEEDED_ADMIN_PERMISSIONS.includes(permission)
-  }
+  if (me.role === "ADMIN") return SEEDED_ADMIN_PERMISSIONS.includes(permission)
   return false
 }
 
@@ -55,7 +53,6 @@ export function hasPermission(
 export function canSeeProject(me: Admin | undefined, project: Project): boolean {
   if (!me || !hasPermission(me, "projects.view")) return false
   if (isSuperAdmin(me)) return true
-  if (hasPermission(me, "projects.view") && me.projectScope === "all") return true
   return (project.assignedAdmins ?? []).some((a) => a.id === me.id)
 }
 
@@ -67,7 +64,7 @@ export function visibleProjects(me: Admin | undefined, projects: Project[]): Pro
 
 /** UI policy only. The API must independently enforce these permissions. */
 export function isSuperAdmin(me: Admin | undefined): boolean {
-  return Boolean(me?.approved && me.emailVerified && (me.role === "SUPER_ADMIN" || me.roleId === "SUPER_ADMIN"))
+  return Boolean(me?.approved && me.emailVerified && me.role === "SUPER_ADMIN")
 }
 
 /** Explicit allowlist: new workspace routes are restricted until reviewed. */

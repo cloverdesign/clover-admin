@@ -96,6 +96,16 @@ read-only and are kept when a role is saved. `roles.manage` is never granted.
 The API has no per-role project scope, so admins see only projects they're
 assigned to.
 
+Temporary frontend workarounds, to remove once the items below ship:
+
+- `lib/services/effective-permissions.ts` resolves an ADMIN's keys after
+  `/me`. It reads `assignedRole.permissionKeys` if present, then tries
+  `GET /api/admins/{id}` and `GET /api/roles/{id}`. Both are super-admin only
+  today, so ADMINs still get the contributor defaults. Opening either one
+  (or embedding the keys) makes custom roles work with no frontend change.
+- `useAdmins` fills a missing `assignedRole` from `GET /api/admins/{id}`, one
+  request per ADMIN row.
+
 Still needed from the backend:
 
 - **Effective permissions on `GET /api/auth/me`** (or `assignedRole` with its
